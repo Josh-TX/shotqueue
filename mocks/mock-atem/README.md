@@ -6,7 +6,7 @@ Fake ATEM switcher for testing PTZ/tally clients. Emits real ATEM UDP protocol p
 
 ```
 npm install
-npm start [webPort]   # default 8080
+npm start [webPort]   # default 9000
 ```
 
 Open `http://localhost:<webPort>` for the control UI (8 cams, Live/Preview per cam, CUT, FADE).

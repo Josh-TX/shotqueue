@@ -45,9 +45,9 @@ func (l *Listener) Run(ctx context.Context) {
 }
 
 func (l *Listener) connectAndRun(ctx context.Context) error {
-	addr := &net.UDPAddr{IP: net.ParseIP(l.Host), Port: atemPort}
-	if addr.IP == nil {
-		return fmt.Errorf("invalid ATEM host %q", l.Host)
+	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", l.Host, atemPort))
+	if err != nil {
+		return fmt.Errorf("invalid ATEM host %q: %w", l.Host, err)
 	}
 	conn, err := net.DialUDP("udp4", nil, addr)
 	if err != nil {

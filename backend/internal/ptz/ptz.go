@@ -1,5 +1,5 @@
 // Package ptz talks to an AW-UE150 (or mock-ue150) over its HTTP CGI interface, ported from
-// go-controller. One Client is bound to a single camera's host:port.
+// mock-controller. One Client is bound to a single camera's host:port.
 package ptz
 
 import (

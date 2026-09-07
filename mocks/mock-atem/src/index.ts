@@ -11,7 +11,7 @@ import {
 } from './commands'
 
 const ATEM_UDP_PORT = 9910
-const WEB_PORT = Number(process.argv[2] ?? process.env.PORT ?? 8080)
+const WEB_PORT = Number(process.argv[2] ?? process.env.PORT ?? 9000)
 
 function snapshotToCommands(snapshot: Snapshot): Buffer[] {
 	return [

@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-backdrop" @click.self="$emit('close')">
+  <div class="modal-backdrop" @mousedown.self="onBackdropMousedown" @click.self="onBackdropClick">
     <div class="modal" :class="{ wide }">
       <div class="modal-header">
         <h2>{{ title }}</h2>
@@ -12,6 +12,19 @@
 </template>
 
 <script setup>
+import { ref } from 'vue';
+
 defineProps({ title: String, wide: { type: Boolean, default: false } });
-defineEmits(['close']);
+const emit = defineEmits(['close']);
+
+const backdropMousedown = ref(false);
+
+function onBackdropMousedown() {
+  backdropMousedown.value = true;
+}
+
+function onBackdropClick() {
+  if (backdropMousedown.value) emit('close');
+  backdropMousedown.value = false;
+}
 </script>

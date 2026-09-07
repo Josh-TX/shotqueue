@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"go-controller/internal/auth"
+	"mock-controller/internal/auth"
 )
 
 // publicDir resolves relative to this source file rather than the working directory, so `go run
-// ./go-controller` works the same from anywhere.
+// ./mock-controller` works the same from anywhere.
 func publicDir() string {
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Join(filepath.Dir(file), "public")
@@ -245,6 +245,6 @@ func main() {
 	mux.HandleFunc("/api/snapshot", c.handleSnapshot)
 	mux.Handle("/", http.FileServer(http.Dir(publicDir())))
 
-	log.Printf("poc-controller listening on http://localhost:%d", port)
+	log.Printf("mock-controller listening on http://localhost:%d", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%d", port), mux))
 }

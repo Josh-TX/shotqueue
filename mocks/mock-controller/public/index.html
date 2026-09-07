@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>mock-controller</title>
+		<style>
+			body {
+				font-family: sans-serif;
+				max-width: 700px;
+				margin: 2rem auto;
+			}
+			#tabs {
+				display: flex;
+				gap: 0.25rem;
+				flex-wrap: wrap;
+			}
+			.tab {
+				padding: 0.4rem 0.7rem;
+				border: 1px solid #999;
+				border-bottom: none;
+				border-radius: 4px 4px 0 0;
+				cursor: pointer;
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				background: #eee;
+			}
+			.tab.active {
+				background: #fff;
+				font-weight: bold;
+			}
+			.tab .close {
+				color: #900;
+				cursor: pointer;
+			}
+			.tab.add {
+				font-weight: bold;
+				padding: 0.4rem 0.8rem;
+			}
+			#content {
+				border: 1px solid #999;
+				padding: 1rem;
+				margin-top: -1px;
+			}
+			fieldset {
+				margin-bottom: 1rem;
+			}
+			#snapshotWrap {
+				position: relative;
+				width: 640px;
+				max-width: 100%;
+			}
+			#snapshot {
+				width: 100%;
+				display: block;
+				background: #222;
+				-webkit-user-drag: none;
+				user-select: none;
+			}
+			#dragBoxOverlay {
+				position: absolute;
+				border: 1px solid rgba(255, 255, 255, 0.6);
+				background: rgba(255, 255, 255, 0.12);
+				display: none;
+				pointer-events: none;
+			}
+			#dragOverlay {
+				position: absolute;
+				border: 2px dashed #0f0;
+				background: rgba(0, 255, 0, 0.15);
+				display: none;
+				pointer-events: none;
+			}
+			#dragOverlay.too-small {
+				border-color: #f00;
+				background: rgba(255, 0, 0, 0.2);
+			}
+			#status {
+				font-family: monospace;
+			}
+			#position {
+				font-family: monospace;
+				white-space: pre;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>mock-controller</h1>
+
+		<div id="tabs"></div>
+		<div id="content">
+			<fieldset>
+				<legend>Status</legend>
+				<div id="status">no cameras — click + to add one</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Snapshot</legend>
+				<div id="snapshotWrap">
+					<img id="snapshot" width="640" height="360" />
+					<div id="dragBoxOverlay"></div>
+					<div id="dragOverlay"></div>
+				</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Current position</legend>
+				<div id="position">-</div>
+			</fieldset>
+
+			<fieldset>
+				<legend>Set position</legend>
+				<button id="beginSetPosition" disabled>Begin Set Position</button>
+				<button id="cancelSetPosition" style="display: none">Cancel</button>
+			</fieldset>
+		</div>
+
+		<script src="app.js"></script>
+	</body>
+</html>
