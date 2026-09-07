@@ -2,6 +2,7 @@ package state
 
 import (
 	"log"
+	"math/rand"
 	"time"
 
 	"shotqueue-backend/internal/atem"
@@ -83,7 +84,7 @@ func (s *Store) AddPreset(cameraID int, name string, groupIDs []int) (*Preset, e
 	for _, gid := range groupIDs {
 		for _, g := range cam.Groups {
 			if g.ID == gid {
-				g.Members = append(g.Members, GroupMember{PresetID: preset.ID, Weight: 10})
+				g.Members = append(g.Members, preset.ID)
 			}
 		}
 	}
@@ -132,9 +133,9 @@ func (s *Store) DeletePreset(cameraID, presetID int) error {
 	cam.Presets = out
 	for _, g := range cam.Groups {
 		members := g.Members[:0]
-		for _, m := range g.Members {
-			if m.PresetID != presetID {
-				members = append(members, m)
+		for _, id := range g.Members {
+			if id != presetID {
+				members = append(members, id)
 			}
 		}
 		g.Members = members
@@ -296,6 +297,9 @@ func (s *Store) SetSelectedGroup(cameraID int, groupID *int) error {
 	return nil
 }
 
+// autoQueueFillLocked picks the next preset to auto-queue from the camera's selected group. Each
+// preset in the group carries a WasTriggered bit, set when it goes live; once every member of the
+// group has been triggered, all their bits reset together so the cycle starts over.
 func (s *Store) autoQueueFillLocked(cam *Camera) {
 	if cam.SelectedGroupID == nil || cam.Queued != nil {
 		return
@@ -307,20 +311,31 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 			break
 		}
 	}
-	if group == nil {
+	if group == nil || len(group.Members) == 0 {
 		return
 	}
-	activeID := activePresetIDLocked(cam)
 
-	type candidate struct {
-		index    int
-		presetID int
-		score    float64
+	allTriggered := true
+	for _, presetID := range group.Members {
+		preset := s.findPresetLocked(cam, presetID)
+		if preset == nil || !preset.WasTriggered {
+			allTriggered = false
+			break
+		}
 	}
-	var best *candidate
-	for i, m := range group.Members {
-		preset := s.findPresetLocked(cam, m.PresetID)
-		if preset == nil {
+	if allTriggered {
+		for _, presetID := range group.Members {
+			if preset := s.findPresetLocked(cam, presetID); preset != nil {
+				preset.WasTriggered = false
+			}
+		}
+	}
+
+	activeID := activePresetIDLocked(cam)
+	var candidates []int
+	for _, presetID := range group.Members {
+		preset := s.findPresetLocked(cam, presetID)
+		if preset == nil || preset.WasTriggered {
 			continue
 		}
 		if activeID != nil && *activeID == preset.ID {
@@ -329,14 +344,12 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 		if cam.TriggeringPresetID == preset.ID {
 			continue
 		}
-		score := float64(m.Weight) / (float64(preset.Scene.TakenCount) + float64(preset.Show.TakenCount)/10 + 1)
-		if best == nil || score > best.score || (score == best.score && i < best.index) {
-			best = &candidate{index: i, presetID: preset.ID, score: score}
-		}
+		candidates = append(candidates, preset.ID)
 	}
-	if best != nil {
-		cam.Queued = &Queued{PresetID: best.presetID, Origin: "auto"}
+	if len(candidates) == 0 {
+		return
 	}
+	cam.Queued = &Queued{PresetID: candidates[rand.Intn(len(candidates))], Origin: "auto"}
 }
 
 func (s *Store) processOfflive(cameraID int) {
@@ -444,7 +457,7 @@ func (s *Store) DeleteGroup(cameraID, groupID int) error {
 	return nil
 }
 
-func (s *Store) SetGroupMember(cameraID, groupID, presetID int, inGroup *bool, weight *int) error {
+func (s *Store) SetGroupMember(cameraID, groupID, presetID int, inGroup bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam := s.findCameraLocked(cameraID)
@@ -466,64 +479,28 @@ func (s *Store) SetGroupMember(cameraID, groupID, presetID int, inGroup *bool, w
 	}
 
 	existingIdx := -1
-	for i, m := range group.Members {
-		if m.PresetID == presetID {
+	for i, id := range group.Members {
+		if id == presetID {
 			existingIdx = i
 			break
 		}
 	}
-	if inGroup != nil && !*inGroup {
+	if !inGroup {
 		if existingIdx >= 0 {
 			group.Members = append(group.Members[:existingIdx], group.Members[existingIdx+1:]...)
 		}
-	} else if inGroup != nil && *inGroup && existingIdx < 0 {
-		group.Members = append(group.Members, GroupMember{PresetID: presetID, Weight: 10})
-	}
-	if weight != nil {
-		w := *weight
-		if w < 1 {
-			w = 1
-		}
-		for i, m := range group.Members {
-			if m.PresetID == presetID {
-				group.Members[i].Weight = w
-			}
-		}
+	} else if existingIdx < 0 {
+		group.Members = append(group.Members, presetID)
 	}
 	go s.broadcast()
 	return nil
 }
 
-// ---- metrics ----
-
-func (s *Store) ResetShowMetrics() {
-	s.mu.Lock()
-	for _, cam := range s.cameras {
-		for _, p := range cam.Presets {
-			p.Show = Metrics{}
-			p.Scene = Metrics{}
-		}
-	}
-	s.mu.Unlock()
-	s.broadcast()
-}
-
-func (s *Store) ResetSceneMetrics() {
-	s.mu.Lock()
-	for _, cam := range s.cameras {
-		for _, p := range cam.Presets {
-			p.Scene = Metrics{}
-		}
-	}
-	s.mu.Unlock()
-	s.broadcast()
-}
-
 // ---- ATEM tally wiring ----
 
-// ApplyTally reconciles a new tally snapshot against the camera roster. Cameras leaving "live"
-// settle their metrics and, after a short grace period (mirroring the old fake-ATEM's crossfade
-// pause), fire any queued preset and refill the group's auto-queue.
+// ApplyTally reconciles a new tally snapshot against the camera roster. Cameras leaving "live",
+// after a short grace period (mirroring the old fake-ATEM's crossfade pause), fire any queued
+// preset and refill the group's auto-queue.
 func (s *Store) ApplyTally(ts atem.TallyState) {
 	liveSet := map[uint16]bool{}
 	for _, src := range ts.Live {
@@ -576,9 +553,7 @@ func (s *Store) markLive(cam *Camera) {
 	activeID := activePresetIDLocked(cam)
 	if activeID != nil {
 		if preset := s.presetsByID[*activeID]; preset != nil {
-			preset.liveSince = time.Now()
-			preset.Scene.TakenCount++
-			preset.Show.TakenCount++
+			preset.WasTriggered = true
 		}
 	}
 	s.mu.Unlock()
@@ -588,14 +563,6 @@ func (s *Store) markLive(cam *Camera) {
 func (s *Store) markOffLive(cam *Camera, to string) {
 	s.mu.Lock()
 	cam.Status = to
-	for _, p := range cam.Presets {
-		if !p.liveSince.IsZero() {
-			elapsed := time.Since(p.liveSince).Milliseconds()
-			p.Scene.LiveTimeMs += elapsed
-			p.Show.LiveTimeMs += elapsed
-			p.liveSince = time.Time{}
-		}
-	}
 	cameraID := cam.ID
 	s.mu.Unlock()
 	s.broadcast()

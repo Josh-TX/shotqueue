@@ -17,7 +17,8 @@
     </div>
     <div class="preset-thumb-gradient" />
     <div class="preset-thumb-name">{{ preset.name }}</div>
-    <div class="preset-thumb-scene-count" title="Scene takes">{{ preset.scene.takenCount }}</div>
+    <!-- temporary debug indicator for wasTriggered, remove once the auto-queue logic is verified -->
+    <div class="preset-thumb-debug" title="wasTriggered">{{ preset.wasTriggered ? '●' : '' }}</div>
   </div>
 
   <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />
@@ -45,7 +46,6 @@
 import { computed, ref, watch } from 'vue';
 import { api } from '../api.js';
 import { GROUP_COLOR_HEX } from '../colors.js';
-import { formatDuration } from '../utils.js';
 import ContextMenu from './ContextMenu.vue';
 import PromptModal from './PromptModal.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
@@ -67,7 +67,7 @@ const borderClass = computed(() => {
 });
 
 const memberGroups = computed(() =>
-  props.camera.groups.filter((g) => g.members.some((m) => m.presetId === props.preset.id))
+  props.camera.groups.filter((g) => g.members.includes(props.preset.id))
 );
 
 const imgSrc = computed(() => `${props.preset.thumbnailUrl}?v=${props.preset.thumbnailVersion}`);
@@ -112,15 +112,6 @@ const menuItems = computed(() => [
     label: isQueued.value ? 'Unqueue Preset' : 'Queue Preset',
     disabled: isActive.value || isTriggering.value,
     action: toggleQueue,
-  },
-  { divider: true },
-  {
-    info: true,
-    label: `Scene: ${props.preset.scene.takenCount} takes\n${formatDuration(props.preset.scene.liveTimeMs)} live`,
-  },
-  {
-    info: true,
-    label: `Show: ${props.preset.show.takenCount} takes\n${formatDuration(props.preset.show.liveTimeMs)} live`,
   },
   { divider: true },
   { label: 'Rename Preset', action: () => (renaming.value = true) },

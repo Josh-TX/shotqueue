@@ -58,8 +58,6 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/presets/", s.handlePresetThumbnail)
 	mux.HandleFunc("/api/colors", s.handleColors)
 	mux.HandleFunc("/api/settings", s.handleSettings)
-	mux.HandleFunc("/api/reset-show", s.handleResetShow)
-	mux.HandleFunc("/api/reset-scene", s.handleResetScene)
 	mux.HandleFunc("/api/versions", s.handleVersions)
 	mux.HandleFunc("/api/versions/", s.handleVersionSubroutes)
 }
@@ -159,24 +157,6 @@ func atoi(s string) (int, bool) {
 
 func (s *Server) handleColors(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, state.GroupColors)
-}
-
-func (s *Server) handleResetShow(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	s.store.ResetShowMetrics()
-	w.WriteHeader(http.StatusNoContent)
-}
-
-func (s *Server) handleResetScene(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	s.store.ResetSceneMetrics()
-	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) handlePresetThumbnail(w http.ResponseWriter, r *http.Request) {

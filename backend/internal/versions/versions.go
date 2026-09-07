@@ -26,15 +26,10 @@ type VersionPreset struct {
 	Target ptz.Position `json:"target"`
 }
 
-type VersionGroupMember struct {
-	PresetIndex int `json:"presetIndex"`
-	Weight      int `json:"weight"`
-}
-
 type VersionGroup struct {
-	Name    string               `json:"name"`
-	Color   string               `json:"color"`
-	Members []VersionGroupMember `json:"members"`
+	Name    string `json:"name"`
+	Color   string `json:"color"`
+	Members []int  `json:"members"` // preset indices within the camera's Presets slice
 }
 
 type VersionCamera struct {

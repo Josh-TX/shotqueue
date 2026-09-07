@@ -22,7 +22,6 @@
 
     <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />
 
-    <CameraInfoModal v-if="showInfo" :camera="camera" @close="showInfo = false" />
     <AddPresetModal v-if="showAddPreset" :camera="camera" @close="showAddPreset = false" />
     <ManageGroupsModal v-if="showGroups" :camera="camera" @close="showGroups = false" />
 
@@ -52,7 +51,6 @@ import PresetThumbnail from './PresetThumbnail.vue';
 import ContextMenu from './ContextMenu.vue';
 import PromptModal from './PromptModal.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
-import CameraInfoModal from './CameraInfoModal.vue';
 import AddPresetModal from './AddPresetModal.vue';
 import ManageGroupsModal from './ManageGroupsModal.vue';
 
@@ -70,7 +68,6 @@ function openMenu(e) {
   menu.value = { x: e.clientX, y: e.clientY };
 }
 const menuItems = computed(() => [
-  { label: 'Info', action: () => (showInfo.value = true) },
   { label: 'Add Preset', action: () => (showAddPreset.value = true) },
   { label: 'Manage Groups', action: () => (showGroups.value = true) },
   { divider: true },
@@ -78,7 +75,6 @@ const menuItems = computed(() => [
   { label: 'Delete Camera', action: () => (deleting.value = true) },
 ]);
 
-const showInfo = ref(false);
 const showAddPreset = ref(false);
 const showGroups = ref(false);
 

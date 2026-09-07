@@ -278,7 +278,7 @@ h3 {
   display: flex;
   gap: 4px;
 }
-.preset-thumb-scene-count {
+.preset-thumb-debug {
   position: absolute;
   right: 6px;
   bottom: 4px;

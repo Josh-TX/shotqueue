@@ -92,7 +92,7 @@ const gridStyle = computed(() => ({
 }));
 
 function isMember(g, p) {
-  return g.members.some((m) => m.presetId === p.id);
+  return g.members.includes(p.id);
 }
 
 function renameGroup(g, name) {

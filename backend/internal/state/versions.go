@@ -35,10 +35,10 @@ func (s *Store) BuildSnapshot() []versions.VersionCamera {
 			vc.Presets[j] = versions.VersionPreset{Name: p.Name, Target: p.Target}
 		}
 		for j, g := range cam.Groups {
-			vg := versions.VersionGroup{Name: g.Name, Color: g.Color, Members: make([]versions.VersionGroupMember, 0, len(g.Members))}
-			for _, m := range g.Members {
-				if idx, ok := presetIndex[m.PresetID]; ok {
-					vg.Members = append(vg.Members, versions.VersionGroupMember{PresetIndex: idx, Weight: m.Weight})
+			vg := versions.VersionGroup{Name: g.Name, Color: g.Color, Members: make([]int, 0, len(g.Members))}
+			for _, presetID := range g.Members {
+				if idx, ok := presetIndex[presetID]; ok {
+					vg.Members = append(vg.Members, idx)
 				}
 			}
 			vc.Groups[j] = vg
@@ -92,9 +92,9 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 		for _, vg := range vc.Groups {
 			g := &Group{ID: cam.nextGroupID, Name: vg.Name, Color: vg.Color}
 			cam.nextGroupID++
-			for _, m := range vg.Members {
-				if m.PresetIndex >= 0 && m.PresetIndex < len(presetIDByIndex) {
-					g.Members = append(g.Members, GroupMember{PresetID: presetIDByIndex[m.PresetIndex], Weight: m.Weight})
+			for _, idx := range vg.Members {
+				if idx >= 0 && idx < len(presetIDByIndex) {
+					g.Members = append(g.Members, presetIDByIndex[idx])
 				}
 			}
 			cam.Groups = append(cam.Groups, g)

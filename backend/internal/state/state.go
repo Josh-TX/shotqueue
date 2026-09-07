@@ -1,13 +1,12 @@
-// Package state holds shotqueue's runtime model: cameras, presets, groups, queueing and metrics.
+// Package state holds shotqueue's runtime model: cameras, presets, groups and queueing.
 // Ported from the old server's state.js + logic.js. Only the camera roster is persisted (via
-// internal/config); presets/groups/metrics live in memory only, same as before.
+// internal/config); presets/groups live in memory only, same as before.
 package state
 
 import (
 	"errors"
 	"fmt"
 	"sync"
-	"time"
 
 	"shotqueue-backend/internal/config"
 	"shotqueue-backend/internal/ptz"
@@ -31,21 +30,11 @@ func newErr(status int, format string, args ...any) *LogicError {
 	return &LogicError{Message: fmt.Sprintf(format, args...), Status: status}
 }
 
-type Metrics struct {
-	TakenCount int   `json:"takenCount"`
-	LiveTimeMs int64 `json:"liveTimeMs"`
-}
-
-type GroupMember struct {
-	PresetID int `json:"presetId"`
-	Weight   int `json:"weight"`
-}
-
 type Group struct {
-	ID      int           `json:"id"`
-	Name    string        `json:"name"`
-	Color   string        `json:"color"`
-	Members []GroupMember `json:"members"`
+	ID      int    `json:"id"`
+	Name    string `json:"name"`
+	Color   string `json:"color"`
+	Members []int  `json:"members"`
 }
 
 type Preset struct {
@@ -54,9 +43,7 @@ type Preset struct {
 	Target           ptz.Position
 	Thumbnail        []byte
 	ThumbnailVersion int
-	Scene            Metrics
-	Show             Metrics
-	liveSince        time.Time
+	WasTriggered     bool
 }
 
 type Queued struct {

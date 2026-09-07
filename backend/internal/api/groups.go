@@ -66,14 +66,13 @@ func (s *Server) handleGroupMember(w http.ResponseWriter, r *http.Request, camID
 		return
 	}
 	var body struct {
-		InGroup *bool `json:"inGroup"`
-		Weight  *int  `json:"weight"`
+		InGroup bool `json:"inGroup"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, 400, "invalid body")
 		return
 	}
-	if err := s.store.SetGroupMember(camID, groupID, presetID, body.InGroup, body.Weight); err != nil {
+	if err := s.store.SetGroupMember(camID, groupID, presetID, body.InGroup); err != nil {
 		writeLogicError(w, err)
 		return
 	}

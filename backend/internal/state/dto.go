@@ -3,12 +3,11 @@ package state
 import "fmt"
 
 type PresetDTO struct {
-	ID               int     `json:"id"`
-	Name             string  `json:"name"`
-	ThumbnailURL     string  `json:"thumbnailUrl"`
-	ThumbnailVersion int     `json:"thumbnailVersion"`
-	Scene            Metrics `json:"scene"`
-	Show             Metrics `json:"show"`
+	ID               int    `json:"id"`
+	Name             string `json:"name"`
+	ThumbnailURL     string `json:"thumbnailUrl"`
+	ThumbnailVersion int    `json:"thumbnailVersion"`
+	WasTriggered     bool   `json:"wasTriggered"`
 }
 
 type CameraDTO struct {
@@ -36,8 +35,7 @@ func presetDTO(p *Preset) PresetDTO {
 		Name:             p.Name,
 		ThumbnailURL:     fmt.Sprintf("/api/presets/%d/thumbnail", p.ID),
 		ThumbnailVersion: p.ThumbnailVersion,
-		Scene:            p.Scene,
-		Show:             p.Show,
+		WasTriggered:     p.WasTriggered,
 	}
 }
 
@@ -49,7 +47,7 @@ func cameraDTOLocked(cam *Camera, includeActive bool) CameraDTO {
 	}
 	groups := make([]Group, len(cam.Groups))
 	for i, g := range cam.Groups {
-		members := make([]GroupMember, len(g.Members))
+		members := make([]int, len(g.Members))
 		copy(members, g.Members)
 		groups[i] = Group{ID: g.ID, Name: g.Name, Color: g.Color, Members: members}
 	}
