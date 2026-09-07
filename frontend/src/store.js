@@ -6,8 +6,6 @@ export const store = reactive({
   wsConnected: false,
 });
 
-const lastPoll = {}; // camera id -> timestamp of last position poll
-
 function findCamera(id) {
   return store.cameras.find((c) => c.id === id);
 }
@@ -18,17 +16,9 @@ function mergeStructural(incoming) {
     seen.add(cam.id);
     const existing = findCamera(cam.id);
     if (existing) {
-      const wasTriggering = existing.triggering;
-      Object.assign(existing, cam); // activePresetId stays untouched (not in `cam`)
-      // The websocket's "triggering just ended" notice can arrive before the
-      // next scheduled fast-poll tick. Poll immediately so the position (and
-      // therefore the active-preset border) updates without a gray gap.
-      if (wasTriggering && !existing.triggering) {
-        lastPoll[existing.id] = Date.now();
-        pollPosition(existing);
-      }
+      Object.assign(existing, cam);
     } else {
-      store.cameras.push({ ...cam, activePresetId: null });
+      store.cameras.push({ ...cam });
     }
   }
   store.cameras = store.cameras.filter((c) => seen.has(c.id));
@@ -52,30 +42,6 @@ export function connectWebSocket() {
     if (msg.type === 'state') mergeStructural(msg.cameras);
   };
   return ws;
-}
-
-async function pollPosition(camera) {
-  try {
-    const { activePresetId, triggering, thumbnailUrl } = await api.getPosition(camera.id);
-    camera.activePresetId = activePresetId;
-    camera.triggering = triggering;
-    camera.currentThumbnailUrl = thumbnailUrl;
-  } catch {
-    // camera might have just been deleted; next structural merge will drop it
-  }
-}
-
-export function startPositionPolling() {
-  setInterval(() => {
-    const now = Date.now();
-    for (const camera of store.cameras) {
-      const interval = camera.triggering ? 100 : 1000;
-      if (now - (lastPoll[camera.id] ?? 0) >= interval) {
-        lastPoll[camera.id] = now;
-        pollPosition(camera);
-      }
-    }
-  }, 100);
 }
 
 export function activePresetOf(camera) {

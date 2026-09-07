@@ -13,7 +13,7 @@ import (
 func (s *Server) handleCameras(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		writeJSON(w, 200, s.store.PublicCameras(true))
+		writeJSON(w, 200, s.store.PublicCameras())
 
 	case http.MethodPost:
 		var body struct {
@@ -38,7 +38,7 @@ func (s *Server) handleCameras(w http.ResponseWriter, r *http.Request) {
 			writeLogicError(w, err)
 			return
 		}
-		dto, _ := s.store.PublicCamera(cam.ID, true)
+		dto, _ := s.store.PublicCamera(cam.ID)
 		writeJSON(w, 201, dto)
 
 	default:
@@ -78,8 +78,6 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case len(rest) == 0:
 		s.handleCameraByID(w, r, camID)
-	case len(rest) == 1 && rest[0] == "position":
-		s.handleGetPosition(w, r, camID)
 	case len(rest) == 1 && rest[0] == "snapshot":
 		s.handleSnapshot(w, r, camID)
 	case len(rest) == 1 && rest[0] == "presets":
@@ -159,7 +157,7 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID 
 			writeLogicError(w, err)
 			return
 		}
-		dto, _ := s.store.PublicCamera(camID, true)
+		dto, _ := s.store.PublicCamera(camID)
 		writeJSON(w, 200, dto)
 
 	case http.MethodDelete:
@@ -172,24 +170,6 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
-}
-
-func (s *Server) handleGetPosition(w http.ResponseWriter, r *http.Request, camID int) {
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	s.store.RefreshPosition(camID)
-	dto, ok := s.store.PublicCamera(camID, true)
-	if !ok {
-		writeError(w, 404, "camera not found")
-		return
-	}
-	writeJSON(w, 200, map[string]any{
-		"activePresetId": dto.ActivePresetID,
-		"triggering":     dto.Triggering,
-		"thumbnailUrl":   fmt.Sprintf("/api/cameras/%d/snapshot?ts=%d", camID, nowMs()),
-	})
 }
 
 func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, camID int) {

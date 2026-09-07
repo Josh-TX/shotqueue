@@ -67,9 +67,7 @@ type stateMessage struct {
 }
 
 func (s *Server) currentStateMessage() stateMessage {
-	// Position/activePresetId is intentionally omitted here: the frontend only learns it via REST
-	// polling of /position, never over the websocket.
-	return stateMessage{Type: "state", Cameras: s.store.PublicCameras(false)}
+	return stateMessage{Type: "state", Cameras: s.store.PublicCameras()}
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
@@ -79,7 +77,12 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 	}
 	s.mu.Lock()
 	s.clients[conn] = struct{}{}
+	first := len(s.clients) == 1
 	s.mu.Unlock()
+	if first {
+		// Only poll cameras for out-of-band position changes while someone's actually watching.
+		s.store.Start()
+	}
 
 	payload, _ := json.Marshal(s.currentStateMessage())
 	conn.WriteMessage(websocket.TextMessage, payload)
@@ -88,8 +91,12 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			s.mu.Lock()
 			delete(s.clients, conn)
+			last := len(s.clients) == 0
 			s.mu.Unlock()
 			conn.Close()
+			if last {
+				s.store.Stop()
+			}
 		}()
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {

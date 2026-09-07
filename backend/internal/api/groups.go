@@ -18,7 +18,7 @@ func (s *Server) handleAddGroup(w http.ResponseWriter, r *http.Request, camID in
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID, true)
+	dto, _ := s.store.PublicCamera(camID)
 	writeJSON(w, 201, dto)
 }
 
@@ -39,7 +39,7 @@ func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request, camID i
 			writeLogicError(w, err)
 			return
 		}
-		dto, _ := s.store.PublicCamera(camID, true)
+		dto, _ := s.store.PublicCamera(camID)
 		writeJSON(w, 200, dto)
 
 	case http.MethodDelete:
@@ -76,6 +76,6 @@ func (s *Server) handleGroupMember(w http.ResponseWriter, r *http.Request, camID
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID, true)
+	dto, _ := s.store.PublicCamera(camID)
 	writeJSON(w, 200, dto)
 }

@@ -23,8 +23,6 @@ export const api = {
   getSettings: () => request('GET', '/api/settings'),
   updateSettings: (patch) => request('PUT', '/api/settings', patch),
 
-  getPosition: (id) => request('GET', `/api/cameras/${id}/position`),
-
   addPreset: (camId, name, groupIds) => request('POST', `/api/cameras/${camId}/presets`, { name, groupIds }),
   renamePreset: (camId, presetId, name) => request('PATCH', `/api/cameras/${camId}/presets/${presetId}`, { name }),
   deletePreset: (camId, presetId) => request('DELETE', `/api/cameras/${camId}/presets/${presetId}`),

@@ -22,7 +22,7 @@ func (s *Server) handleAddPreset(w http.ResponseWriter, r *http.Request, camID i
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID, true)
+	dto, _ := s.store.PublicCamera(camID)
 	writeJSON(w, 201, dto)
 }
 
@@ -47,7 +47,7 @@ func (s *Server) handlePresetByID(w http.ResponseWriter, r *http.Request, camID 
 				return
 			}
 		}
-		dto, _ := s.store.PublicCamera(camID, true)
+		dto, _ := s.store.PublicCamera(camID)
 		writeJSON(w, 200, dto)
 
 	case http.MethodDelete:
@@ -76,7 +76,7 @@ func (s *Server) handleTriggerPreset(w http.ResponseWriter, r *http.Request, cam
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID, true)
+	dto, _ := s.store.PublicCamera(camID)
 	writeJSON(w, 200, dto)
 }
 
@@ -94,7 +94,7 @@ func (s *Server) handleQueuePreset(w http.ResponseWriter, r *http.Request, camID
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID, true)
+	dto, _ := s.store.PublicCamera(camID)
 	writeJSON(w, 200, dto)
 }
 
@@ -126,6 +126,6 @@ func (s *Server) handleSelectedGroup(w http.ResponseWriter, r *http.Request, cam
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID, true)
+	dto, _ := s.store.PublicCamera(camID)
 	writeJSON(w, 200, dto)
 }

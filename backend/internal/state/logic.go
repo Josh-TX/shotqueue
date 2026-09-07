@@ -13,9 +13,9 @@ const triggerPollInterval = 150 * time.Millisecond
 const triggerTimeout = 5 * time.Second
 
 // RefreshPosition live-queries the camera's actual position and updates the cached value used for
-// activePresetId, so polling /position notices moves made by anything other than TriggerPreset
-// (an external controller, a physical joystick, etc). A no-op while a trigger is in flight, since
-// that goroutine owns the position until it settles.
+// activePresetId, so the idle poll loop (Store.Start) notices moves made by anything other than
+// TriggerPreset (an external controller, a physical joystick, etc). A no-op while a trigger is in
+// flight, since that goroutine owns the position until it settles.
 func (s *Store) RefreshPosition(cameraID int) {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraID)
@@ -228,6 +228,7 @@ func (s *Store) finishTrigger(cameraID, presetID int, client *ptz.Client, target
 		cam.Triggering = false
 		cam.TriggeringPresetID = 0
 		cam.CurrentPosition = &final
+		cam.CurrentThumbnailVersion++
 	}
 	if preset := s.presetsByID[presetID]; preset != nil && thumbErr == nil {
 		preset.Thumbnail = thumb

@@ -1,12 +1,8 @@
 <template>
   <Modal title="Add Preset" @close="$emit('close')">
-    <img v-if="camera.currentThumbnailUrl" class="large-thumb" :src="camera.currentThumbnailUrl" alt="current position" />
-    <div v-else class="large-thumb" />
+    <img class="large-thumb" :src="currentThumbnailUrl" alt="current position" />
 
-    <p v-if="!canCapture" class="error-text">
-      Camera has no usable thumbnail at its current position (it may be mid-move or was nudged by an external
-      controller). Wait for it to settle on a known position.
-    </p>
+    <p v-if="!canCapture" class="error-text">Camera is currently moving. Wait for it to settle before adding a preset.</p>
 
     <div class="field">
       <label>Preset name</label>
@@ -42,7 +38,10 @@ const name = ref(`Preset ${props.camera.presets.length + 1}`);
 const groupIds = ref([]);
 const error = ref('');
 
-const canCapture = computed(() => !props.camera.triggering && !!props.camera.currentThumbnailUrl);
+const canCapture = computed(() => !props.camera.triggering);
+const currentThumbnailUrl = computed(
+  () => `/api/cameras/${props.camera.id}/snapshot?v=${props.camera.currentThumbnailVersion}`,
+);
 
 async function submit() {
   try {

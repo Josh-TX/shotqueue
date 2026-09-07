@@ -8,9 +8,15 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"shotqueue-backend/internal/ptz"
 )
+
+// idlePollInterval is how often Start's poll loop re-reads every camera's live position, to catch
+// moves made by anything other than TriggerPreset (an external controller, a physical joystick,
+// etc). Only runs while at least one websocket client is connected.
+const idlePollInterval = 1 * time.Second
 
 // positionTolerance: how close a live GetPosition reading must be to a preset's captured target,
 // on each of pan/tilt/zoom, to count as "this preset is active". Not zero because the camera's
@@ -52,24 +58,25 @@ type Queued struct {
 }
 
 type Camera struct {
-	ID                 int
-	Name               string
-	Host               string
-	Port               string
-	TallySource        uint16
-	Client             *ptz.Client
-	Status             string // "live" | "preview" | "none"
-	Triggering         bool
-	TriggeringPresetID int
-	CurrentPosition    *ptz.Position
-	Presets            []*Preset
-	Groups             []*Group
-	SelectedGroupID    *int
-	Queued             *Queued
-	nextGroupID        int
-	Regenerating       bool
-	RegenDone          int
-	RegenTotal         int
+	ID                      int
+	Name                    string
+	Host                    string
+	Port                    string
+	TallySource             uint16
+	Client                  *ptz.Client
+	Status                  string // "live" | "preview" | "none"
+	Triggering              bool
+	TriggeringPresetID      int
+	CurrentPosition         *ptz.Position
+	Presets                 []*Preset
+	Groups                  []*Group
+	SelectedGroupID         *int
+	Queued                  *Queued
+	nextGroupID             int
+	Regenerating            bool
+	RegenDone               int
+	RegenTotal              int
+	CurrentThumbnailVersion int
 }
 
 type Store struct {
@@ -82,6 +89,8 @@ type Store struct {
 	onMutate     func()
 	regenMu      sync.Mutex
 	regenToken   int
+	pollMu       sync.Mutex
+	pollStop     chan struct{}
 }
 
 func New() *Store {
@@ -95,6 +104,68 @@ func New() *Store {
 }
 
 func (s *Store) SetBroadcaster(fn func()) { s.broadcast = fn }
+
+// Start begins polling every camera's live position on idlePollInterval, to detect moves made
+// outside of TriggerPreset. The caller (api.Server) invokes this when the first websocket client
+// connects, and Stop when the last one disconnects, so idle cameras aren't polled for nothing.
+func (s *Store) Start() {
+	s.pollMu.Lock()
+	defer s.pollMu.Unlock()
+	if s.pollStop != nil {
+		return
+	}
+	stop := make(chan struct{})
+	s.pollStop = stop
+	go s.pollLoop(stop)
+}
+
+func (s *Store) Stop() {
+	s.pollMu.Lock()
+	defer s.pollMu.Unlock()
+	if s.pollStop == nil {
+		return
+	}
+	close(s.pollStop)
+	s.pollStop = nil
+}
+
+func (s *Store) pollLoop(stop chan struct{}) {
+	s.pollTick()
+	ticker := time.NewTicker(idlePollInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-stop:
+			return
+		case <-ticker.C:
+			s.pollTick()
+		}
+	}
+}
+
+// pollTick re-reads every camera's live position and broadcasts once if any camera's
+// activePresetId actually changed as a result.
+func (s *Store) pollTick() {
+	changed := false
+	for _, cam := range s.Cameras() {
+		before := s.ActivePresetID(cam)
+		s.RefreshPosition(cam.ID)
+		after := s.ActivePresetID(cam)
+		if !intPtrEqual(before, after) {
+			changed = true
+		}
+	}
+	if changed {
+		s.broadcast()
+	}
+}
+
+func intPtrEqual(a, b *int) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+	return *a == *b
+}
 
 // SetOnMutate registers a hook called after every mutation that changes cameras, presets or
 // groups (but not runtime-only state like trigger/queue/tally). Used by main to persist a

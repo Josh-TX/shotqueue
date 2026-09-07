@@ -22,7 +22,7 @@ import CameraColumn from './components/CameraColumn.vue';
 import AddCameraModal from './components/AddCameraModal.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import VersionsModal from './components/VersionsModal.vue';
-import { store, loadInitial, connectWebSocket, startPositionPolling } from './store.js';
+import { store, loadInitial, connectWebSocket } from './store.js';
 
 const showAddCamera = ref(false);
 const showSettings = ref(false);
@@ -31,6 +31,5 @@ const showVersions = ref(false);
 onMounted(async () => {
   await loadInitial();
   connectWebSocket();
-  startPositionPolling();
 });
 </script>

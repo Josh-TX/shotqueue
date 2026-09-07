@@ -91,5 +91,5 @@ func (s *Server) handleLoadVersion(w http.ResponseWriter, r *http.Request, id in
 	if body.RegenerateThumbnails {
 		s.store.StartRegenThumbnails()
 	}
-	writeJSON(w, 200, s.store.PublicCameras(true))
+	writeJSON(w, 200, s.store.PublicCameras())
 }
