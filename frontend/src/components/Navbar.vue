@@ -1,6 +1,6 @@
 <template>
   <div class="navbar">
-    <span class="brand">PTZ Control</span>
+    <span class="brand">ShotQueue</span>
     <span class="ws-dot" :class="{ on: store.wsConnected }" :title="store.wsConnected ? 'connected' : 'disconnected'" />
     <button @click="$emit('add-camera')">+ Add Camera</button>
     <div class="spacer" />
