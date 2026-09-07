@@ -114,6 +114,29 @@ func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16
 	return os.ErrNotExist
 }
 
+// NewCamera describes a camera to create without an ID yet assigned, used when replacing the
+// whole roster at once (loading a version).
+type NewCamera struct {
+	Name        string
+	Host        string
+	Port        string
+	TallySource uint16
+}
+
+// ReplaceCameras discards the current camera roster and replaces it with cams, assigning each a
+// fresh sequential ID continuing from NextCameraID (never reusing an old one).
+func (s *Store) ReplaceCameras(cams []NewCamera) ([]Camera, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	out := make([]Camera, len(cams))
+	for i, c := range cams {
+		out[i] = Camera{ID: s.cfg.NextCameraID, Name: c.Name, Host: c.Host, Port: c.Port, TallySource: c.TallySource}
+		s.cfg.NextCameraID++
+	}
+	s.cfg.Cameras = out
+	return out, s.saveLocked()
+}
+
 func (s *Store) RemoveCamera(id int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

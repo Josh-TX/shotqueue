@@ -5,7 +5,7 @@
     @click="onClick"
     @contextmenu.prevent="openMenu"
   >
-    <img :src="imgSrc" :alt="preset.name" draggable="false" />
+    <img v-if="!imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
     <div class="preset-thumb-groups">
       <span
         v-for="g in memberGroups"
@@ -42,7 +42,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { api } from '../api.js';
 import { GROUP_COLOR_HEX } from '../colors.js';
 import { formatDuration } from '../utils.js';
@@ -71,6 +71,8 @@ const memberGroups = computed(() =>
 );
 
 const imgSrc = computed(() => `${props.preset.thumbnailUrl}?v=${props.preset.thumbnailVersion}`);
+const imgError = ref(false);
+watch(() => props.preset.thumbnailVersion, () => (imgError.value = false));
 
 function trigger() {
   api.triggerPreset(props.camera.id, props.preset.id).catch((e) => alert(e.message));

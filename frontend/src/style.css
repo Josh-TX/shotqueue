@@ -133,6 +133,11 @@ h3 {
 .ws-dot.on {
   background: #22c55e;
 }
+.regen-banner {
+  color: var(--muted);
+  font-size: 13px;
+  margin-right: 8px;
+}
 
 /* ---- camera columns ---- */
 .camera-row {
@@ -401,6 +406,117 @@ h3 {
   border-radius: 6px;
   border: 1px solid var(--border);
   background: #000;
+}
+
+/* ---- versions modal ---- */
+.versions-shell {
+  display: flex;
+  gap: 16px;
+  min-height: 380px;
+  max-height: 62vh;
+}
+.versions-sidebar {
+  flex: 0 0 170px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+}
+.versions-sidebar .spacer {
+  flex: 1;
+}
+.versions-tab {
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+}
+.versions-tab.active {
+  background: var(--panel3);
+  font-weight: 600;
+}
+.versions-save-title {
+  font-size: 18px;
+  margin-bottom: 12px;
+}
+.versions-save-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.versions-save-suggestions button.version-match {
+  border-color: var(--accent);
+}
+.versions-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: auto;
+}
+.versions-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.versions-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.versions-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.versions-table td.name {
+  font-weight: 600;
+}
+.versions-table tr.version-row {
+  cursor: pointer;
+}
+.versions-table tr.version-row:hover {
+  background: var(--panel3);
+}
+.version-detail {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+.version-detail .modal-actions {
+  margin-top: auto;
+}
+.regen-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.versions-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.versions-detail-header .versions-save-title {
+  margin-bottom: 0;
+}
+.versions-detail-header-actions {
+  display: flex;
+  gap: 8px;
+}
+.delete-version-btn {
+  margin-right: auto;
+}
+.versions-last-modified {
+  margin-bottom: 8px;
 }
 
 /* ---- camera info modal ---- */

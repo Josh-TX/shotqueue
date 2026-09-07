@@ -43,4 +43,10 @@ export const api = {
 
   resetShow: () => request('POST', '/api/reset-show'),
   resetScene: () => request('POST', '/api/reset-scene'),
+
+  listVersions: () => request('GET', '/api/versions'),
+  saveVersion: (name) => request('POST', '/api/versions', { name }),
+  deleteVersion: (id) => request('DELETE', `/api/versions/${id}`),
+  loadVersion: (id, regenerateThumbnails) =>
+    request('POST', `/api/versions/${id}/load`, { regenerateThumbnails }),
 };

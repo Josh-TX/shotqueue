@@ -80,6 +80,9 @@ type Camera struct {
 	SelectedGroupID    *int
 	Queued             *Queued
 	nextGroupID        int
+	Regenerating       bool
+	RegenDone          int
+	RegenTotal         int
 }
 
 type Store struct {
@@ -89,6 +92,8 @@ type Store struct {
 	presetsByID map[int]*Preset
 	nextPreset  int
 	broadcast   func()
+	regenMu     sync.Mutex
+	regenToken  int
 }
 
 func New(cfg *config.Store) *Store {

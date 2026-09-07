@@ -25,6 +25,9 @@ type CameraDTO struct {
 	Presets            []PresetDTO `json:"presets"`
 	Groups             []Group     `json:"groups"`
 	ActivePresetID     *int        `json:"activePresetId,omitempty"`
+	Regenerating       bool        `json:"regenerating,omitempty"`
+	RegenDone          int         `json:"regenDone,omitempty"`
+	RegenTotal         int         `json:"regenTotal,omitempty"`
 }
 
 func presetDTO(p *Preset) PresetDTO {
@@ -63,6 +66,9 @@ func cameraDTOLocked(cam *Camera, includeActive bool) CameraDTO {
 		Queued:             cam.Queued,
 		Presets:            presets,
 		Groups:             groups,
+		Regenerating:       cam.Regenerating,
+		RegenDone:          cam.RegenDone,
+		RegenTotal:         cam.RegenTotal,
 	}
 	if includeActive {
 		dto.ActivePresetID = activePresetIDLocked(cam)

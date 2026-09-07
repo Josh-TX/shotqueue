@@ -15,25 +15,31 @@ import (
 
 	"shotqueue-backend/internal/config"
 	"shotqueue-backend/internal/state"
+	"shotqueue-backend/internal/versions"
 )
 
 type Server struct {
-	store        *state.Store
-	cfg          *config.Store
-	onAtemChange func(host string)
-	upgrader     websocket.Upgrader
-	mu           sync.Mutex
-	clients      map[*websocket.Conn]struct{}
+	store         *state.Store
+	cfg           *config.Store
+	versions      *versions.Store
+	onAtemChange  func(host string)
+	onVersionLoad func()
+	upgrader      websocket.Upgrader
+	mu            sync.Mutex
+	clients       map[*websocket.Conn]struct{}
 }
 
-// New wires the HTTP surface onto store/cfg. onAtemChange is called after a settings update
-// changes the ATEM host, so main can restart the tally listener against the new address.
-func New(store *state.Store, cfg *config.Store, onAtemChange func(host string)) *Server {
+// New wires the HTTP surface onto store/cfg/versions. onAtemChange is called after a settings
+// update changes the ATEM host, so main can restart the tally listener against the new address.
+// onVersionLoad is called after a version is loaded, so main can reset the autosave timer.
+func New(store *state.Store, cfg *config.Store, versionsStore *versions.Store, onAtemChange func(host string), onVersionLoad func()) *Server {
 	s := &Server{
-		store:        store,
-		cfg:          cfg,
-		onAtemChange: onAtemChange,
-		clients:      make(map[*websocket.Conn]struct{}),
+		store:         store,
+		cfg:           cfg,
+		versions:      versionsStore,
+		onAtemChange:  onAtemChange,
+		onVersionLoad: onVersionLoad,
+		clients:       make(map[*websocket.Conn]struct{}),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -54,6 +60,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/settings", s.handleSettings)
 	mux.HandleFunc("/api/reset-show", s.handleResetShow)
 	mux.HandleFunc("/api/reset-scene", s.handleResetScene)
+	mux.HandleFunc("/api/versions", s.handleVersions)
+	mux.HandleFunc("/api/versions/", s.handleVersionSubroutes)
 }
 
 // ---- websocket ----

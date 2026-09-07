@@ -14,7 +14,7 @@ Automates PTZ cameras between saved shot presets, cued by which camera is live o
 - **Triggering** — transient state while a preset's position is being applied to the camera.
 - **Camera status** — `none` / `preview` / `live`, derived from tally + the camera's configured tally source number.
 - **TallySource** — the ATEM input number a camera is wired to.
-
+- **Version** - A saved configuration encompassing the camera, preset, and group settings
 ## How it works
 
 1. Backend listens to the ATEM's tally feed and tracks each camera's status.
