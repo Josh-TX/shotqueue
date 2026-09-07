@@ -70,6 +70,7 @@ type Camera struct {
 	CurrentPosition         *ptz.Position
 	Presets                 []*Preset
 	Groups                  []*Group
+	ColumnCount             int
 	SelectedGroupID         *int
 	Queued                  *Queued
 	nextGroupID             int
@@ -226,6 +227,7 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 			TallySource: tallySource,
 			Client:      ptz.New(host, port),
 			Status:      "none",
+			ColumnCount: 2,
 			nextGroupID: 1,
 		}
 		s.nextCameraID++
@@ -236,7 +238,7 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 	return cam, nil
 }
 
-func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16) error {
+func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16, columnCount int) error {
 	var found bool
 	s.withLock(func() {
 		cam := s.findCameraLocked(id)
@@ -251,6 +253,7 @@ func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16
 		cam.Host = host
 		cam.Port = port
 		cam.TallySource = tallySource
+		cam.ColumnCount = columnCount
 	})
 	if !found {
 		return ErrNotFound

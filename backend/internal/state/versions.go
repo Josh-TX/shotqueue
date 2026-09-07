@@ -26,6 +26,7 @@ func (s *Store) BuildSnapshot() []versions.VersionCamera {
 			Host:        cam.Host,
 			Port:        cam.Port,
 			TallySource: cam.TallySource,
+			ColumnCount: cam.ColumnCount,
 			Presets:     make([]versions.VersionPreset, len(cam.Presets)),
 			Groups:      make([]versions.VersionGroup, len(cam.Groups)),
 		}
@@ -67,6 +68,7 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 			Host:        vc.Host,
 			Port:        vc.Port,
 			TallySource: vc.TallySource,
+			ColumnCount: vc.ColumnCount,
 			Client:      ptz.New(vc.Host, vc.Port),
 			Status:      "none",
 			nextGroupID: 1,

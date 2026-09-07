@@ -42,6 +42,7 @@ type VersionCamera struct {
 	Host        string          `json:"host"`
 	Port        string          `json:"port"`
 	TallySource uint16          `json:"tallySource"`
+	ColumnCount int             `json:"columnCount"`
 	Presets     []VersionPreset `json:"presets"`
 	Groups      []VersionGroup  `json:"groups"`
 }

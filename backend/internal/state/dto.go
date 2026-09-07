@@ -23,6 +23,7 @@ type CameraDTO struct {
 	Queued                  *Queued     `json:"queued"`
 	Presets                 []PresetDTO `json:"presets"`
 	Groups                  []Group     `json:"groups"`
+	ColumnCount             int         `json:"columnCount"`
 	ActivePresetID          *int        `json:"activePresetId,omitempty"`
 	CurrentThumbnailVersion int         `json:"currentThumbnailVersion"`
 	Regenerating            bool        `json:"regenerating,omitempty"`
@@ -65,6 +66,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		Queued:                  cam.Queued,
 		Presets:                 presets,
 		Groups:                  groups,
+		ColumnCount:             cam.ColumnCount,
 		ActivePresetID:          activePresetIDLocked(cam),
 		CurrentThumbnailVersion: cam.CurrentThumbnailVersion,
 		Regenerating:            cam.Regenerating,

@@ -1,5 +1,5 @@
 <template>
-  <div class="camera-column">
+  <div class="camera-column" :style="{ width: unitWidth * camera.columnCount + 'px' }">
     <div class="camera-column-header">
       <div class="header-row">
         <span class="camera-name" :title="camera.name">{{ camera.name }}</span>
@@ -15,9 +15,11 @@
       </div>
     </div>
 
-    <div v-if="camera.presets.length === 0" class="no-presets">no presets</div>
-    <div v-else class="preset-scroll">
-      <PresetThumbnail v-for="p in camera.presets" :key="p.id" :camera="camera" :preset="p" />
+    <div class="preset-scroll">
+      <div class="preset-grid" :style="{ gridTemplateColumns: `repeat(${camera.columnCount}, 1fr)` }">
+        <PresetThumbnail v-for="p in camera.presets" :key="p.id" :camera="camera" :preset="p" />
+        <button class="add-preset-tile" @click="showAddPreset = true">+</button>
+      </div>
     </div>
 
     <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />
@@ -54,7 +56,7 @@ import ConfirmDialog from './ConfirmDialog.vue';
 import AddPresetModal from './AddPresetModal.vue';
 import ManageGroupsModal from './ManageGroupsModal.vue';
 
-const props = defineProps({ camera: Object });
+const props = defineProps({ camera: Object, unitWidth: Number });
 
 const tallyLabel = computed(() => props.camera.status.toUpperCase());
 
@@ -68,12 +70,20 @@ function openMenu(e) {
   menu.value = { x: e.clientX, y: e.clientY };
 }
 const menuItems = computed(() => [
-  { label: 'Add Preset', action: () => (showAddPreset.value = true) },
   { label: 'Manage Groups', action: () => (showGroups.value = true) },
+  { label: 'Change Column Count', action: changeColumnCount },
   { divider: true },
   { label: 'Rename Camera', action: () => (renaming.value = true) },
   { label: 'Delete Camera', action: () => (deleting.value = true) },
 ]);
+
+function changeColumnCount() {
+  const input = window.prompt('Column count (1-5)', String(props.camera.columnCount));
+  if (input === null) return;
+  const n = Number(input);
+  if (!Number.isInteger(n) || n < 1 || n > 5) return;
+  api.updateCamera(props.camera.id, { columnCount: n }).catch((err) => alert(err.message));
+}
 
 const showAddPreset = ref(false);
 const showGroups = ref(false);

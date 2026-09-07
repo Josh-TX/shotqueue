@@ -134,6 +134,7 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID 
 			Host        string `json:"host"`
 			Port        string `json:"port"`
 			TallySource uint16 `json:"tallySource"`
+			ColumnCount int    `json:"columnCount"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeError(w, 400, "invalid body")
@@ -153,7 +154,10 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID 
 		if body.Port == "" {
 			body.Port = cam.Port
 		}
-		if err := s.store.UpdateCamera(camID, body.Name, body.Host, body.Port, body.TallySource); err != nil {
+		if body.ColumnCount == 0 {
+			body.ColumnCount = cam.ColumnCount
+		}
+		if err := s.store.UpdateCamera(camID, body.Name, body.Host, body.Port, body.TallySource, body.ColumnCount); err != nil {
 			writeLogicError(w, err)
 			return
 		}
