@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>mock-atem</title>
+<style>
+	body { font-family: system-ui, sans-serif; background: #1a1a1a; color: #eee; padding: 20px; }
+	h1 { font-size: 18px; }
+	.cams { display: flex; gap: 10px; flex-wrap: wrap; }
+	.cam { border: 2px solid #444; border-radius: 8px; padding: 10px; width: 90px; text-align: center; }
+	.cam.live { border-color: #d33; box-shadow: 0 0 8px #d33; }
+	.cam.preview { border-color: #3a3; box-shadow: 0 0 8px #3a3; }
+	.cam h2 { margin: 0 0 8px; font-size: 16px; }
+	.cam button { width: 100%; margin-top: 4px; padding: 6px; cursor: pointer; }
+	.live-btn { background: #522; color: #fff; border: 1px solid #d33; }
+	.preview-btn { background: #252; color: #fff; border: 1px solid #3a3; }
+	.transport { margin-top: 20px; display: flex; gap: 10px; }
+	.transport button { padding: 10px 20px; font-size: 16px; cursor: pointer; }
+	.tag { font-size: 11px; opacity: 0.7; height: 14px; }
+</style>
+</head>
+<body>
+<h1>mock-atem — 8 camera switcher</h1>
+<div class="cams" id="cams"></div>
+<div class="transport">
+	<button onclick="post('/api/cut')">CUT</button>
+	<button onclick="post('/api/fade')">FADE (2s)</button>
+</div>
+
+<script>
+const camsEl = document.getElementById('cams')
+
+function post(url) {
+	fetch(url, { method: 'POST' })
+}
+
+const camEls = {}
+
+function buildCams(numCameras) {
+	for (let cam = 1; cam <= numCameras; cam++) {
+		const div = document.createElement('div')
+		div.innerHTML = `
+			<h2>Cam ${cam}</h2>
+			<div class="tag"></div>
+			<button class="live-btn" onclick="post('/api/live/${cam}')">Live</button>
+			<button class="preview-btn" onclick="post('/api/preview/${cam}')">Preview</button>
+		`
+		camsEl.appendChild(div)
+		camEls[cam] = { div, tag: div.querySelector('.tag') }
+	}
+}
+
+function render(state) {
+	if (Object.keys(camEls).length === 0) buildCams(state.numCameras)
+
+	for (let cam = 1; cam <= state.numCameras; cam++) {
+		const tally = state.tally[cam] || { program: false, preview: false }
+		const { div, tag } = camEls[cam]
+		div.className = 'cam' + (tally.program ? ' live' : '') + (tally.preview ? ' preview' : '')
+		tag.textContent = `${tally.program ? 'LIVE' : ''}${tally.program && tally.preview ? ' / ' : ''}${tally.preview ? 'PREVIEW' : ''}`
+	}
+}
+
+async function poll() {
+	try {
+		const res = await fetch('/api/state')
+		render(await res.json())
+	} catch (e) {}
+	setTimeout(poll, 250)
+}
+poll()
+</script>
+</body>
+</html>

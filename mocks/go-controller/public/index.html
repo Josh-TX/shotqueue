@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8" />
+		<title>poc-controller</title>
+		<style>
+			body {
+				font-family: sans-serif;
+				max-width: 700px;
+				margin: 2rem auto;
+			}
+			fieldset {
+				margin-bottom: 1rem;
+			}
+			#snapshot {
+				width: 640px;
+				max-width: 100%;
+				background: #222;
+				display: block;
+			}
+			.slider-row {
+				display: flex;
+				align-items: center;
+				gap: 0.5rem;
+				margin-bottom: 0.5rem;
+			}
+			.slider-row label {
+				width: 3rem;
+			}
+			.slider-row input[type='range'] {
+				flex: 1;
+			}
+			.slider-row output {
+				width: 3rem;
+				text-align: right;
+			}
+			#status {
+				font-family: monospace;
+			}
+			#position {
+				font-family: monospace;
+				white-space: pre;
+			}
+		</style>
+	</head>
+	<body>
+		<h1>poc-controller</h1>
+
+		<fieldset>
+			<legend>Connection</legend>
+			<label>Host <input id="host" value="localhost" /></label>
+			<label>Port <input id="port" value="8080" size="6" /></label>
+			<label>Poll rate (ms) <input id="pollRate" type="number" min="100" step="100" value="1000" size="6" /></label>
+			<button id="connect">Connect</button>
+			<div id="status">disconnected</div>
+		</fieldset>
+
+		<fieldset>
+			<legend>Snapshot</legend>
+			<img id="snapshot" width="640" height="360" />
+		</fieldset>
+
+		<fieldset>
+			<legend>Current position</legend>
+			<div id="position">-</div>
+		</fieldset>
+
+		<fieldset>
+			<legend>Set position</legend>
+			<div class="slider-row">
+				<label>Pan</label>
+				<input id="panSlider" type="range" min="0" max="100" value="50" />
+				<output id="panOut">50%</output>
+			</div>
+			<div class="slider-row">
+				<label>Tilt</label>
+				<input id="tiltSlider" type="range" min="0" max="100" value="50" />
+				<output id="tiltOut">50%</output>
+			</div>
+			<div class="slider-row">
+				<label>Zoom</label>
+				<input id="zoomSlider" type="range" min="0" max="100" value="0" />
+				<output id="zoomOut">0%</output>
+			</div>
+			<button id="setPosition">Set Position</button>
+		</fieldset>
+
+		<script src="app.js"></script>
+	</body>
+</html>

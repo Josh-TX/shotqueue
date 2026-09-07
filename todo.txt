@@ -1,0 +1,3 @@
+- Persist presets/groups/metrics (currently in-memory only; lost on backend restart). config.json only saves ATEM host + camera roster.
+- Remove scene/show metrics (likely going away).
+- Remove group member weighting (likely going away).
