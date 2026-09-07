@@ -23,8 +23,6 @@ const idlePollInterval = 1 * time.Second
 // own convergence and repeated reads aren't bit-exact.
 const positionTolerance = 6
 
-var GroupColors = []string{"blue", "pink", "green", "orange", "purple", "cyan", "red", "yellow"}
-
 type LogicError struct {
 	Message string
 	Status  int
@@ -39,9 +37,14 @@ func newErr(status int, format string, args ...any) *LogicError {
 type Group struct {
 	ID      int    `json:"id"`
 	Name    string `json:"name"`
-	Color   string `json:"color"`
 	Members []int  `json:"members"`
 }
+
+// MaxGroupCount is the largest group count selectable per camera (see SetGroupCount).
+const MaxGroupCount = 4
+
+// DefaultGroupCount is how many groups a newly added camera starts with.
+const DefaultGroupCount = 2
 
 type Preset struct {
 	ID               int
@@ -229,6 +232,10 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 			Status:      "none",
 			ColumnCount: 2,
 			nextGroupID: 1,
+		}
+		for i := 0; i < DefaultGroupCount; i++ {
+			cam.Groups = append(cam.Groups, &Group{ID: cam.nextGroupID, Name: fmt.Sprintf("Group %d", i+1)})
+			cam.nextGroupID++
 		}
 		s.nextCameraID++
 		s.cameras = append(s.cameras, cam)

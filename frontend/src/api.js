@@ -32,10 +32,8 @@ export const api = {
 
   setSelectedGroup: (camId, groupId) => request('POST', `/api/cameras/${camId}/selected-group`, { groupId }),
 
-  colors: () => request('GET', '/api/colors'),
-  addGroup: (camId, name) => request('POST', `/api/cameras/${camId}/groups`, { name }),
+  setGroupCount: (camId, count) => request('PATCH', `/api/cameras/${camId}/group-count`, { count }),
   updateGroup: (camId, groupId, patch) => request('PATCH', `/api/cameras/${camId}/groups/${groupId}`, patch),
-  deleteGroup: (camId, groupId) => request('DELETE', `/api/cameras/${camId}/groups/${groupId}`),
   setMember: (camId, groupId, presetId, patch) =>
     request('PATCH', `/api/cameras/${camId}/groups/${groupId}/members/${presetId}`, patch),
 

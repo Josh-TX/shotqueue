@@ -33,7 +33,6 @@ type VersionPreset struct {
 
 type VersionGroup struct {
 	Name    string `json:"name"`
-	Color   string `json:"color"`
 	Members []int  `json:"members"` // preset indices within the camera's Presets slice
 }
 

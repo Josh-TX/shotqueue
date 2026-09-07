@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"log"
 	"math/rand"
 	"time"
@@ -384,33 +385,7 @@ func (s *Store) processOfflive(cameraID int) {
 
 // ---- groups ----
 
-func (s *Store) AddGroup(cameraID int, name string) (*Group, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
-	if cam == nil {
-		return nil, newErr(404, "camera not found")
-	}
-	used := map[string]bool{}
-	for _, g := range cam.Groups {
-		used[g.Color] = true
-	}
-	color := GroupColors[0]
-	for _, c := range GroupColors {
-		if !used[c] {
-			color = c
-			break
-		}
-	}
-	group := &Group{ID: cam.nextGroupID, Name: name, Color: color}
-	cam.nextGroupID++
-	cam.Groups = append(cam.Groups, group)
-	go s.broadcast()
-	go s.onMutate()
-	return group, nil
-}
-
-func (s *Store) UpdateGroup(cameraID, groupID int, name, color string) error {
+func (s *Store) UpdateGroup(cameraID, groupID int, name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam := s.findCameraLocked(cameraID)
@@ -422,9 +397,6 @@ func (s *Store) UpdateGroup(cameraID, groupID int, name, color string) error {
 			if name != "" {
 				g.Name = name
 			}
-			if color != "" {
-				g.Color = color
-			}
 			go s.broadcast()
 			go s.onMutate()
 			return nil
@@ -433,30 +405,35 @@ func (s *Store) UpdateGroup(cameraID, groupID int, name, color string) error {
 	return newErr(404, "group not found")
 }
 
-func (s *Store) DeleteGroup(cameraID, groupID int) error {
+// SetGroupCount resizes a camera's group list to exactly count groups (1..MaxGroupCount).
+// Growing appends newly-named default groups ("Group N"); shrinking discards the trailing
+// groups and their membership data.
+func (s *Store) SetGroupCount(cameraID, count int) error {
+	if count < 1 || count > MaxGroupCount {
+		return newErr(400, "group count must be between 1 and %d", MaxGroupCount)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam := s.findCameraLocked(cameraID)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
-	found := false
-	out := cam.Groups[:0]
-	for _, g := range cam.Groups {
-		if g.ID == groupID {
-			found = true
-			continue
+	if count > len(cam.Groups) {
+		for i := len(cam.Groups); i < count; i++ {
+			cam.Groups = append(cam.Groups, &Group{ID: cam.nextGroupID, Name: fmt.Sprintf("Group %d", i+1)})
+			cam.nextGroupID++
 		}
-		out = append(out, g)
-	}
-	if !found {
-		return newErr(404, "group not found")
-	}
-	cam.Groups = out
-	if cam.SelectedGroupID != nil && *cam.SelectedGroupID == groupID {
-		cam.SelectedGroupID = nil
-		if cam.Queued != nil && cam.Queued.Origin == "auto" {
-			cam.Queued = nil
+	} else if count < len(cam.Groups) {
+		removedIDs := map[int]bool{}
+		for _, g := range cam.Groups[count:] {
+			removedIDs[g.ID] = true
+		}
+		cam.Groups = cam.Groups[:count]
+		if cam.SelectedGroupID != nil && removedIDs[*cam.SelectedGroupID] {
+			cam.SelectedGroupID = nil
+			if cam.Queued != nil && cam.Queued.Origin == "auto" {
+				cam.Queued = nil
+			}
 		}
 	}
 	go s.broadcast()

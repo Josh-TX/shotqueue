@@ -51,7 +51,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 	for i, g := range cam.Groups {
 		members := make([]int, len(g.Members))
 		copy(members, g.Members)
-		groups[i] = Group{ID: g.ID, Name: g.Name, Color: g.Color, Members: members}
+		groups[i] = Group{ID: g.ID, Name: g.Name, Members: members}
 	}
 	return CameraDTO{
 		ID:                      cam.ID,

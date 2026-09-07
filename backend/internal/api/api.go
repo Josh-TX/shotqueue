@@ -53,7 +53,6 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/cameras", s.handleCameras)
 	mux.HandleFunc("/api/cameras/", s.handleCameraSubroutes)
 	mux.HandleFunc("/api/presets/", s.handlePresetThumbnail)
-	mux.HandleFunc("/api/colors", s.handleColors)
 	mux.HandleFunc("/api/settings", s.handleSettings)
 	mux.HandleFunc("/api/versions", s.handleVersions)
 	mux.HandleFunc("/api/versions/", s.handleVersionSubroutes)
@@ -155,12 +154,6 @@ func pathParts(prefix, path string) []string {
 func atoi(s string) (int, bool) {
 	n, err := strconv.Atoi(s)
 	return n, err == nil
-}
-
-// ---- misc top-level routes ----
-
-func (s *Server) handleColors(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, state.GroupColors)
 }
 
 func (s *Server) handlePresetThumbnail(w http.ResponseWriter, r *http.Request) {

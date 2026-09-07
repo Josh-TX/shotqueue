@@ -12,7 +12,7 @@
         :key="g.id"
         class="group-dot"
         :class="{ big: isQueued && queuedAuto && g.id === camera.selectedGroupId }"
-        :style="{ background: GROUP_COLOR_HEX[g.color] }"
+        :style="{ background: groupColor(g.index) }"
       />
     </div>
     <div class="preset-thumb-gradient" />
@@ -45,7 +45,7 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
 import { api } from '../api.js';
-import { GROUP_COLOR_HEX } from '../colors.js';
+import { groupColor } from '../colors.js';
 import ContextMenu from './ContextMenu.vue';
 import PromptModal from './PromptModal.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
@@ -67,7 +67,9 @@ const borderClass = computed(() => {
 });
 
 const memberGroups = computed(() =>
-  props.camera.groups.filter((g) => g.members.includes(props.preset.id))
+  props.camera.groups
+    .map((g, index) => ({ ...g, index }))
+    .filter((g) => g.members.includes(props.preset.id))
 );
 
 const imgSrc = computed(() => `${props.preset.thumbnailUrl}?v=${props.preset.thumbnailVersion}`);

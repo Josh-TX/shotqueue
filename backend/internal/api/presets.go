@@ -41,11 +41,9 @@ func (s *Server) handlePresetByID(w http.ResponseWriter, r *http.Request, camID 
 			writeError(w, 400, "invalid body")
 			return
 		}
-		if body.Name != "" {
-			if err := s.store.RenamePreset(camID, presetID, body.Name); err != nil {
-				writeLogicError(w, err)
-				return
-			}
+		if err := s.store.RenamePreset(camID, presetID, body.Name); err != nil {
+			writeLogicError(w, err)
+			return
 		}
 		dto, _ := s.store.PublicCamera(camID)
 		writeJSON(w, 200, dto)

@@ -35,7 +35,7 @@ func (s *Store) BuildSnapshot() []versions.VersionCamera {
 			vc.Presets[j] = versions.VersionPreset{Name: p.Name, Target: p.Target}
 		}
 		for j, g := range cam.Groups {
-			vg := versions.VersionGroup{Name: g.Name, Color: g.Color, Members: make([]int, 0, len(g.Members))}
+			vg := versions.VersionGroup{Name: g.Name, Members: make([]int, 0, len(g.Members))}
 			for _, presetID := range g.Members {
 				if idx, ok := presetIndex[presetID]; ok {
 					vg.Members = append(vg.Members, idx)
@@ -83,7 +83,7 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 			presetIDByIndex[j] = p.ID
 		}
 		for _, vg := range vc.Groups {
-			g := &Group{ID: cam.nextGroupID, Name: vg.Name, Color: vg.Color}
+			g := &Group{ID: cam.nextGroupID, Name: vg.Name}
 			cam.nextGroupID++
 			for _, idx := range vg.Members {
 				if idx >= 0 && idx < len(presetIDByIndex) {
