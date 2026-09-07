@@ -88,10 +88,6 @@ func (s *Server) handleLoadVersion(w http.ResponseWriter, r *http.Request, id in
 		writeLogicError(w, err)
 		return
 	}
-	s.versions.SetAutosaveBaseline(v.Cameras)
-	if s.onVersionLoad != nil {
-		s.onVersionLoad()
-	}
 	if body.RegenerateThumbnails {
 		s.store.StartRegenThumbnails()
 	}

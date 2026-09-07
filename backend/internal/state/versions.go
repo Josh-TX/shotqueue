@@ -3,7 +3,6 @@ package state
 import (
 	"time"
 
-	"shotqueue-backend/internal/config"
 	"shotqueue-backend/internal/ptz"
 	"shotqueue-backend/internal/versions"
 )
@@ -48,39 +47,31 @@ func (s *Store) BuildSnapshot() []versions.VersionCamera {
 	return out
 }
 
-// LoadVersion fully replaces the camera roster (persisted via cfg) and every camera's presets and
-// groups (in memory only) with the given snapshot. Cameras/presets/groups all get fresh IDs; any
-// in-flight thumbnail regeneration is implicitly cancelled since it tracks cameras by the old IDs.
+// LoadVersion fully replaces the camera roster and every camera's presets and groups (all in
+// memory only) with the given snapshot. Cameras/presets/groups all get fresh IDs; any in-flight
+// thumbnail regeneration is implicitly cancelled since it tracks cameras by the old IDs.
 func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 	s.regenMu.Lock()
 	s.regenToken++
 	s.regenMu.Unlock()
 
-	cfgCams := make([]config.NewCamera, len(cams))
-	for i, vc := range cams {
-		cfgCams[i] = config.NewCamera{Name: vc.Name, Host: vc.Host, Port: vc.Port, TallySource: vc.TallySource}
-	}
-	newCfgCams, err := s.cfg.ReplaceCameras(cfgCams)
-	if err != nil {
-		return err
-	}
-
 	s.mu.Lock()
-	newCameras := make([]*Camera, len(newCfgCams))
+	newCameras := make([]*Camera, len(cams))
 	presetsByID := make(map[int]*Preset)
 	nextPreset := s.nextPreset
-	for i, cfgCam := range newCfgCams {
-		vc := cams[i]
+	nextCameraID := s.nextCameraID
+	for i, vc := range cams {
 		cam := &Camera{
-			ID:          cfgCam.ID,
-			Name:        cfgCam.Name,
-			Host:        cfgCam.Host,
-			Port:        cfgCam.Port,
-			TallySource: cfgCam.TallySource,
-			Client:      ptz.New(cfgCam.Host, cfgCam.Port),
+			ID:          nextCameraID,
+			Name:        vc.Name,
+			Host:        vc.Host,
+			Port:        vc.Port,
+			TallySource: vc.TallySource,
+			Client:      ptz.New(vc.Host, vc.Port),
 			Status:      "none",
 			nextGroupID: 1,
 		}
+		nextCameraID++
 		presetIDByIndex := make([]int, len(vc.Presets))
 		for j, vp := range vc.Presets {
 			p := &Preset{ID: nextPreset, Name: vp.Name, Target: vp.Target, ThumbnailVersion: 1}
@@ -104,9 +95,11 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 	s.cameras = newCameras
 	s.presetsByID = presetsByID
 	s.nextPreset = nextPreset
+	s.nextCameraID = nextCameraID
 	s.mu.Unlock()
 
 	s.broadcast()
+	s.onMutate()
 	return nil
 }
 

@@ -90,6 +90,7 @@ func (s *Store) AddPreset(cameraID int, name string, groupIDs []int) (*Preset, e
 	}
 
 	go s.broadcast()
+	go s.onMutate()
 	return preset, nil
 }
 
@@ -104,6 +105,7 @@ func (s *Store) RenamePreset(cameraID, presetID int, name string) error {
 		if p.ID == presetID {
 			p.Name = name
 			go s.broadcast()
+			go s.onMutate()
 			return nil
 		}
 	}
@@ -144,6 +146,7 @@ func (s *Store) DeletePreset(cameraID, presetID int) error {
 		cam.Queued = nil
 	}
 	go s.broadcast()
+	go s.onMutate()
 	return nil
 }
 
@@ -402,6 +405,7 @@ func (s *Store) AddGroup(cameraID int, name string) (*Group, error) {
 	cam.nextGroupID++
 	cam.Groups = append(cam.Groups, group)
 	go s.broadcast()
+	go s.onMutate()
 	return group, nil
 }
 
@@ -421,6 +425,7 @@ func (s *Store) UpdateGroup(cameraID, groupID int, name, color string) error {
 				g.Color = color
 			}
 			go s.broadcast()
+			go s.onMutate()
 			return nil
 		}
 	}
@@ -454,6 +459,7 @@ func (s *Store) DeleteGroup(cameraID, groupID int) error {
 		}
 	}
 	go s.broadcast()
+	go s.onMutate()
 	return nil
 }
 
@@ -493,6 +499,7 @@ func (s *Store) SetGroupMember(cameraID, groupID, presetID int, inGroup bool) er
 		group.Members = append(group.Members, presetID)
 	}
 	go s.broadcast()
+	go s.onMutate()
 	return nil
 }
 

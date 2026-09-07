@@ -11,7 +11,7 @@
     <div class="field">
       <label>ATEM host</label>
       <div style="display:flex; gap:8px;">
-        <input type="text" v-model="atemHost" placeholder="192.168.1.100" />
+        <input type="text" v-model="atemHost" placeholder="e.g. 192.168.1.100" />
         <button :disabled="savingAtem" @click="saveAtem">{{ savingAtem ? 'Saving…' : 'Save' }}</button>
       </div>
     </div>
@@ -58,9 +58,9 @@ function syncEdits() {
 }
 
 watch(() => store.cameras.length, syncEdits);
+syncEdits();
 
 onMounted(async () => {
-  syncEdits();
   try {
     const settings = await api.getSettings();
     atemHost.value = settings.atemHost ?? '';

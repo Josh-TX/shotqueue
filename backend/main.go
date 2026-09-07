@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"sync"
-	"time"
 
 	"shotqueue-backend/internal/api"
 	"shotqueue-backend/internal/atem"
@@ -17,40 +16,6 @@ import (
 	"shotqueue-backend/internal/state"
 	"shotqueue-backend/internal/versions"
 )
-
-const autosaveInterval = 30 * time.Minute
-
-// newAutosaveTimer runs a timer that saves an autosave version (if the state actually changed
-// since the last one) every autosaveInterval. The returned func resets the timer early, used when
-// a version is loaded so a load isn't immediately followed by a spurious autosave.
-func newAutosaveTimer(store *state.Store, vstore *versions.Store) func() {
-	reset := make(chan struct{}, 1)
-	go func() {
-		timer := time.NewTimer(autosaveInterval)
-		defer timer.Stop()
-		for {
-			select {
-			case <-timer.C:
-				vstore.MaybeAutosave(store.BuildSnapshot())
-				timer.Reset(autosaveInterval)
-			case <-reset:
-				if !timer.Stop() {
-					select {
-					case <-timer.C:
-					default:
-					}
-				}
-				timer.Reset(autosaveInterval)
-			}
-		}
-	}()
-	return func() {
-		select {
-		case reset <- struct{}{}:
-		default:
-		}
-	}
-}
 
 // webDistDir resolves relative to this source file so `go run .` works from anywhere.
 func webDistDir() string {
@@ -91,16 +56,22 @@ func main() {
 		log.Fatalf("loading config: %v", err)
 	}
 
-	store := state.New(cfg)
-	supervisor := &atemSupervisor{store: store}
-
 	versionsStore, err := versions.Load()
 	if err != nil {
 		log.Fatalf("loading versions: %v", err)
 	}
-	resetAutosave := newAutosaveTimer(store, versionsStore)
 
-	server := api.New(store, cfg, versionsStore, supervisor.restart, resetAutosave)
+	store := state.New()
+	if latest, ok := versionsStore.LatestAutosave(); ok {
+		if err := store.LoadVersion(latest.Cameras); err != nil {
+			log.Fatalf("loading latest version: %v", err)
+		}
+	}
+	store.SetOnMutate(func() { versionsStore.Autosave(store.BuildSnapshot()) })
+
+	supervisor := &atemSupervisor{store: store}
+
+	server := api.New(store, cfg, versionsStore, supervisor.restart)
 	supervisor.restart(cfg.Get().Atem.Host)
 
 	mux := http.NewServeMux()

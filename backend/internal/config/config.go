@@ -1,6 +1,6 @@
-// Package config loads and saves shotqueue's settings (ATEM address, camera roster) to a JSON
-// file in the user's config directory. This is the only thing that survives a restart — presets,
-// groups and metrics are runtime state (see internal/state) and are not persisted here.
+// Package config loads and saves shotqueue's settings (currently just the ATEM address) to a JSON
+// file in the user's config directory. The camera roster, presets and groups are persisted
+// separately via internal/versions (the "latest" version), not here.
 package config
 
 import (
@@ -14,18 +14,8 @@ type Atem struct {
 	Host string `json:"host"`
 }
 
-type Camera struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Host        string `json:"host"`
-	Port        string `json:"port"`
-	TallySource uint16 `json:"tallySource"`
-}
-
 type Config struct {
-	Atem         Atem     `json:"atem"`
-	Cameras      []Camera `json:"cameras"`
-	NextCameraID int      `json:"nextCameraId"`
+	Atem Atem `json:"atem"`
 }
 
 type Store struct {
@@ -54,7 +44,7 @@ func Load() (*Store, error) {
 	}
 	path := filepath.Join(dir, "config.json")
 
-	s := &Store{path: path, cfg: Config{NextCameraID: 1}}
+	s := &Store{path: path}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -87,65 +77,5 @@ func (s *Store) SetAtem(atem Atem) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cfg.Atem = atem
-	return s.saveLocked()
-}
-
-func (s *Store) AddCamera(name, host, port string, tallySource uint16) (Camera, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	cam := Camera{ID: s.cfg.NextCameraID, Name: name, Host: host, Port: port, TallySource: tallySource}
-	s.cfg.NextCameraID++
-	s.cfg.Cameras = append(s.cfg.Cameras, cam)
-	return cam, s.saveLocked()
-}
-
-func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for i := range s.cfg.Cameras {
-		if s.cfg.Cameras[i].ID == id {
-			s.cfg.Cameras[i].Name = name
-			s.cfg.Cameras[i].Host = host
-			s.cfg.Cameras[i].Port = port
-			s.cfg.Cameras[i].TallySource = tallySource
-			return s.saveLocked()
-		}
-	}
-	return os.ErrNotExist
-}
-
-// NewCamera describes a camera to create without an ID yet assigned, used when replacing the
-// whole roster at once (loading a version).
-type NewCamera struct {
-	Name        string
-	Host        string
-	Port        string
-	TallySource uint16
-}
-
-// ReplaceCameras discards the current camera roster and replaces it with cams, assigning each a
-// fresh sequential ID continuing from NextCameraID (never reusing an old one).
-func (s *Store) ReplaceCameras(cams []NewCamera) ([]Camera, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := make([]Camera, len(cams))
-	for i, c := range cams {
-		out[i] = Camera{ID: s.cfg.NextCameraID, Name: c.Name, Host: c.Host, Port: c.Port, TallySource: c.TallySource}
-		s.cfg.NextCameraID++
-	}
-	s.cfg.Cameras = out
-	return out, s.saveLocked()
-}
-
-func (s *Store) RemoveCamera(id int) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	out := s.cfg.Cameras[:0]
-	for _, c := range s.cfg.Cameras {
-		if c.ID != id {
-			out = append(out, c)
-		}
-	}
-	s.cfg.Cameras = out
 	return s.saveLocked()
 }

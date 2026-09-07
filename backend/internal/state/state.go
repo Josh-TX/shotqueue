@@ -1,6 +1,7 @@
 // Package state holds shotqueue's runtime model: cameras, presets, groups and queueing.
-// Ported from the old server's state.js + logic.js. Only the camera roster is persisted (via
-// internal/config); presets/groups live in memory only, same as before.
+// Ported from the old server's state.js + logic.js. Nothing here is persisted directly; main
+// wires OnMutate to save a "latest" version (see internal/versions) after every change, and
+// reloads it via LoadVersion on startup.
 package state
 
 import (
@@ -8,7 +9,6 @@ import (
 	"fmt"
 	"sync"
 
-	"shotqueue-backend/internal/config"
 	"shotqueue-backend/internal/ptz"
 )
 
@@ -73,34 +73,33 @@ type Camera struct {
 }
 
 type Store struct {
-	mu          sync.Mutex
-	cfg         *config.Store
-	cameras     []*Camera
-	presetsByID map[int]*Preset
-	nextPreset  int
-	broadcast   func()
-	regenMu     sync.Mutex
-	regenToken  int
+	mu           sync.Mutex
+	cameras      []*Camera
+	nextCameraID int
+	presetsByID  map[int]*Preset
+	nextPreset   int
+	broadcast    func()
+	onMutate     func()
+	regenMu      sync.Mutex
+	regenToken   int
 }
 
-func New(cfg *config.Store) *Store {
-	s := &Store{cfg: cfg, presetsByID: make(map[int]*Preset), nextPreset: 1, broadcast: func() {}}
-	for _, c := range cfg.Get().Cameras {
-		s.cameras = append(s.cameras, &Camera{
-			ID:          c.ID,
-			Name:        c.Name,
-			Host:        c.Host,
-			Port:        c.Port,
-			TallySource: c.TallySource,
-			Client:      ptz.New(c.Host, c.Port),
-			Status:      "none",
-			nextGroupID: 1,
-		})
+func New() *Store {
+	return &Store{
+		nextCameraID: 1,
+		presetsByID:  make(map[int]*Preset),
+		nextPreset:   1,
+		broadcast:    func() {},
+		onMutate:     func() {},
 	}
-	return s
 }
 
 func (s *Store) SetBroadcaster(fn func()) { s.broadcast = fn }
+
+// SetOnMutate registers a hook called after every mutation that changes cameras, presets or
+// groups (but not runtime-only state like trigger/queue/tally). Used by main to persist a
+// "latest" version after each change.
+func (s *Store) SetOnMutate(fn func()) { s.onMutate = fn }
 
 func (s *Store) withLock(fn func()) {
 	s.mu.Lock()
@@ -146,34 +145,34 @@ func (s *Store) Cameras() []*Camera {
 }
 
 func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera, error) {
-	cfgCam, err := s.cfg.AddCamera(name, host, port, tallySource)
-	if err != nil {
-		return nil, err
-	}
-	cam := &Camera{
-		ID:          cfgCam.ID,
-		Name:        cfgCam.Name,
-		Host:        cfgCam.Host,
-		Port:        cfgCam.Port,
-		TallySource: cfgCam.TallySource,
-		Client:      ptz.New(cfgCam.Host, cfgCam.Port),
-		Status:      "none",
-		nextGroupID: 1,
-	}
-	s.withLock(func() { s.cameras = append(s.cameras, cam) })
+	var cam *Camera
+	s.withLock(func() {
+		cam = &Camera{
+			ID:          s.nextCameraID,
+			Name:        name,
+			Host:        host,
+			Port:        port,
+			TallySource: tallySource,
+			Client:      ptz.New(host, port),
+			Status:      "none",
+			nextGroupID: 1,
+		}
+		s.nextCameraID++
+		s.cameras = append(s.cameras, cam)
+	})
 	s.broadcast()
+	s.onMutate()
 	return cam, nil
 }
 
 func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16) error {
-	if err := s.cfg.UpdateCamera(id, name, host, port, tallySource); err != nil {
-		return err
-	}
+	var found bool
 	s.withLock(func() {
 		cam := s.findCameraLocked(id)
 		if cam == nil {
 			return
 		}
+		found = true
 		cam.Name = name
 		if cam.Host != host || cam.Port != port {
 			cam.Client = ptz.New(host, port)
@@ -182,17 +181,20 @@ func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16
 		cam.Port = port
 		cam.TallySource = tallySource
 	})
+	if !found {
+		return ErrNotFound
+	}
 	s.broadcast()
+	s.onMutate()
 	return nil
 }
 
 func (s *Store) RemoveCamera(id int) error {
-	if err := s.cfg.RemoveCamera(id); err != nil {
-		return err
-	}
+	var found bool
 	s.withLock(func() {
 		for i, c := range s.cameras {
 			if c.ID == id {
+				found = true
 				for _, p := range c.Presets {
 					delete(s.presetsByID, p.ID)
 				}
@@ -201,7 +203,11 @@ func (s *Store) RemoveCamera(id int) error {
 			}
 		}
 	})
+	if !found {
+		return ErrNotFound
+	}
 	s.broadcast()
+	s.onMutate()
 	return nil
 }
 
