@@ -35,6 +35,9 @@ import { store, loadInitial, connectWebSocket } from './store.js';
 
 const MIN_UNIT_WIDTH = 80;
 const MAX_UNIT_WIDTH = 300;
+// must match .preset-grid gap and .preset-scroll padding + .camera-column border in style.css
+const GRID_GAP = 10;
+const COLUMN_OVERHEAD = 12 * 2 + 1;
 
 const showAddCamera = ref(false);
 const showSettings = ref(false);
@@ -48,9 +51,18 @@ let resizeObserver;
 const totalColumns = computed(() =>
   Math.max(1, store.cameras.reduce((sum, c) => sum + c.columnCount, 0)),
 );
-const unitWidth = computed(() =>
-  Math.min(MAX_UNIT_WIDTH, Math.max(MIN_UNIT_WIDTH, containerWidth.value / totalColumns.value)),
-);
+const cameraCount = computed(() => Math.max(1, store.cameras.length));
+
+// Each camera column pays COLUMN_OVERHEAD once (padding + border) plus a GRID_GAP
+// between each of its cells, not per total column, so that has to be backed out
+// before dividing by totalColumns to get a cell width that's consistent regardless
+// of how columns are distributed across cameras.
+const unitWidth = computed(() => {
+  const raw =
+    (containerWidth.value - GRID_GAP * (totalColumns.value - cameraCount.value) - COLUMN_OVERHEAD * cameraCount.value) /
+    totalColumns.value;
+  return Math.min(MAX_UNIT_WIDTH, Math.max(MIN_UNIT_WIDTH, raw));
+});
 
 onMounted(async () => {
   await loadInitial();

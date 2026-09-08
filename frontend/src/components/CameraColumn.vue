@@ -1,5 +1,5 @@
 <template>
-  <div class="camera-column" :style="{ width: unitWidth * camera.columnCount + 'px' }">
+  <div class="camera-column" :style="{ width: columnWidth + 'px' }">
     <div class="camera-column-header">
       <div class="header-row">
         <span class="camera-name" :title="camera.name">{{ camera.name }}</span>
@@ -34,7 +34,14 @@ import GroupSelect from './GroupSelect.vue';
 
 const props = defineProps({ camera: Object, unitWidth: Number });
 
+// must match .preset-grid gap and .preset-scroll padding + .camera-column border in style.css
+const GRID_GAP = 10;
+const COLUMN_OVERHEAD = 12 * 2 + 1;
+
 const tallyLabel = computed(() => props.camera.status.toUpperCase());
+const columnWidth = computed(
+  () => props.unitWidth * props.camera.columnCount + GRID_GAP * (props.camera.columnCount - 1) + COLUMN_OVERHEAD,
+);
 
 function onGroupChange(id) {
   api.setSelectedGroup(props.camera.id, id).catch((err) => alert(err.message));
