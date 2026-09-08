@@ -83,6 +83,7 @@ type Camera struct {
 	Status                  string // "live" | "preview" | "none"
 	Triggering              bool
 	TriggeringPresetID      *string
+	TriggerGen              int
 	CurrentPosition         *ptz.Position
 	Presets                 []*Preset
 	Groups                  []*Group

@@ -231,16 +231,22 @@ func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) error {
 	cam.Triggering = true
 	pid := preset.ID
 	cam.TriggeringPresetID = &pid
+	cam.TriggerGen++
+	gen := cam.TriggerGen
 	client := cam.Client
 	target := preset.Target
 	s.mu.Unlock()
 
 	s.broadcast()
-	go s.finishTrigger(cameraID, presetID, client, target)
+	go s.finishTrigger(cameraID, presetID, client, target, gen)
 	return nil
 }
 
-func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, target ptz.Position) {
+// finishTrigger drives one preset move to completion. gen is the camera's TriggerGen at the moment
+// this trigger was issued; if a newer trigger has since bumped it, this goroutine's results are
+// stale (superseded by whatever the newer trigger is doing) and are discarded instead of being
+// written back, so an in-flight trigger can never clobber a later one's preset/thumbnail/position.
+func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, target ptz.Position, gen int) {
 	if err := client.SetPositionRaw(target); err != nil {
 		log.Printf("[state] camera %s: set position failed: %v", cameraID, err)
 	}
@@ -262,12 +268,15 @@ func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, tar
 
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraID)
-	if cam != nil {
-		cam.Triggering = false
-		cam.TriggeringPresetID = nil
-		cam.CurrentPosition = &final
-		cam.CurrentThumbnailVersion++
+	if cam == nil || cam.TriggerGen != gen {
+		// A newer trigger superseded this one; let it own the camera's state instead.
+		s.mu.Unlock()
+		return
 	}
+	cam.Triggering = false
+	cam.TriggeringPresetID = nil
+	cam.CurrentPosition = &final
+	cam.CurrentThumbnailVersion++
 	if preset := s.presetsByID[presetID]; preset != nil && thumbErr == nil {
 		preset.Thumbnail = thumb
 		preset.ThumbnailVersion++
