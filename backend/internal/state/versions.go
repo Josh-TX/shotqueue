@@ -21,7 +21,7 @@ func (s *Store) BuildSnapshot() []versions.VersionCamera {
 	defer s.mu.Unlock()
 	out := make([]versions.VersionCamera, len(s.cameras))
 	for i, cam := range s.cameras {
-		presetIndex := make(map[int]int, len(cam.Presets))
+		presetIndex := make(map[string]int, len(cam.Presets))
 		vc := versions.VersionCamera{
 			Name:        cam.Name,
 			Host:        cam.Host,
@@ -59,12 +59,10 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 
 	s.mu.Lock()
 	newCameras := make([]*Camera, len(cams))
-	presetsByID := make(map[int]*Preset)
-	nextPreset := s.nextPreset
-	nextCameraID := s.nextCameraID
+	presetsByID := make(map[string]*Preset)
 	for i, vc := range cams {
 		cam := &Camera{
-			ID:          nextCameraID,
+			ID:          genID(),
 			Name:        vc.Name,
 			Host:        vc.Host,
 			Port:        vc.Port,
@@ -74,11 +72,9 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 			Status:      "none",
 			nextGroupID: 1,
 		}
-		nextCameraID++
-		presetIDByIndex := make([]int, len(vc.Presets))
+		presetIDByIndex := make([]string, len(vc.Presets))
 		for j, vp := range vc.Presets {
-			p := &Preset{ID: nextPreset, Name: vp.Name, Target: vp.Target, ThumbnailVersion: 1}
-			nextPreset++
+			p := &Preset{ID: genID(), Name: vp.Name, Target: vp.Target, ThumbnailVersion: 1}
 			cam.Presets = append(cam.Presets, p)
 			presetsByID[p.ID] = p
 			presetIDByIndex[j] = p.ID
@@ -97,8 +93,6 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 	}
 	s.cameras = newCameras
 	s.presetsByID = presetsByID
-	s.nextPreset = nextPreset
-	s.nextCameraID = nextCameraID
 	s.mu.Unlock()
 
 	s.broadcast()
@@ -127,7 +121,7 @@ func (s *Store) StartGenThumbnails(allowLiveMove, includeExisting bool) {
 	s.mu.Lock()
 	cams := make([]*Camera, len(s.cameras))
 	copy(cams, s.cameras)
-	order := make(map[int][]int, len(cams))
+	order := make(map[string][]string, len(cams))
 	for _, cam := range cams {
 		ids := genOrderLocked(cam)
 		order[cam.ID] = ids
@@ -147,7 +141,7 @@ func (s *Store) StartGenThumbnails(allowLiveMove, includeExisting bool) {
 			continue
 		}
 		running++
-		go func(cameraID int, ids []int) {
+		go func(cameraID string, ids []string) {
 			s.genCamera(cameraID, ids, token, allowLiveMove, includeExisting, counters)
 			done <- struct{}{}
 		}(cam.ID, ids)
@@ -174,8 +168,8 @@ func (s *Store) genCancelled(token int) bool {
 // active (if any) moved to the front. Capturing the active preset doesn't require moving the
 // camera at all, but only for as long as it stays active — so it has to happen before any other
 // preset's move knocks the camera off of it. Caller must hold s.mu.
-func genOrderLocked(cam *Camera) []int {
-	ids := make([]int, len(cam.Presets))
+func genOrderLocked(cam *Camera) []string {
+	ids := make([]string, len(cam.Presets))
 	for i, p := range cam.Presets {
 		ids[i] = p.ID
 	}
@@ -201,7 +195,7 @@ func finishPresetLocked(cam *Camera) {
 	}
 }
 
-func (s *Store) genCamera(cameraID int, presetIDs []int, token int, allowLiveMove, includeExisting bool, counters *genCounters) {
+func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowLiveMove, includeExisting bool, counters *genCounters) {
 	for _, presetID := range presetIDs {
 		if s.genCancelled(token) {
 			return

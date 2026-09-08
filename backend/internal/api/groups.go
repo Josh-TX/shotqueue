@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func (s *Server) handleGroupCount(w http.ResponseWriter, r *http.Request, camID int) {
+func (s *Server) handleGroupCount(w http.ResponseWriter, r *http.Request, camID string) {
 	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -25,7 +25,7 @@ func (s *Server) handleGroupCount(w http.ResponseWriter, r *http.Request, camID 
 	writeJSON(w, 200, dto)
 }
 
-func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request, camID int, groupIDStr string) {
+func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request, camID string, groupIDStr string) {
 	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -47,17 +47,17 @@ func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request, camID i
 	writeJSON(w, 200, dto)
 }
 
-func (s *Server) handleGroupMember(w http.ResponseWriter, r *http.Request, camID int, groupIDStr, presetIDStr string) {
+func (s *Server) handleGroupMember(w http.ResponseWriter, r *http.Request, camID string, groupIDStr, presetIDStr string) {
 	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	groupID, ok1 := atoi(groupIDStr)
-	presetID, ok2 := atoi(presetIDStr)
-	if !ok1 || !ok2 {
+	groupID, ok := atoi(groupIDStr)
+	if !ok {
 		http.NotFound(w, r)
 		return
 	}
+	presetID := presetIDStr
 	var body struct {
 		InGroup bool `json:"inGroup"`
 	}

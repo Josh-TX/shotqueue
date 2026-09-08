@@ -186,11 +186,7 @@ func (s *Server) handlePresetThumbnail(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	id, ok := atoi(parts[0])
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+	id := parts[0]
 	thumb, ok := s.store.PresetThumbnail(id)
 	if !ok || thumb == nil {
 		http.NotFound(w, r)

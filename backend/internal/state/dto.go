@@ -3,7 +3,7 @@ package state
 import "fmt"
 
 type PresetDTO struct {
-	ID               int     `json:"id"`
+	ID               string  `json:"id"`
 	Name             string  `json:"name"`
 	ThumbnailURL     *string `json:"thumbnailUrl"`
 	ThumbnailVersion int     `json:"thumbnailVersion"`
@@ -11,20 +11,20 @@ type PresetDTO struct {
 }
 
 type CameraDTO struct {
-	ID                      int         `json:"id"`
+	ID                      string      `json:"id"`
 	IP                      string      `json:"ip"`
 	Port                    string      `json:"port"`
 	TallySource             uint16      `json:"tallySource"`
 	Name                    string      `json:"name"`
 	Status                  string      `json:"status"`
 	Triggering              bool        `json:"triggering"`
-	TriggeringPresetID      int         `json:"triggeringPresetId"`
+	TriggeringPresetID      *string     `json:"triggeringPresetId"`
 	SelectedGroupID         *int        `json:"selectedGroupId"`
 	Queued                  *Queued     `json:"queued"`
 	Presets                 []PresetDTO `json:"presets"`
 	Groups                  []Group     `json:"groups"`
 	ColumnCount             int         `json:"columnCount"`
-	ActivePresetID          *int        `json:"activePresetId,omitempty"`
+	ActivePresetID          *string     `json:"activePresetId,omitempty"`
 	CurrentThumbnailVersion int         `json:"currentThumbnailVersion"`
 	Generating              bool        `json:"generating"`
 	GenDone                 int         `json:"genDone,omitempty"`
@@ -34,7 +34,7 @@ type CameraDTO struct {
 func presetDTO(p *Preset) PresetDTO {
 	var url *string
 	if len(p.Thumbnail) > 0 {
-		u := fmt.Sprintf("/api/presets/%d/thumbnail", p.ID)
+		u := fmt.Sprintf("/api/presets/%s/thumbnail", p.ID)
 		url = &u
 	}
 	return PresetDTO{
@@ -54,7 +54,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 	}
 	groups := make([]Group, len(cam.Groups))
 	for i, g := range cam.Groups {
-		members := make([]int, len(g.Members))
+		members := make([]string, len(g.Members))
 		copy(members, g.Members)
 		groups[i] = Group{ID: g.ID, Name: g.Name, Members: members}
 	}
@@ -81,7 +81,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 }
 
 // PublicCamera returns a JSON-safe snapshot of one camera.
-func (s *Store) PublicCamera(cameraID int) (CameraDTO, bool) {
+func (s *Store) PublicCamera(cameraID string) (CameraDTO, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam := s.findCameraLocked(cameraID)

@@ -7,11 +7,24 @@ package state
 import (
 	"errors"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 
 	"shotqueue-backend/internal/ptz"
 )
+
+const idChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+// genID returns a random 9-character alphanumeric ID. Collisions are astronomically unlikely
+// (62^9 possibilities) and are not checked for.
+func genID() string {
+	b := make([]byte, 9)
+	for i := range b {
+		b[i] = idChars[rand.Intn(len(idChars))]
+	}
+	return string(b)
+}
 
 // idlePollInterval is how often Start's poll loop re-reads every camera's live position, to catch
 // moves made by anything other than TriggerPreset (an external controller, a physical joystick,
@@ -35,9 +48,9 @@ func newErr(status int, format string, args ...any) *LogicError {
 }
 
 type Group struct {
-	ID      int    `json:"id"`
-	Name    string `json:"name"`
-	Members []int  `json:"members"`
+	ID      int      `json:"id"`
+	Name    string   `json:"name"`
+	Members []string `json:"members"`
 }
 
 // MaxGroupCount is the largest group count selectable per camera (see SetGroupCount).
@@ -47,7 +60,7 @@ const MaxGroupCount = 4
 const DefaultGroupCount = 2
 
 type Preset struct {
-	ID               int
+	ID               string
 	Name             string
 	Target           ptz.Position
 	Thumbnail        []byte
@@ -56,12 +69,12 @@ type Preset struct {
 }
 
 type Queued struct {
-	PresetID int    `json:"presetId"`
+	PresetID string `json:"presetId"`
 	Origin   string `json:"origin"` // "manual" | "auto"
 }
 
 type Camera struct {
-	ID                      int
+	ID                      string
 	Name                    string
 	Host                    string
 	Port                    string
@@ -69,7 +82,7 @@ type Camera struct {
 	Client                  *ptz.Client
 	Status                  string // "live" | "preview" | "none"
 	Triggering              bool
-	TriggeringPresetID      int
+	TriggeringPresetID      *string
 	CurrentPosition         *ptz.Position
 	Presets                 []*Preset
 	Groups                  []*Group
@@ -84,28 +97,24 @@ type Camera struct {
 }
 
 type Store struct {
-	mu           sync.Mutex
-	cameras      []*Camera
-	nextCameraID int
-	presetsByID  map[int]*Preset
-	nextPreset   int
-	broadcast    func()
-	onMutate     func()
-	genMu        sync.Mutex
-	genToken     int
-	genComplete  func(generated, skipped, failed int)
-	pollMu       sync.Mutex
-	pollStop     chan struct{}
+	mu          sync.Mutex
+	cameras     []*Camera
+	presetsByID map[string]*Preset
+	broadcast   func()
+	onMutate    func()
+	genMu       sync.Mutex
+	genToken    int
+	genComplete func(generated, skipped, failed int)
+	pollMu      sync.Mutex
+	pollStop    chan struct{}
 }
 
 func New() *Store {
 	return &Store{
-		nextCameraID: 1,
-		presetsByID:  make(map[int]*Preset),
-		nextPreset:   1,
-		broadcast:    func() {},
-		onMutate:     func() {},
-		genComplete:  func(generated, skipped, failed int) {},
+		presetsByID: make(map[string]*Preset),
+		broadcast:   func() {},
+		onMutate:    func() {},
+		genComplete: func(generated, skipped, failed int) {},
 	}
 }
 
@@ -161,7 +170,7 @@ func (s *Store) pollTick() {
 		before := s.ActivePresetID(cam)
 		s.RefreshPosition(cam.ID)
 		after := s.ActivePresetID(cam)
-		if !intPtrEqual(before, after) {
+		if !strPtrEqual(before, after) {
 			changed = true
 		}
 	}
@@ -170,7 +179,7 @@ func (s *Store) pollTick() {
 	}
 }
 
-func intPtrEqual(a, b *int) bool {
+func strPtrEqual(a, b *string) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
@@ -188,7 +197,7 @@ func (s *Store) withLock(fn func()) {
 	fn()
 }
 
-func (s *Store) findCameraLocked(id int) *Camera {
+func (s *Store) findCameraLocked(id string) *Camera {
 	for _, c := range s.cameras {
 		if c.ID == id {
 			return c
@@ -198,7 +207,7 @@ func (s *Store) findCameraLocked(id int) *Camera {
 }
 
 // FindCamera returns a camera by id, or nil.
-func (s *Store) FindCamera(id int) *Camera {
+func (s *Store) FindCamera(id string) *Camera {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.findCameraLocked(id)
@@ -229,7 +238,7 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 	var cam *Camera
 	s.withLock(func() {
 		cam = &Camera{
-			ID:          s.nextCameraID,
+			ID:          genID(),
 			Name:        name,
 			Host:        host,
 			Port:        port,
@@ -243,7 +252,6 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 			cam.Groups = append(cam.Groups, &Group{ID: cam.nextGroupID, Name: fmt.Sprintf("Group %d", i+1)})
 			cam.nextGroupID++
 		}
-		s.nextCameraID++
 		s.cameras = append(s.cameras, cam)
 	})
 	s.broadcast()
@@ -251,7 +259,7 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 	return cam, nil
 }
 
-func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16, columnCount int) error {
+func (s *Store) UpdateCamera(id string, name, host, port string, tallySource uint16, columnCount int) error {
 	var found bool
 	s.withLock(func() {
 		cam := s.findCameraLocked(id)
@@ -276,7 +284,7 @@ func (s *Store) UpdateCamera(id int, name, host, port string, tallySource uint16
 	return nil
 }
 
-func (s *Store) RemoveCamera(id int) error {
+func (s *Store) RemoveCamera(id string) error {
 	var found bool
 	s.withLock(func() {
 		for i, c := range s.cameras {
@@ -299,7 +307,7 @@ func (s *Store) RemoveCamera(id int) error {
 }
 
 // ActivePresetID reports which preset (if any) the camera's last-known position matches.
-func (s *Store) ActivePresetID(cam *Camera) *int {
+func (s *Store) ActivePresetID(cam *Camera) *string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return activePresetIDLocked(cam)
@@ -316,7 +324,7 @@ func closeEnough(a, b ptz.Position) bool {
 	return abs(a.Pan-b.Pan) <= positionTolerance && abs(a.Tilt-b.Tilt) <= positionTolerance && abs(a.Zoom-b.Zoom) <= positionTolerance
 }
 
-func activePresetIDLocked(cam *Camera) *int {
+func activePresetIDLocked(cam *Camera) *string {
 	if cam.CurrentPosition == nil {
 		return nil
 	}
@@ -330,7 +338,7 @@ func activePresetIDLocked(cam *Camera) *int {
 }
 
 // ClientFor returns the PTZ client for a camera, safe to use concurrently with camera edits.
-func (s *Store) ClientFor(cameraID int) (*ptz.Client, bool) {
+func (s *Store) ClientFor(cameraID string) (*ptz.Client, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam := s.findCameraLocked(cameraID)
@@ -340,7 +348,7 @@ func (s *Store) ClientFor(cameraID int) (*ptz.Client, bool) {
 	return cam.Client, true
 }
 
-func (s *Store) PresetThumbnail(presetID int) ([]byte, bool) {
+func (s *Store) PresetThumbnail(presetID string) ([]byte, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	p, ok := s.presetsByID[presetID]

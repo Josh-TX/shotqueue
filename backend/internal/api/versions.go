@@ -40,11 +40,7 @@ func (s *Server) handleVersionSubroutes(w http.ResponseWriter, r *http.Request) 
 		http.NotFound(w, r)
 		return
 	}
-	id, ok := atoi(parts[0])
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+	id := parts[0]
 	rest := parts[1:]
 
 	switch {
@@ -57,7 +53,7 @@ func (s *Server) handleVersionSubroutes(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (s *Server) handleVersionByID(w http.ResponseWriter, r *http.Request, id int) {
+func (s *Server) handleVersionByID(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -69,7 +65,7 @@ func (s *Server) handleVersionByID(w http.ResponseWriter, r *http.Request, id in
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) handleLoadVersion(w http.ResponseWriter, r *http.Request, id int) {
+func (s *Server) handleLoadVersion(w http.ResponseWriter, r *http.Request, id string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

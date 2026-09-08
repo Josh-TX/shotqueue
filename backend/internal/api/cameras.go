@@ -68,11 +68,7 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	camID, ok := atoi(parts[0])
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+	camID := parts[0]
 	rest := parts[1:]
 
 	switch {
@@ -128,7 +124,7 @@ func (s *Server) handleTestCamera(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID int) {
+func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID string) {
 	switch r.Method {
 	case http.MethodPatch:
 		var body struct {
@@ -178,7 +174,7 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID 
 	}
 }
 
-func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, camID int) {
+func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, camID string) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

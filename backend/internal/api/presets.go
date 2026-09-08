@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func (s *Server) handleAddPreset(w http.ResponseWriter, r *http.Request, camID int) {
+func (s *Server) handleAddPreset(w http.ResponseWriter, r *http.Request, camID string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -26,12 +26,7 @@ func (s *Server) handleAddPreset(w http.ResponseWriter, r *http.Request, camID i
 	writeJSON(w, 201, dto)
 }
 
-func (s *Server) handlePresetByID(w http.ResponseWriter, r *http.Request, camID int, presetIDStr string) {
-	presetID, ok := atoi(presetIDStr)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
+func (s *Server) handlePresetByID(w http.ResponseWriter, r *http.Request, camID string, presetID string) {
 	switch r.Method {
 	case http.MethodPatch:
 		var body struct {
@@ -60,13 +55,13 @@ func (s *Server) handlePresetByID(w http.ResponseWriter, r *http.Request, camID 
 	}
 }
 
-func (s *Server) handleReorderPresets(w http.ResponseWriter, r *http.Request, camID int) {
+func (s *Server) handleReorderPresets(w http.ResponseWriter, r *http.Request, camID string) {
 	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
 	var body struct {
-		Order []int `json:"order"`
+		Order []string `json:"order"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, 400, "invalid body")
@@ -80,14 +75,9 @@ func (s *Server) handleReorderPresets(w http.ResponseWriter, r *http.Request, ca
 	writeJSON(w, 200, dto)
 }
 
-func (s *Server) handleTriggerPreset(w http.ResponseWriter, r *http.Request, camID int, presetIDStr string) {
+func (s *Server) handleTriggerPreset(w http.ResponseWriter, r *http.Request, camID string, presetID string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	presetID, ok := atoi(presetIDStr)
-	if !ok {
-		http.NotFound(w, r)
 		return
 	}
 	if err := s.store.TriggerPreset(camID, presetID); err != nil {
@@ -98,14 +88,9 @@ func (s *Server) handleTriggerPreset(w http.ResponseWriter, r *http.Request, cam
 	writeJSON(w, 200, dto)
 }
 
-func (s *Server) handleQueuePreset(w http.ResponseWriter, r *http.Request, camID int, presetIDStr string) {
+func (s *Server) handleQueuePreset(w http.ResponseWriter, r *http.Request, camID string, presetID string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		return
-	}
-	presetID, ok := atoi(presetIDStr)
-	if !ok {
-		http.NotFound(w, r)
 		return
 	}
 	if err := s.store.QueuePreset(camID, presetID, "manual"); err != nil {
@@ -116,7 +101,7 @@ func (s *Server) handleQueuePreset(w http.ResponseWriter, r *http.Request, camID
 	writeJSON(w, 200, dto)
 }
 
-func (s *Server) handleUnqueue(w http.ResponseWriter, r *http.Request, camID int) {
+func (s *Server) handleUnqueue(w http.ResponseWriter, r *http.Request, camID string) {
 	if r.Method != http.MethodDelete {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -128,7 +113,7 @@ func (s *Server) handleUnqueue(w http.ResponseWriter, r *http.Request, camID int
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *Server) handleSelectedGroup(w http.ResponseWriter, r *http.Request, camID int) {
+func (s *Server) handleSelectedGroup(w http.ResponseWriter, r *http.Request, camID string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

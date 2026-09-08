@@ -8,6 +8,7 @@ package versions
 import (
 	"encoding/json"
 	"errors"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"sort"
@@ -17,6 +18,18 @@ import (
 
 	"shotqueue-backend/internal/ptz"
 )
+
+const idChars = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+// genID returns a random 9-character alphanumeric ID. Collisions are astronomically unlikely
+// (62^9 possibilities) and are not checked for.
+func genID() string {
+	b := make([]byte, 9)
+	for i := range b {
+		b[i] = idChars[rand.Intn(len(idChars))]
+	}
+	return string(b)
+}
 
 // AutosaveKeepCount is how many autosaved versions are kept before the oldest is evicted. Small
 // for now; expected to grow to something like 30 once this has proven out.
@@ -47,7 +60,7 @@ type VersionCamera struct {
 }
 
 type Version struct {
-	ID        int             `json:"id"`
+	ID        string          `json:"id"`
 	Type      string          `json:"type"` // "named" | "autosave"
 	Name      string          `json:"name"` // empty for autosave
 	Timestamp int64           `json:"timestamp"`
@@ -58,7 +71,6 @@ type Store struct {
 	mu       sync.Mutex
 	path     string
 	versions []Version
-	nextID   int
 }
 
 func dirPath() (string, error) {
@@ -71,7 +83,6 @@ func dirPath() (string, error) {
 
 type fileFormat struct {
 	Versions []Version `json:"versions"`
-	NextID   int       `json:"nextId"`
 }
 
 // Load reads versions.json from the user config directory, creating an empty default if it
@@ -86,7 +97,7 @@ func Load() (*Store, error) {
 	}
 	path := filepath.Join(dir, "versions.json")
 
-	s := &Store{path: path, nextID: 1}
+	s := &Store{path: path}
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -100,15 +111,11 @@ func Load() (*Store, error) {
 		return nil, err
 	}
 	s.versions = f.Versions
-	s.nextID = f.NextID
-	if s.nextID == 0 {
-		s.nextID = 1
-	}
 	return s, nil
 }
 
 func (s *Store) saveLocked() error {
-	data, err := json.MarshalIndent(fileFormat{Versions: s.versions, NextID: s.nextID}, "", "  ")
+	data, err := json.MarshalIndent(fileFormat{Versions: s.versions}, "", "  ")
 	if err != nil {
 		return err
 	}
@@ -125,7 +132,7 @@ func (s *Store) List() []Version {
 	return out
 }
 
-func (s *Store) Get(id int) (Version, bool) {
+func (s *Store) Get(id string) (Version, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for _, v := range s.versions {
@@ -152,8 +159,7 @@ func (s *Store) SaveNamed(name string, snapshot []VersionCamera) (Version, error
 			return s.versions[i], nil
 		}
 	}
-	v := Version{ID: s.nextID, Type: "named", Name: name, Timestamp: time.Now().UnixMilli(), Cameras: snapshot}
-	s.nextID++
+	v := Version{ID: genID(), Type: "named", Name: name, Timestamp: time.Now().UnixMilli(), Cameras: snapshot}
 	s.versions = append(s.versions, v)
 	if err := s.saveLocked(); err != nil {
 		return Version{}, err
@@ -163,7 +169,7 @@ func (s *Store) SaveNamed(name string, snapshot []VersionCamera) (Version, error
 
 // DeleteNamed removes a named version. Autosaved versions can only be evicted automatically, not
 // deleted directly.
-func (s *Store) DeleteNamed(id int) error {
+func (s *Store) DeleteNamed(id string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	for i, v := range s.versions {
@@ -238,8 +244,7 @@ func (s *Store) Autosave(snapshot []VersionCamera) error {
 		s.versions[latestIdx].Cameras = snapshot
 		s.versions[latestIdx].Timestamp = now
 	} else {
-		v := Version{ID: s.nextID, Type: "autosave", Timestamp: now, Cameras: snapshot}
-		s.nextID++
+		v := Version{ID: genID(), Type: "autosave", Timestamp: now, Cameras: snapshot}
 		s.versions = append(s.versions, v)
 		s.evictOldAutosavesLocked()
 	}
