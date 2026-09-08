@@ -113,6 +113,37 @@ func (s *Store) RenamePreset(cameraID, presetID int, name string) error {
 	return newErr(404, "preset not found")
 }
 
+// ReorderPresets rearranges cam.Presets to match order, which must contain exactly the IDs of the
+// camera's existing presets (in any order).
+func (s *Store) ReorderPresets(cameraID int, order []int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cam := s.findCameraLocked(cameraID)
+	if cam == nil {
+		return newErr(404, "camera not found")
+	}
+	if len(order) != len(cam.Presets) {
+		return newErr(400, "order must include every preset exactly once")
+	}
+	byID := make(map[int]*Preset, len(cam.Presets))
+	for _, p := range cam.Presets {
+		byID[p.ID] = p
+	}
+	reordered := make([]*Preset, len(order))
+	for i, id := range order {
+		p, ok := byID[id]
+		if !ok {
+			return newErr(400, "order must include every preset exactly once")
+		}
+		reordered[i] = p
+		delete(byID, id)
+	}
+	cam.Presets = reordered
+	go s.broadcast()
+	go s.onMutate()
+	return nil
+}
+
 func (s *Store) DeletePreset(cameraID, presetID int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

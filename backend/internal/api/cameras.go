@@ -94,6 +94,8 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 		s.handleSelectedGroup(w, r, camID)
 	case len(rest) == 1 && rest[0] == "group-count":
 		s.handleGroupCount(w, r, camID)
+	case len(rest) == 1 && rest[0] == "preset-order":
+		s.handleReorderPresets(w, r, camID)
 	case len(rest) == 2 && rest[0] == "groups":
 		s.handleGroupByID(w, r, camID, rest[1])
 	case len(rest) == 4 && rest[0] == "groups" && rest[2] == "members":

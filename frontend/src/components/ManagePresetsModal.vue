@@ -1,5 +1,5 @@
 <template>
-  <Modal :title="`Manage ${camera.name}`" tall @close="$emit('close')">
+  <Modal :title="`Manage ${camera.name}`" tall :min-width="modalWidth" @close="$emit('close')">
     <div class="manage-shell">
       <div class="manage-sidebar">
         <button class="manage-tab" :class="{ active: tab === 'general' }" @click="tab = 'general'">General</button>
@@ -8,7 +8,7 @@
         <button class="manage-tab" :class="{ active: tab === 'layout' }" @click="tab = 'layout'">Layout &amp; Order</button>
       </div>
 
-      <div class="manage-content">
+      <div class="manage-content" ref="contentEl" @dragover.prevent="onContentDragOver">
         <template v-if="tab === 'general'">
           <div class="field">
             <label>Camera name</label>
@@ -90,9 +90,20 @@
               <option v-for="n in 6" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
-          <p class="metric-block">Drag-to-reorder is coming soon.</p>
+          <p class="metric-block">Drag a tile to reorder.</p>
           <div class="manage-preset-grid" :style="gridStyle">
-            <ManagePresetTile v-for="p in camera.presets" :key="p.id" :preset="p" />
+            <ManagePresetTile
+              v-for="(p, i) in camera.presets"
+              :key="p.id"
+              :preset="p"
+              draggable="true"
+              class="draggable-tile"
+              :class="{ dragging: dragIndex === i }"
+              @dragstart="onDragStart(i, $event)"
+              @dragenter="onDragEnter(i)"
+              @dragover.prevent
+              @dragend="onDragEnd"
+            />
             <div v-if="camera.presets.length === 0" class="no-presets">No presets yet</div>
           </div>
         </template>
@@ -110,7 +121,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import Modal from './Modal.vue';
 import ManagePresetTile from './ManagePresetTile.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
@@ -125,6 +136,12 @@ const tab = ref('general');
 const gridStyle = computed(() => ({
   gridTemplateColumns: `repeat(${props.camera.columnCount}, ${props.unitWidth}px)`,
 }));
+
+const manageShellOverhead = 230; // sidebar + gaps + modal padding + scrollbar
+const modalWidth = computed(() => {
+  const gridWidth = props.camera.columnCount * props.unitWidth + (props.camera.columnCount - 1) * 10;
+  return Math.max(620, gridWidth + manageShellOverhead);
+});
 
 const nameDraft = ref(props.camera.name);
 watch(() => props.camera.name, (n) => (nameDraft.value = n));
@@ -155,6 +172,55 @@ function toggleMember(g, p, checked) {
 function setColumnCount(value) {
   api.updateCamera(props.camera.id, { columnCount: Number(value) }).catch((e) => alert(e.message));
 }
+
+const dragIndex = ref(null);
+const contentEl = ref(null);
+const autoScrollMargin = 50;
+const autoScrollMaxSpeed = 14;
+let autoScrollSpeed = 0;
+let autoScrollRAF = null;
+
+function autoScrollStep() {
+  if (contentEl.value) contentEl.value.scrollTop += autoScrollSpeed;
+  autoScrollRAF = requestAnimationFrame(autoScrollStep);
+}
+function stopAutoScroll() {
+  autoScrollSpeed = 0;
+  if (autoScrollRAF !== null) cancelAnimationFrame(autoScrollRAF);
+  autoScrollRAF = null;
+}
+function onContentDragOver(event) {
+  if (dragIndex.value === null || !contentEl.value) return;
+  const rect = contentEl.value.getBoundingClientRect();
+  let speed = 0;
+  if (event.clientY < rect.top + autoScrollMargin) {
+    speed = -Math.ceil(((rect.top + autoScrollMargin - event.clientY) / autoScrollMargin) * autoScrollMaxSpeed);
+  } else if (event.clientY > rect.bottom - autoScrollMargin) {
+    speed = Math.ceil(((event.clientY - (rect.bottom - autoScrollMargin)) / autoScrollMargin) * autoScrollMaxSpeed);
+  }
+  autoScrollSpeed = speed;
+  if (speed !== 0 && autoScrollRAF === null) autoScrollRAF = requestAnimationFrame(autoScrollStep);
+  else if (speed === 0) stopAutoScroll();
+}
+
+function onDragStart(i, event) {
+  dragIndex.value = i;
+  event.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnter(i) {
+  if (dragIndex.value === null || dragIndex.value === i) return;
+  const presets = props.camera.presets;
+  const [moved] = presets.splice(dragIndex.value, 1);
+  presets.splice(i, 0, moved);
+  dragIndex.value = i;
+}
+function onDragEnd() {
+  dragIndex.value = null;
+  stopAutoScroll();
+  api.reorderPresets(props.camera.id, props.camera.presets.map((p) => p.id)).catch((e) => alert(e.message));
+}
+
+onBeforeUnmount(stopAutoScroll);
 
 const deleting = ref(false);
 async function doDelete() {

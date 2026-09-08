@@ -60,6 +60,26 @@ func (s *Server) handlePresetByID(w http.ResponseWriter, r *http.Request, camID 
 	}
 }
 
+func (s *Server) handleReorderPresets(w http.ResponseWriter, r *http.Request, camID int) {
+	if r.Method != http.MethodPatch {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	var body struct {
+		Order []int `json:"order"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, 400, "invalid body")
+		return
+	}
+	if err := s.store.ReorderPresets(camID, body.Order); err != nil {
+		writeLogicError(w, err)
+		return
+	}
+	dto, _ := s.store.PublicCamera(camID)
+	writeJSON(w, 200, dto)
+}
+
 func (s *Server) handleTriggerPreset(w http.ResponseWriter, r *http.Request, camID int, presetIDStr string) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
