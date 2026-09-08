@@ -7,17 +7,9 @@
   >
     <img v-if="preset.thumbnailUrl && !imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
     <div v-else class="preset-thumb-placeholder">No thumbnail</div>
-    <div class="preset-thumb-groups">
-      <span
-        v-for="g in memberGroups"
-        :key="g.id"
-        class="group-dot"
-        :class="{ big: isQueued && queuedAuto && g.id === camera.selectedGroupId }"
-        :style="{ background: groupColor(g.index) }"
-      />
-    </div>
     <div class="preset-thumb-gradient" />
     <div class="preset-thumb-name">{{ preset.name }}</div>
+    <span v-if="selectedGroupMember" class="group-swatch" :style="{ background: groupColor(selectedGroupMember.index) }" />
     <!-- temporary debug indicator for wasTriggered, remove once the auto-queue logic is verified -->
     <div class="preset-thumb-debug" title="wasTriggered">{{ preset.wasTriggered ? '●' : '' }}</div>
   </div>
@@ -57,7 +49,6 @@ const isActive = computed(() => props.camera.activePresetId === props.preset.id)
 const isLive = computed(() => props.camera.status === 'live');
 const isTriggering = computed(() => props.camera.triggeringPresetId === props.preset.id);
 const isQueued = computed(() => props.camera.queued?.presetId === props.preset.id);
-const queuedAuto = computed(() => isQueued.value && props.camera.queued?.origin === 'auto');
 
 const borderClass = computed(() => {
   if (isActive.value && isLive.value) return 'border-active-live';
@@ -67,11 +58,12 @@ const borderClass = computed(() => {
   return '';
 });
 
-const memberGroups = computed(() =>
-  props.camera.groups
+const selectedGroupMember = computed(() => {
+  const sel = props.camera.groups
     .map((g, index) => ({ ...g, index }))
-    .filter((g) => g.members.includes(props.preset.id))
-);
+    .find((g) => g.id === props.camera.selectedGroupId);
+  return sel && sel.members.includes(props.preset.id) ? sel : null;
+});
 
 const imgSrc = computed(() => `${props.preset.thumbnailUrl}?v=${props.preset.thumbnailVersion}`);
 const imgError = ref(false);
