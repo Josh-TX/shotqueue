@@ -39,11 +39,17 @@ func (a *atemSupervisor) restart(host string) {
 	}
 	if host == "" {
 		a.cancel = nil
+		a.store.SetAtemConnected(false)
 		return
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cancel = cancel
-	listener := &atem.Listener{Host: host, OnChange: a.store.ApplyTally}
+	listener := &atem.Listener{
+		Host:         host,
+		OnChange:     a.store.ApplyTally,
+		OnConnect:    func() { a.store.SetAtemConnected(true) },
+		OnDisconnect: func() { a.store.SetAtemConnected(false) },
+	}
 	go listener.Run(ctx)
 }
 

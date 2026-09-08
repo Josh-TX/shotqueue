@@ -63,12 +63,13 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 // ---- websocket ----
 
 type stateMessage struct {
-	Type    string            `json:"type"`
-	Cameras []state.CameraDTO `json:"cameras"`
+	Type          string            `json:"type"`
+	Cameras       []state.CameraDTO `json:"cameras"`
+	AtemConnected bool              `json:"atemConnected"`
 }
 
 func (s *Server) currentStateMessage() stateMessage {
-	return stateMessage{Type: "state", Cameras: s.store.PublicCameras()}
+	return stateMessage{Type: "state", Cameras: s.store.PublicCameras(), AtemConnected: s.store.AtemConnected()}
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {

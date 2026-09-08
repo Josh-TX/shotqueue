@@ -4,6 +4,7 @@ import { api } from './api.js';
 export const store = reactive({
   cameras: [],
   wsConnected: false,
+  atemConnected: false,
   toasts: [],
 });
 
@@ -45,11 +46,15 @@ export function connectWebSocket() {
   ws.onopen = () => (store.wsConnected = true);
   ws.onclose = () => {
     store.wsConnected = false;
+    store.atemConnected = false;
     setTimeout(connectWebSocket, 1000);
   };
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
-    if (msg.type === 'state') mergeStructural(msg.cameras);
+    if (msg.type === 'state') {
+      mergeStructural(msg.cameras);
+      store.atemConnected = msg.atemConnected;
+    }
     if (msg.type === 'genComplete') {
       pushToast(`Generated ${msg.generated}, skipped ${msg.skipped}, failed ${msg.failed}`);
     }

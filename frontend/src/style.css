@@ -235,6 +235,9 @@ h3 {
 .ws-dot.on {
   background: #22c55e;
 }
+.ws-dot.warn {
+  background: #eab308;
+}
 .gen-banner {
   color: var(--muted);
   font-size: 13px;
@@ -562,6 +565,29 @@ h3 {
 }
 .field input:not([type="checkbox"]) {
   width: 100%;
+}
+.cameras-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.cameras-table th {
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: normal;
+  padding: 0 6px 4px;
+}
+.cameras-table td {
+  padding: 4px 6px 4px 0;
+  white-space: nowrap;
+}
+.cameras-table td input {
+  width: 100%;
+}
+.cameras-table-actions {
+  display: flex;
+  gap: 6px;
+  white-space: nowrap;
 }
 .error-text {
   color: var(--danger);

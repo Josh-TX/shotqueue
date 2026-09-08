@@ -98,16 +98,17 @@ type Camera struct {
 }
 
 type Store struct {
-	mu          sync.Mutex
-	cameras     []*Camera
-	presetsByID map[string]*Preset
-	broadcast   func()
-	onMutate    func()
-	genMu       sync.Mutex
-	genToken    int
-	genComplete func(generated, skipped, failed int)
-	pollMu      sync.Mutex
-	pollStop    chan struct{}
+	mu            sync.Mutex
+	cameras       []*Camera
+	presetsByID   map[string]*Preset
+	broadcast     func()
+	onMutate      func()
+	genMu         sync.Mutex
+	genToken      int
+	genComplete   func(generated, skipped, failed int)
+	pollMu        sync.Mutex
+	pollStop      chan struct{}
+	atemConnected bool
 }
 
 func New() *Store {
@@ -120,6 +121,19 @@ func New() *Store {
 }
 
 func (s *Store) SetBroadcaster(fn func()) { s.broadcast = fn }
+
+// SetAtemConnected records whether the ATEM listener currently has a live connection and
+// broadcasts the change to connected clients.
+func (s *Store) SetAtemConnected(v bool) {
+	s.withLock(func() { s.atemConnected = v })
+	s.broadcast()
+}
+
+func (s *Store) AtemConnected() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.atemConnected
+}
 
 // SetGenCompleteHandler registers a hook called once a StartGenThumbnails run finishes (and wasn't
 // superseded by a newer run or a version load), with the aggregate result counts.

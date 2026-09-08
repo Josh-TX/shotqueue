@@ -1,7 +1,7 @@
 <template>
   <div class="navbar">
     <span class="brand">ShotQueue</span>
-    <span class="ws-dot" :class="{ on: store.wsConnected }" :title="store.wsConnected ? 'connected' : 'disconnected'" />
+    <span class="ws-dot" :class="{ on: store.wsConnected && store.atemConnected, warn: store.wsConnected && !store.atemConnected }" :title="statusTitle" />
     <button @click="$emit('add-camera')">+ Add Camera</button>
     <div class="spacer" />
     <span v-if="genProgress" class="gen-banner">
@@ -20,6 +20,11 @@ import { computed } from 'vue';
 import { store } from '../store.js';
 
 defineEmits(['add-camera', 'settings', 'versions', 'gen-thumbnails']);
+
+const statusTitle = computed(() => {
+  if (!store.wsConnected) return 'websocket disconnected';
+  return store.atemConnected ? 'websocket + ATEM connected' : 'websocket connected, ATEM disconnected';
+});
 
 const genProgress = computed(() => {
   const active = store.cameras.filter((c) => c.generating);

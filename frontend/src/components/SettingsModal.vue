@@ -1,10 +1,10 @@
 <template>
-  <Modal title="Settings" @close="$emit('close')">
+  <Modal title="Settings" wide @close="$emit('close')">
     <div class="field">
       <label>Server connection</label>
       <div>
-        <span class="ws-dot" :class="{ on: wsConnected }" />
-        {{ wsConnected ? 'Connected (websocket)' : 'Disconnected' }}
+        <span class="ws-dot" :class="{ on: wsConnected && atemConnected, warn: wsConnected && !atemConnected }" />
+        {{ connectionText }}
       </div>
     </div>
 
@@ -19,14 +19,29 @@
     <div class="field">
       <label>Cameras</label>
       <div v-if="store.cameras.length === 0" class="metric-block">No cameras yet</div>
-      <div v-for="c in store.cameras" :key="c.id" class="info-preset-row" style="flex-wrap:wrap; gap:6px;">
-        <input type="text" v-model="edits[c.id].name" placeholder="Name" style="width:110px" />
-        <input type="text" v-model="edits[c.id].host" placeholder="Host" style="width:110px" />
-        <input type="text" v-model="edits[c.id].port" placeholder="Port" style="width:60px" />
-        <input type="number" v-model.number="edits[c.id].tallySource" placeholder="Tally #" style="width:70px" />
-        <button :disabled="saving[c.id]" @click="saveCamera(c.id)">Save</button>
-        <button @click="removeCamera(c.id)">Delete</button>
-      </div>
+      <table v-else class="cameras-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Host</th>
+            <th>Port</th>
+            <th>Tally #</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="c in store.cameras" :key="c.id">
+            <td><input type="text" v-model="edits[c.id].name" placeholder="Name" /></td>
+            <td><input type="text" v-model="edits[c.id].host" placeholder="Host" /></td>
+            <td><input type="text" v-model="edits[c.id].port" placeholder="Port" /></td>
+            <td><input type="number" v-model.number="edits[c.id].tallySource" placeholder="Tally #" /></td>
+            <td class="cameras-table-actions">
+              <button :disabled="saving[c.id]" @click="saveCamera(c.id)">Save</button>
+              <button @click="removeCamera(c.id)">Delete</button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
     <p v-if="error" class="error-text">{{ error }}</p>
@@ -41,6 +56,11 @@ import { store } from '../store.js';
 
 defineEmits(['close']);
 const wsConnected = computed(() => store.wsConnected);
+const atemConnected = computed(() => store.atemConnected);
+const connectionText = computed(() => {
+  if (!wsConnected.value) return 'Websocket disconnected';
+  return atemConnected.value ? 'Websocket Connected, ATEM connected' : 'Websocket Connected, ATEM disconnected';
+});
 
 const atemHost = ref('');
 const savingAtem = ref(false);

@@ -18,8 +18,10 @@ const (
 
 // Listener connects to one ATEM's tally feed and invokes OnChange whenever live/preview changes.
 type Listener struct {
-	Host     string
-	OnChange func(TallyState)
+	Host         string
+	OnChange     func(TallyState)
+	OnConnect    func()
+	OnDisconnect func()
 }
 
 // Run connects and reconnects with backoff until ctx is cancelled.
@@ -65,6 +67,14 @@ func (l *Listener) connectAndRun(ctx context.Context) error {
 		return fmt.Errorf("handshake: %w", err)
 	}
 	log.Printf("[atem] connected to %s (session %d)", l.Host, sessionID)
+	if l.OnConnect != nil {
+		l.OnConnect()
+	}
+	defer func() {
+		if l.OnDisconnect != nil {
+			l.OnDisconnect()
+		}
+	}()
 
 	state := newSwitcherState()
 

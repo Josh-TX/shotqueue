@@ -2,19 +2,19 @@
   <Modal title="Add Camera" @close="$emit('close')">
     <div class="field">
       <label>Host</label>
-      <input type="text" v-model="host" placeholder="192.168.1.1" @input="resetTest" />
+      <input type="text" v-model="host" placeholder="e.g. 192.168.1.1" @input="resetTest" />
     </div>
     <div class="field">
       <label>Port</label>
-      <input type="text" v-model="port" placeholder="80" @input="resetTest" />
+      <input type="text" v-model="port" placeholder="e.g. 80" @input="resetTest" />
     </div>
     <div class="field">
       <label>ATEM tally source number</label>
-      <input type="number" v-model.number="tallySource" placeholder="1" />
+      <input type="number" v-model.number="tallySource" placeholder="e.g. 1" />
     </div>
     <div class="field">
       <label>Name</label>
-      <input type="text" v-model="name" placeholder="Camera name" />
+      <input type="text" v-model="name" placeholder="e.g. Camera 1" />
     </div>
 
     <img v-if="tested" class="large-thumb" :src="testResult.snapshotUrl" alt="preview" />
