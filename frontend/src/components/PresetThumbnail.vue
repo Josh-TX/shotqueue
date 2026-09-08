@@ -117,9 +117,21 @@ const menuItems = computed(() => [
     action: toggleQueue,
   },
   { divider: true },
+  ...props.camera.groups.map((g, i) => ({
+    checkbox: true,
+    label: g.name,
+    color: groupColor(i),
+    checked: g.members.includes(props.preset.id),
+    onToggle: (checked) => toggleGroup(g, checked),
+  })),
+  ...(props.camera.groups.length ? [{ divider: true }] : []),
   { label: 'Rename Preset', action: () => (renaming.value = true) },
   { label: 'Delete Preset', action: () => (deleting.value = true) },
 ]);
+
+function toggleGroup(g, checked) {
+  api.setMember(props.camera.id, g.id, props.preset.id, { inGroup: checked }).catch((e) => alert(e.message));
+}
 
 const renaming = ref(false);
 async function doRename(name) {

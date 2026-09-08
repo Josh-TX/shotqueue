@@ -11,10 +11,18 @@
 
     <div class="field" v-if="camera.groups.length">
       <label>Add to groups</label>
-      <label v-for="g in camera.groups" :key="g.id" style="display:flex;align-items:center;gap:8px;color:var(--text);font-size:13px;margin-bottom:4px;">
-        <input type="checkbox" :value="g.id" v-model="groupIds" />
-        {{ g.name }}
-      </label>
+      <div class="add-preset-group-checks">
+        <input
+          v-for="(g, i) in camera.groups"
+          :key="g.id"
+          type="checkbox"
+          class="g-checkbox"
+          :style="{ '--group-color': groupColor(i) }"
+          :title="g.name"
+          :value="g.id"
+          v-model="groupIds"
+        />
+      </div>
     </div>
 
     <p v-if="error" class="error-text">{{ error }}</p>
@@ -30,6 +38,7 @@
 import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import { api } from '../api.js';
+import { groupColor } from '../colors.js';
 
 const props = defineProps({ camera: Object });
 const emit = defineEmits(['close']);

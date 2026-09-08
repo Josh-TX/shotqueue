@@ -6,10 +6,7 @@
         <span class="tally-badge" :class="[camera.status, { hidden: camera.status === 'none' }]">{{ tallyLabel }}</span>
       </div>
       <div class="header-row">
-        <select :value="camera.selectedGroupId ?? ''" @change="onGroupChange">
-          <option value="">No auto-queue</option>
-          <option v-for="g in camera.groups" :key="g.id" :value="g.id">{{ g.name }}</option>
-        </select>
+        <GroupSelect :model-value="camera.selectedGroupId ?? null" :groups="camera.groups" @update:model-value="onGroupChange" />
         <div class="spacer" />
         <button class="icon-btn" @click="showManage = true">⚙</button>
       </div>
@@ -33,14 +30,14 @@ import { api } from '../api.js';
 import PresetThumbnail from './PresetThumbnail.vue';
 import AddPresetModal from './AddPresetModal.vue';
 import ManagePresetsModal from './ManagePresetsModal.vue';
+import GroupSelect from './GroupSelect.vue';
 
 const props = defineProps({ camera: Object, unitWidth: Number });
 
 const tallyLabel = computed(() => props.camera.status.toUpperCase());
 
-function onGroupChange(e) {
-  const val = e.target.value;
-  api.setSelectedGroup(props.camera.id, val ? Number(val) : null).catch((err) => alert(err.message));
+function onGroupChange(id) {
+  api.setSelectedGroup(props.camera.id, id).catch((err) => alert(err.message));
 }
 
 const showAddPreset = ref(false);
