@@ -304,8 +304,26 @@ h3 {
 
 .preset-scroll {
   flex: 1 1 auto;
-  overflow-y: auto;
+  overflow-y: scroll;
   padding: 12px;
+  padding-right: 2px;
+  scrollbar-width: thin;
+}
+.preset-scroll::-webkit-scrollbar {
+  width: 10px;
+}
+.preset-scroll::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 5px;
+}
+.preset-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.preset-scroll.no-overflow {
+  scrollbar-color: transparent transparent;
+}
+.preset-scroll.no-overflow::-webkit-scrollbar-thumb {
+  background: transparent;
 }
 .preset-grid {
   display: grid;
@@ -532,7 +550,7 @@ h3 {
   font-size: 12px;
   color: var(--muted);
 }
-.field input {
+.field input:not([type="checkbox"]) {
   width: 100%;
 }
 .error-text {
@@ -545,6 +563,17 @@ h3 {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
+}
+.refresh-thumb-link {
+  display: block;
+  width: fit-content;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+  margin-bottom: 4px;
+}
+.refresh-thumb-link:hover {
+  text-decoration: underline;
 }
 .large-thumb {
   width: 100%;

@@ -12,7 +12,7 @@
       </div>
     </div>
 
-    <div class="preset-scroll">
+    <div class="preset-scroll" :class="{ 'no-overflow': !hasOverflow }" ref="scrollEl">
       <div class="preset-grid" :style="{ gridTemplateColumns: `repeat(${camera.columnCount}, 1fr)` }">
         <PresetThumbnail v-for="p in camera.presets" :key="p.id" :camera="camera" :preset="p" />
         <button class="add-preset-tile" @click="showAddPreset = true">+</button>
@@ -25,7 +25,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api } from '../api.js';
 import PresetThumbnail from './PresetThumbnail.vue';
 import AddPresetModal from './AddPresetModal.vue';
@@ -34,7 +34,7 @@ import GroupSelect from './GroupSelect.vue';
 
 const props = defineProps({ camera: Object, unitWidth: Number });
 
-// must match .preset-grid gap and .preset-scroll padding + .camera-column border in style.css
+// must match .preset-grid gap and .preset-scroll padding (incl. reserved scrollbar gutter) + .camera-column border in style.css
 const GRID_GAP = 10;
 const COLUMN_OVERHEAD = 12 * 2 + 1;
 
@@ -49,4 +49,21 @@ function onGroupChange(id) {
 
 const showAddPreset = ref(false);
 const showManage = ref(false);
+
+const scrollEl = ref(null);
+const hasOverflow = ref(false);
+let resizeObserver = null;
+
+function checkOverflow() {
+  if (scrollEl.value) {
+    hasOverflow.value = scrollEl.value.scrollHeight > scrollEl.value.clientHeight;
+  }
+}
+
+onMounted(() => {
+  resizeObserver = new ResizeObserver(checkOverflow);
+  resizeObserver.observe(scrollEl.value);
+  resizeObserver.observe(scrollEl.value.firstElementChild);
+});
+onBeforeUnmount(() => resizeObserver?.disconnect());
 </script>

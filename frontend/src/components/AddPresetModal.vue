@@ -1,5 +1,6 @@
 <template>
   <Modal title="Add Preset" @close="$emit('close')">
+    <a class="refresh-thumb-link" @click="refreshThumbnail">refresh thumbnail</a>
     <img class="large-thumb" :src="currentThumbnailUrl" alt="current position" />
 
     <p v-if="!canCapture" class="error-text">Camera is currently moving. Wait for it to settle before adding a preset.</p>
@@ -46,11 +47,16 @@ const emit = defineEmits(['close']);
 const name = ref(`Preset ${props.camera.presets.length + 1}`);
 const groupIds = ref([]);
 const error = ref('');
+const refreshTs = ref(Date.now());
 
 const canCapture = computed(() => !props.camera.triggering);
 const currentThumbnailUrl = computed(
-  () => `/api/cameras/${props.camera.id}/snapshot?v=${props.camera.currentThumbnailVersion}`,
+  () => `/api/cameras/${props.camera.id}/snapshot?v=${props.camera.currentThumbnailVersion}&t=${refreshTs.value}`,
 );
+
+function refreshThumbnail() {
+  refreshTs.value = Date.now();
+}
 
 async function submit() {
   try {
