@@ -77,9 +77,9 @@ type Camera struct {
 	SelectedGroupID         *int
 	Queued                  *Queued
 	nextGroupID             int
-	Regenerating            bool
-	RegenDone               int
-	RegenTotal              int
+	Generating              bool
+	GenDone                 int
+	GenTotal                int
 	CurrentThumbnailVersion int
 }
 
@@ -91,8 +91,9 @@ type Store struct {
 	nextPreset   int
 	broadcast    func()
 	onMutate     func()
-	regenMu      sync.Mutex
-	regenToken   int
+	genMu        sync.Mutex
+	genToken     int
+	genComplete  func(generated, skipped, failed int)
 	pollMu       sync.Mutex
 	pollStop     chan struct{}
 }
@@ -104,10 +105,15 @@ func New() *Store {
 		nextPreset:   1,
 		broadcast:    func() {},
 		onMutate:     func() {},
+		genComplete:  func(generated, skipped, failed int) {},
 	}
 }
 
 func (s *Store) SetBroadcaster(fn func()) { s.broadcast = fn }
+
+// SetGenCompleteHandler registers a hook called once a StartGenThumbnails run finishes (and wasn't
+// superseded by a newer run or a version load), with the aggregate result counts.
+func (s *Store) SetGenCompleteHandler(fn func(generated, skipped, failed int)) { s.genComplete = fn }
 
 // Start begins polling every camera's live position on idlePollInterval, to detect moves made
 // outside of TriggerPreset. The caller (api.Server) invokes this when the first websocket client

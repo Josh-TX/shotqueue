@@ -80,7 +80,7 @@ func (s *Server) handleLoadVersion(w http.ResponseWriter, r *http.Request, id in
 		return
 	}
 	var body struct {
-		RegenerateThumbnails bool `json:"regenerateThumbnails"`
+		GenerateThumbnails bool `json:"generateThumbnails"`
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 
@@ -88,8 +88,8 @@ func (s *Server) handleLoadVersion(w http.ResponseWriter, r *http.Request, id in
 		writeLogicError(w, err)
 		return
 	}
-	if body.RegenerateThumbnails {
-		s.store.StartRegenThumbnails()
+	if body.GenerateThumbnails {
+		s.store.StartGenThumbnails(false, true)
 	}
 	writeJSON(w, 200, s.store.PublicCameras())
 }

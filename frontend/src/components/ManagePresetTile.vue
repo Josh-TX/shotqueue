@@ -1,6 +1,7 @@
 <template>
   <div class="preset-thumb static">
-    <img v-if="!imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
+    <img v-if="preset.thumbnailUrl && !imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
+    <div v-else class="preset-thumb-placeholder">No thumbnail</div>
     <slot name="overlay" />
     <div class="preset-thumb-gradient" />
     <slot name="title">

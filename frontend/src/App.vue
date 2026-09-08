@@ -1,6 +1,11 @@
 <template>
   <div class="app-shell">
-    <Navbar @add-camera="showAddCamera = true" @settings="showSettings = true" @versions="showVersions = true" />
+    <Navbar
+      @add-camera="showAddCamera = true"
+      @settings="showSettings = true"
+      @versions="showVersions = true"
+      @gen-thumbnails="showGenThumbnails = true"
+    />
 
     <div class="camera-row" ref="cameraRow">
       <CameraColumn v-for="camera in store.cameras" :key="camera.id" :camera="camera" :unit-width="unitWidth" />
@@ -12,6 +17,8 @@
     <AddCameraModal v-if="showAddCamera" @close="showAddCamera = false" />
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
     <VersionsModal v-if="showVersions" @close="showVersions = false" />
+    <GenThumbnailsModal v-if="showGenThumbnails" @close="showGenThumbnails = false" />
+    <ToastStack />
   </div>
 </template>
 
@@ -22,6 +29,8 @@ import CameraColumn from './components/CameraColumn.vue';
 import AddCameraModal from './components/AddCameraModal.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import VersionsModal from './components/VersionsModal.vue';
+import GenThumbnailsModal from './components/GenThumbnailsModal.vue';
+import ToastStack from './components/ToastStack.vue';
 import { store, loadInitial, connectWebSocket } from './store.js';
 
 const MIN_UNIT_WIDTH = 80;
@@ -30,6 +39,7 @@ const MAX_UNIT_WIDTH = 300;
 const showAddCamera = ref(false);
 const showSettings = ref(false);
 const showVersions = ref(false);
+const showGenThumbnails = ref(false);
 
 const cameraRow = ref(null);
 const containerWidth = ref(0);

@@ -151,8 +151,8 @@ func (s *Store) DeletePreset(cameraID, presetID int) error {
 	return nil
 }
 
-func (s *Store) isTriggerableLocked(cam *Camera, preset *Preset) error {
-	if cam.Status == "live" {
+func (s *Store) isTriggerableLocked(cam *Camera, preset *Preset, allowLive bool) error {
+	if cam.Status == "live" && !allowLive {
 		return newErr(409, "cannot trigger a preset while the camera is live")
 	}
 	if id := activePresetIDLocked(cam); id != nil && *id == preset.ID {
@@ -174,6 +174,12 @@ func (s *Store) findPresetLocked(cam *Camera, presetID int) *Preset {
 }
 
 func (s *Store) TriggerPreset(cameraID, presetID int) error {
+	return s.triggerPreset(cameraID, presetID, false)
+}
+
+// triggerPreset is TriggerPreset with an allowLive escape hatch, used only by genCamera when the
+// "allow moving a live camera" option is enabled.
+func (s *Store) triggerPreset(cameraID, presetID int, allowLive bool) error {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraID)
 	if cam == nil {
@@ -185,7 +191,7 @@ func (s *Store) TriggerPreset(cameraID, presetID int) error {
 		s.mu.Unlock()
 		return newErr(404, "preset not found")
 	}
-	if err := s.isTriggerableLocked(cam, preset); err != nil {
+	if err := s.isTriggerableLocked(cam, preset, allowLive); err != nil {
 		s.mu.Unlock()
 		return err
 	}

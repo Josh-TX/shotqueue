@@ -1,6 +1,7 @@
 package state
 
 import (
+	"sync/atomic"
 	"time"
 
 	"shotqueue-backend/internal/ptz"
@@ -8,8 +9,8 @@ import (
 )
 
 const (
-	regenSettleTimeout = 10 * time.Second
-	regenPollInterval  = 150 * time.Millisecond
+	genSettleTimeout = 10 * time.Second
+	genPollInterval  = 150 * time.Millisecond
 )
 
 // BuildSnapshot captures the current camera roster, presets and groups in the shape saved to a
@@ -50,11 +51,11 @@ func (s *Store) BuildSnapshot() []versions.VersionCamera {
 
 // LoadVersion fully replaces the camera roster and every camera's presets and groups (all in
 // memory only) with the given snapshot. Cameras/presets/groups all get fresh IDs; any in-flight
-// thumbnail regeneration is implicitly cancelled since it tracks cameras by the old IDs.
+// thumbnail generation is implicitly cancelled since it tracks cameras by the old IDs.
 func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
-	s.regenMu.Lock()
-	s.regenToken++
-	s.regenMu.Unlock()
+	s.genMu.Lock()
+	s.genToken++
+	s.genMu.Unlock()
 
 	s.mu.Lock()
 	newCameras := make([]*Camera, len(cams))
@@ -105,44 +106,104 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 	return nil
 }
 
-// StartRegenThumbnails re-triggers every preset on every camera, one at a time per camera (so as
-// not to fight over a single camera's position) but concurrently across cameras, so that each
-// preset's normal trigger-and-settle flow recaptures its thumbnail. Starting a new regen (or
-// loading another version) cancels any regen already in flight.
-func (s *Store) StartRegenThumbnails() {
-	s.regenMu.Lock()
-	s.regenToken++
-	token := s.regenToken
-	s.regenMu.Unlock()
+// genCounters aggregates the outcome of a StartGenThumbnails run across every camera's goroutine.
+type genCounters struct {
+	generated atomic.Int64
+	skipped   atomic.Int64
+	failed    atomic.Int64
+}
+
+// StartGenThumbnails re-triggers presets to (re)capture their thumbnails, one at a time per camera
+// (so as not to fight over a single camera's position) but concurrently across cameras.
+// allowLiveMove lets it move a camera that's currently live (normally blocked); includeExisting
+// makes it redo presets that already have a thumbnail instead of only filling in missing ones.
+// Starting a new run (or loading another version) cancels any run already in flight.
+func (s *Store) StartGenThumbnails(allowLiveMove, includeExisting bool) {
+	s.genMu.Lock()
+	s.genToken++
+	token := s.genToken
+	s.genMu.Unlock()
 
 	s.mu.Lock()
 	cams := make([]*Camera, len(s.cameras))
 	copy(cams, s.cameras)
+	order := make(map[int][]int, len(cams))
 	for _, cam := range cams {
-		cam.RegenTotal = len(cam.Presets)
-		cam.RegenDone = 0
-		cam.Regenerating = len(cam.Presets) > 0
+		ids := genOrderLocked(cam)
+		order[cam.ID] = ids
+		cam.GenTotal = len(ids)
+		cam.GenDone = 0
+		cam.Generating = len(ids) > 0
 	}
 	s.mu.Unlock()
 	s.broadcast()
 
+	counters := &genCounters{}
+	done := make(chan struct{})
+	var running int
 	for _, cam := range cams {
-		if len(cam.Presets) == 0 {
+		ids := order[cam.ID]
+		if len(ids) == 0 {
 			continue
 		}
-		go s.regenCamera(cam.ID, token)
+		running++
+		go func(cameraID int, ids []int) {
+			s.genCamera(cameraID, ids, token, allowLiveMove, includeExisting, counters)
+			done <- struct{}{}
+		}(cam.ID, ids)
+	}
+
+	go func() {
+		for i := 0; i < running; i++ {
+			<-done
+		}
+		if s.genCancelled(token) {
+			return
+		}
+		s.genComplete(int(counters.generated.Load()), int(counters.skipped.Load()), int(counters.failed.Load()))
+	}()
+}
+
+func (s *Store) genCancelled(token int) bool {
+	s.genMu.Lock()
+	defer s.genMu.Unlock()
+	return token != s.genToken
+}
+
+// genOrderLocked lists a camera's preset IDs to generate, with whichever preset is currently
+// active (if any) moved to the front. Capturing the active preset doesn't require moving the
+// camera at all, but only for as long as it stays active — so it has to happen before any other
+// preset's move knocks the camera off of it. Caller must hold s.mu.
+func genOrderLocked(cam *Camera) []int {
+	ids := make([]int, len(cam.Presets))
+	for i, p := range cam.Presets {
+		ids[i] = p.ID
+	}
+	activeID := activePresetIDLocked(cam)
+	if activeID == nil {
+		return ids
+	}
+	for i, id := range ids {
+		if id == *activeID {
+			ids[0], ids[i] = ids[i], ids[0]
+			break
+		}
+	}
+	return ids
+}
+
+// finishPresetLocked advances a camera's gen progress by one preset, clearing Generating once
+// every preset's been accounted for. Caller must hold s.mu.
+func finishPresetLocked(cam *Camera) {
+	cam.GenDone++
+	if cam.GenDone >= cam.GenTotal {
+		cam.Generating = false
 	}
 }
 
-func (s *Store) regenCancelled(token int) bool {
-	s.regenMu.Lock()
-	defer s.regenMu.Unlock()
-	return token != s.regenToken
-}
-
-func (s *Store) regenCamera(cameraID, token int) {
-	for {
-		if s.regenCancelled(token) {
+func (s *Store) genCamera(cameraID int, presetIDs []int, token int, allowLiveMove, includeExisting bool, counters *genCounters) {
+	for _, presetID := range presetIDs {
+		if s.genCancelled(token) {
 			return
 		}
 
@@ -152,19 +213,62 @@ func (s *Store) regenCamera(cameraID, token int) {
 			s.mu.Unlock()
 			return
 		}
-		if cam.RegenDone >= len(cam.Presets) {
-			cam.Regenerating = false
+		preset := s.findPresetLocked(cam, presetID)
+		if preset == nil {
+			// preset was deleted mid-run
+			finishPresetLocked(cam)
 			s.mu.Unlock()
 			s.broadcast()
-			return
+			continue
 		}
-		presetID := cam.Presets[cam.RegenDone].ID
+		skip := (cam.Status == "live" && !allowLiveMove) || (!includeExisting && len(preset.Thumbnail) > 0)
+		alreadyActive := !skip && func() bool {
+			id := activePresetIDLocked(cam)
+			return id != nil && *id == preset.ID
+		}()
+		client := cam.Client
 		s.mu.Unlock()
 
-		s.TriggerPreset(cameraID, presetID) // ignore error: e.g. already-active just means nothing to do
+		if skip {
+			s.mu.Lock()
+			if cam := s.findCameraLocked(cameraID); cam != nil {
+				finishPresetLocked(cam)
+			}
+			s.mu.Unlock()
+			counters.skipped.Add(1)
+			s.broadcast()
+			continue
+		}
+
+		// The camera never needs to (and, per isTriggerableLocked, isn't allowed to) "trigger" a
+		// preset it's already sitting on — e.g. the preset that was active when the app booted.
+		// Capture a snapshot directly instead of going through the normal move-and-settle flow.
+		if alreadyActive {
+			thumb, err := client.Snapshot()
+			s.mu.Lock()
+			cam = s.findCameraLocked(cameraID)
+			if cam == nil {
+				s.mu.Unlock()
+				return
+			}
+			if p := s.presetsByID[presetID]; p != nil && err == nil {
+				p.Thumbnail = thumb
+				p.ThumbnailVersion++
+				counters.generated.Add(1)
+			} else {
+				counters.failed.Add(1)
+			}
+			finishPresetLocked(cam)
+			s.mu.Unlock()
+			s.broadcast()
+			continue
+		}
+
+		beforeVersion := preset.ThumbnailVersion
+		s.triggerPreset(cameraID, presetID, allowLiveMove) // ignore error: e.g. already-triggering just means nothing to do
 
 		settled := false
-		deadline := time.Now().Add(regenSettleTimeout)
+		deadline := time.Now().Add(genSettleTimeout)
 		for time.Now().Before(deadline) {
 			s.mu.Lock()
 			c := s.findCameraLocked(cameraID)
@@ -177,7 +281,7 @@ func (s *Store) regenCamera(cameraID, token int) {
 				settled = true
 				break
 			}
-			time.Sleep(regenPollInterval)
+			time.Sleep(genPollInterval)
 		}
 
 		s.mu.Lock()
@@ -187,15 +291,18 @@ func (s *Store) regenCamera(cameraID, token int) {
 			return
 		}
 		if !settled {
-			cam.Regenerating = false
+			cam.Generating = false
 			s.mu.Unlock()
+			counters.failed.Add(1)
 			s.broadcast()
 			return
 		}
-		cam.RegenDone++
-		if cam.RegenDone >= cam.RegenTotal {
-			cam.Regenerating = false
+		if p := s.presetsByID[presetID]; p != nil && p.ThumbnailVersion > beforeVersion {
+			counters.generated.Add(1)
+		} else {
+			counters.failed.Add(1)
 		}
+		finishPresetLocked(cam)
 		s.mu.Unlock()
 		s.broadcast()
 	}

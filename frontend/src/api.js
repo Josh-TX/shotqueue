@@ -40,6 +40,9 @@ export const api = {
   listVersions: () => request('GET', '/api/versions'),
   saveVersion: (name) => request('POST', '/api/versions', { name }),
   deleteVersion: (id) => request('DELETE', `/api/versions/${id}`),
-  loadVersion: (id, regenerateThumbnails) =>
-    request('POST', `/api/versions/${id}/load`, { regenerateThumbnails }),
+  loadVersion: (id, generateThumbnails) =>
+    request('POST', `/api/versions/${id}/load`, { generateThumbnails }),
+
+  genThumbnails: (allowLiveMove, includeExisting) =>
+    request('POST', '/api/thumbnails/generate', { allowLiveMove, includeExisting }),
 };

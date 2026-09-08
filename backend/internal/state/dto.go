@@ -3,11 +3,11 @@ package state
 import "fmt"
 
 type PresetDTO struct {
-	ID               int    `json:"id"`
-	Name             string `json:"name"`
-	ThumbnailURL     string `json:"thumbnailUrl"`
-	ThumbnailVersion int    `json:"thumbnailVersion"`
-	WasTriggered     bool   `json:"wasTriggered"`
+	ID               int     `json:"id"`
+	Name             string  `json:"name"`
+	ThumbnailURL     *string `json:"thumbnailUrl"`
+	ThumbnailVersion int     `json:"thumbnailVersion"`
+	WasTriggered     bool    `json:"wasTriggered"`
 }
 
 type CameraDTO struct {
@@ -26,16 +26,21 @@ type CameraDTO struct {
 	ColumnCount             int         `json:"columnCount"`
 	ActivePresetID          *int        `json:"activePresetId,omitempty"`
 	CurrentThumbnailVersion int         `json:"currentThumbnailVersion"`
-	Regenerating            bool        `json:"regenerating,omitempty"`
-	RegenDone               int         `json:"regenDone,omitempty"`
-	RegenTotal              int         `json:"regenTotal,omitempty"`
+	Generating              bool        `json:"generating"`
+	GenDone                 int         `json:"genDone,omitempty"`
+	GenTotal                int         `json:"genTotal,omitempty"`
 }
 
 func presetDTO(p *Preset) PresetDTO {
+	var url *string
+	if len(p.Thumbnail) > 0 {
+		u := fmt.Sprintf("/api/presets/%d/thumbnail", p.ID)
+		url = &u
+	}
 	return PresetDTO{
 		ID:               p.ID,
 		Name:             p.Name,
-		ThumbnailURL:     fmt.Sprintf("/api/presets/%d/thumbnail", p.ID),
+		ThumbnailURL:     url,
 		ThumbnailVersion: p.ThumbnailVersion,
 		WasTriggered:     p.WasTriggered,
 	}
@@ -69,9 +74,9 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		ColumnCount:             cam.ColumnCount,
 		ActivePresetID:          activePresetIDLocked(cam),
 		CurrentThumbnailVersion: cam.CurrentThumbnailVersion,
-		Regenerating:            cam.Regenerating,
-		RegenDone:               cam.RegenDone,
-		RegenTotal:              cam.RegenTotal,
+		Generating:              cam.Generating,
+		GenDone:                 cam.GenDone,
+		GenTotal:                cam.GenTotal,
 	}
 }
 

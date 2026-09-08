@@ -133,7 +133,7 @@ h3 {
 .ws-dot.on {
   background: #22c55e;
 }
-.regen-banner {
+.gen-banner {
   color: var(--muted);
   font-size: 13px;
   margin-right: 8px;
@@ -251,6 +251,17 @@ h3 {
   height: 100%;
   object-fit: cover;
   display: block;
+}
+.preset-thumb-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(45deg, #16181d, #16181d 10px, #0e0f12 10px, #0e0f12 20px);
+  color: var(--muted);
+  font-size: 11px;
+  text-align: center;
 }
 .preset-thumb.border-active-live {
   border-color: var(--danger);
@@ -516,7 +527,7 @@ h3 {
 .version-detail .modal-actions {
   margin-top: auto;
 }
-.regen-checkbox {
+.gen-checkbox {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -699,4 +710,23 @@ h3 {
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
+}
+
+/* ---- toasts ---- */
+.toast-stack {
+  position: fixed;
+  bottom: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1000;
+}
+.toast {
+  background: var(--panel3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }

@@ -5,7 +5,8 @@
     @click="onClick"
     @contextmenu.prevent="openMenu"
   >
-    <img v-if="!imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
+    <img v-if="preset.thumbnailUrl && !imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
+    <div v-else class="preset-thumb-placeholder">No thumbnail</div>
     <div class="preset-thumb-groups">
       <span
         v-for="g in memberGroups"

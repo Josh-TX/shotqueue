@@ -4,7 +4,17 @@ import { api } from './api.js';
 export const store = reactive({
   cameras: [],
   wsConnected: false,
+  toasts: [],
 });
+
+let nextToastId = 1;
+export function pushToast(message) {
+  const id = nextToastId++;
+  store.toasts.push({ id, message });
+  setTimeout(() => {
+    store.toasts = store.toasts.filter((t) => t.id !== id);
+  }, 5000);
+}
 
 function findCamera(id) {
   return store.cameras.find((c) => c.id === id);
@@ -40,6 +50,9 @@ export function connectWebSocket() {
   ws.onmessage = (event) => {
     const msg = JSON.parse(event.data);
     if (msg.type === 'state') mergeStructural(msg.cameras);
+    if (msg.type === 'genComplete') {
+      pushToast(`Generated ${msg.generated}, skipped ${msg.skipped}, failed ${msg.failed}`);
+    }
   };
   return ws;
 }

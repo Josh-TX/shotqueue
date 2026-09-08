@@ -77,9 +77,9 @@
             </div>
             <div class="modal-actions">
               <button v-if="selected.type === 'named'" class="delete-version-btn" @click="deleting = selected">Delete</button>
-              <label class="regen-checkbox">
-                <input type="checkbox" v-model="regenerateThumbnails" />
-                Regenerate thumbnails
+              <label class="gen-checkbox">
+                <input type="checkbox" v-model="generateThumbnails" />
+                Generate thumbnails
               </label>
               <button class="primary" :disabled="loading" @click="doLoad">
                 {{ loading ? 'Loading…' : 'Load Version' }}
@@ -173,10 +173,10 @@ const autosaved = computed(() =>
 
 const selectedId = ref(null);
 const selected = computed(() => versions.value.find((v) => v.id === selectedId.value) ?? null);
-const regenerateThumbnails = ref(true);
+const generateThumbnails = ref(true);
 function select(id) {
   selectedId.value = id;
-  regenerateThumbnails.value = true;
+  generateThumbnails.value = true;
 }
 function presetCount(v) {
   return v.cameras.reduce((sum, c) => sum + c.presets.length, 0);
@@ -238,7 +238,7 @@ async function doLoad() {
   loading.value = true;
   loadError.value = '';
   try {
-    await api.loadVersion(selected.value.id, regenerateThumbnails.value);
+    await api.loadVersion(selected.value.id, generateThumbnails.value);
     emit('close');
   } catch (e) {
     loadError.value = e.message;
