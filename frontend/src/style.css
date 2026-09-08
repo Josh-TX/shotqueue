@@ -63,7 +63,10 @@ button.danger:hover:not(:disabled) {
   background: rgba(239, 68, 68, 0.15);
 }
 button.icon-btn {
-  padding: 4px 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
   background: transparent;
   border: none;
 }
@@ -108,7 +111,7 @@ select {
   background: var(--panel2);
   border: 1px solid var(--border);
   border-radius: 5px;
-  padding: 4px 8px 3px;
+  padding: 4px 28px 3px 8px;
   cursor: pointer;
 }
 .group-select.open .group-select-trigger,
@@ -153,11 +156,8 @@ select {
   z-index: 50;
 }
 .group-select-menu {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
+  position: fixed;
   z-index: 51;
-  min-width: 100%;
   background: var(--panel2);
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -271,12 +271,26 @@ h3 {
 .header-row .spacer {
   flex: 1;
 }
-.camera-name {
-  font-weight: 600;
-  flex: 1;
-  min-width: 0;
+.group-row {
+  position: relative;
   overflow: hidden;
-  text-overflow: ellipsis;
+}
+.group-row .gear-btn {
+  position: absolute;
+  right: 0;
+  background: var(--bg);
+  bottom: 0;
+  z-index: 1;
+}
+.name-row {
+  position: relative;
+  overflow: hidden;
+}
+.camera-name {
+  display: block;
+  width: 100%;
+  font-weight: 600;
+  overflow: hidden;
   white-space: nowrap;
 }
 .tally-badge {
@@ -288,6 +302,13 @@ h3 {
   border: 1px solid var(--border);
   color: var(--muted);
 }
+.name-row .tally-badge {
+  position: absolute;
+  right: 0;
+  background: var(--bg);
+  bottom: 0;
+  z-index: 1;
+}
 .tally-badge.live {
   background: var(--danger);
   border-color: var(--danger);
@@ -297,9 +318,6 @@ h3 {
   background: #22c55e;
   border-color: #22c55e;
   color: #06210f;
-}
-.tally-badge.hidden {
-  visibility: hidden;
 }
 
 .preset-scroll {
