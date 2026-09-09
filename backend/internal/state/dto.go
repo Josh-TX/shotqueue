@@ -1,13 +1,10 @@
 package state
 
-import "fmt"
-
 type PresetDTO struct {
-	ID               string  `json:"id"`
-	Name             string  `json:"name"`
-	ThumbnailURL     *string `json:"thumbnailUrl"`
-	ThumbnailVersion int     `json:"thumbnailVersion"`
-	WasTriggered     bool    `json:"wasTriggered"`
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	ThumbnailVersion *int   `json:"thumbnailVersion"`
+	WasTriggered     bool   `json:"wasTriggered"`
 }
 
 type CameraDTO struct {
@@ -25,23 +22,21 @@ type CameraDTO struct {
 	Groups                  []Group     `json:"groups"`
 	ColumnCount             int         `json:"columnCount"`
 	ActivePresetID          *string     `json:"activePresetId,omitempty"`
-	CurrentThumbnailVersion int         `json:"currentThumbnailVersion"`
 	Generating              bool        `json:"generating"`
 	GenDone                 int         `json:"genDone,omitempty"`
 	GenTotal                int         `json:"genTotal,omitempty"`
 }
 
 func presetDTO(p *Preset) PresetDTO {
-	var url *string
+	var version *int
 	if len(p.Thumbnail) > 0 {
-		u := fmt.Sprintf("/api/presets/%s/thumbnail", p.ID)
-		url = &u
+		v := p.ThumbnailVersion
+		version = &v
 	}
 	return PresetDTO{
 		ID:               p.ID,
 		Name:             p.Name,
-		ThumbnailURL:     url,
-		ThumbnailVersion: p.ThumbnailVersion,
+		ThumbnailVersion: version,
 		WasTriggered:     p.WasTriggered,
 	}
 }
@@ -73,7 +68,6 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		Groups:                  groups,
 		ColumnCount:             cam.ColumnCount,
 		ActivePresetID:          activePresetIDLocked(cam),
-		CurrentThumbnailVersion: cam.CurrentThumbnailVersion,
 		Generating:              cam.Generating,
 		GenDone:                 cam.GenDone,
 		GenTotal:                cam.GenTotal,

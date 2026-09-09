@@ -94,7 +94,6 @@ type Camera struct {
 	Generating              bool
 	GenDone                 int
 	GenTotal                int
-	CurrentThumbnailVersion int
 }
 
 type Store struct {

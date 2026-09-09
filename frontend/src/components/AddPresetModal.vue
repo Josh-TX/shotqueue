@@ -50,9 +50,7 @@ const error = ref('');
 const refreshTs = ref(Date.now());
 
 const canCapture = computed(() => !props.camera.triggering);
-const currentThumbnailUrl = computed(
-  () => `/api/cameras/${props.camera.id}/snapshot?v=${props.camera.currentThumbnailVersion}&t=${refreshTs.value}`,
-);
+const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.id}/snapshot?t=${refreshTs.value}`);
 
 function refreshThumbnail() {
   refreshTs.value = Date.now();

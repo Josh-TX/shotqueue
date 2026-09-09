@@ -276,7 +276,6 @@ func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, tar
 	cam.Triggering = false
 	cam.TriggeringPresetID = nil
 	cam.CurrentPosition = &final
-	cam.CurrentThumbnailVersion++
 	if preset := s.presetsByID[presetID]; preset != nil && thumbErr == nil {
 		preset.Thumbnail = thumb
 		preset.ThumbnailVersion++

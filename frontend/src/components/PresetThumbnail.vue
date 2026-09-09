@@ -5,7 +5,7 @@
     @click="onClick"
     @contextmenu.prevent="openMenu"
   >
-    <img v-if="preset.thumbnailUrl && !imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
+    <img v-if="preset.thumbnailVersion != null && !imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
     <div v-else class="preset-thumb-placeholder">No thumbnail</div>
     <div class="preset-thumb-gradient" />
     <div class="preset-thumb-name">{{ preset.name }}</div>
@@ -65,7 +65,7 @@ const selectedGroupMember = computed(() => {
   return sel && sel.members.includes(props.preset.id) ? sel : null;
 });
 
-const imgSrc = computed(() => `${props.preset.thumbnailUrl}?v=${props.preset.thumbnailVersion}`);
+const imgSrc = computed(() => `/api/presets/${props.preset.id}/thumbnail?v=${props.preset.thumbnailVersion}`);
 const imgError = ref(false);
 watch(() => props.preset.thumbnailVersion, () => (imgError.value = false));
 
