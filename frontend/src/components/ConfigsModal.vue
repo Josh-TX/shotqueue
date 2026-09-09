@@ -72,8 +72,8 @@
               Last modified: {{ formatTimestamp(selected.timestamp) }}
             </div>
             <div v-if="selected.cameras.length === 0" class="metric-block">No cameras in this config</div>
-            <div v-for="(c, i) in selected.cameras" :key="i" class="metric-block">
-              {{ c.name }}: {{ c.presets.length }} preset{{ c.presets.length === 1 ? '' : 's' }}
+            <div v-else class="config-preview-scroll">
+              <ConfigCameraPreviewRow :cameras="selected.cameras" />
             </div>
             <div class="modal-actions">
               <button v-if="selected.type === 'named'" class="delete-config-btn" @click="deleting = selected">Delete</button>
@@ -150,6 +150,7 @@
 import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
+import ConfigCameraPreviewRow from './ConfigCameraPreviewRow.vue';
 import { api } from '../api.js';
 import { formatTimestamp } from '../utils.js';
 

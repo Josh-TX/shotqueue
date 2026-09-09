@@ -249,6 +249,11 @@ h3 {
 .ws-dot.warn {
   background: #eab308;
 }
+.ws-status-text {
+  font-size: 12px;
+  color: var(--muted);
+  margin-right: 8px;
+}
 /* ---- camera columns ---- */
 .camera-row {
   flex: 1 1 auto;
@@ -602,7 +607,7 @@ h3 {
   flex-direction: column;
 }
 .modal.wide {
-  width: 900px;
+  width: 980px;
 }
 .modal.tall {
   width: 620px;
@@ -700,8 +705,7 @@ h3 {
 .tabbed-modal {
   display: flex;
   gap: 16px;
-  min-height: 380px;
-  max-height: 62vh;
+  height: 60vh;
 }
 .tabbed-modal-sidebar {
   flex: 0 0 170px;
@@ -732,6 +736,7 @@ h3 {
 .tabbed-modal-content {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -816,6 +821,73 @@ h3 {
 }
 .config-last-modified {
   margin-bottom: 8px;
+}
+.config-preview-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+}
+.config-preview-scroll::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+.config-preview-row {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+.config-preview-column {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.config-preview-column + .config-preview-column {
+  border-left: 1px solid var(--border);
+  padding-left: 4px;
+}
+.config-preview-name {
+  font-size: 11px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.config-preview-grid {
+  display: grid;
+  gap: 4px;
+}
+.config-preview-rect {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: #000;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.config-preview-swatches {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  display: flex;
+  gap: 2px;
+}
+.config-preview-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.config-preview-rect-name {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 1px;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* ---- camera info modal ---- */
