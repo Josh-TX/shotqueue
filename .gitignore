@@ -3,6 +3,10 @@ node_modules/
 dist/
 npm-debug.log*
 
+# Embedded frontend build (populated by scripts/build.sh / CI)
+backend/webdist/*
+!backend/webdist/placeholder
+
 # Go
 __debug_bin*
 *.exe

@@ -1,0 +1,3 @@
+This directory holds the built frontend (frontend/dist contents) so it can be
+go:embed'd into the backend binary. Populate it via scripts/build.sh, or the
+release workflow. Everything except this file is gitignored.

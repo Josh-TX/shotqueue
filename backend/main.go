@@ -2,12 +2,11 @@ package main
 
 import (
 	"context"
+	"embed"
 	"flag"
+	"io/fs"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
-	"runtime"
 	"sync"
 
 	"shotqueue-backend/internal/api"
@@ -17,10 +16,24 @@ import (
 	"shotqueue-backend/internal/state"
 )
 
-// webDistDir resolves relative to this source file so `go run .` works from anywhere.
-func webDistDir() string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Join(filepath.Dir(file), "..", "frontend", "dist")
+// webdist holds the built frontend, copied here by build scripts/CI before
+// compiling so the resulting binary is self-contained. See webdist/placeholder.
+//
+//go:embed webdist
+var webdistFS embed.FS
+
+// frontendHandler returns nil if no frontend has been embedded (e.g. local
+// `go run .` without running the frontend build first), so callers can fall
+// back to running the Vite dev server separately.
+func frontendHandler() http.Handler {
+	sub, err := fs.Sub(webdistFS, "webdist")
+	if err != nil {
+		log.Fatalf("reading embedded webdist: %v", err)
+	}
+	if _, err := fs.Stat(sub, "index.html"); err != nil {
+		return nil
+	}
+	return http.FileServer(http.FS(sub))
 }
 
 // atemSupervisor owns the currently-running atem.Listener and lets it be restarted when the ATEM
@@ -83,11 +96,10 @@ func main() {
 	mux := http.NewServeMux()
 	server.RegisterRoutes(mux)
 
-	dist := webDistDir()
-	if _, err := os.Stat(dist); err == nil {
-		mux.Handle("/", http.FileServer(http.Dir(dist)))
+	if handler := frontendHandler(); handler != nil {
+		mux.Handle("/", handler)
 	} else {
-		log.Printf("frontend/dist not found at %s; run `npm run build` in frontend/ to serve the UI", dist)
+		log.Printf("no frontend embedded; run `npm run build` in frontend/ and copy dist/ into backend/webdist, or run the Vite dev server separately")
 	}
 
 	addr := ":" + *port
