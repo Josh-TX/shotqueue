@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 
 	"shotqueue-backend/internal/ptz"
 )
@@ -20,6 +21,8 @@ func (s *Server) handleCameras(w http.ResponseWriter, r *http.Request) {
 			Name        string `json:"name"`
 			Host        string `json:"host"`
 			Port        string `json:"port"`
+			Username    string `json:"username"`
+			Password    string `json:"password"`
 			TallySource uint16 `json:"tallySource"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -33,7 +36,7 @@ func (s *Server) handleCameras(w http.ResponseWriter, r *http.Request) {
 		if body.Name == "" {
 			body.Name = fmt.Sprintf("Camera %s", body.Host)
 		}
-		cam, err := s.store.AddCamera(body.Name, body.Host, body.Port, body.TallySource)
+		cam, err := s.store.AddCamera(body.Name, body.Host, body.Port, body.Username, body.Password, body.TallySource)
 		if err != nil {
 			writeLogicError(w, err)
 			return
@@ -57,7 +60,8 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 
 	if parts[0] == "test" {
 		if len(parts) == 2 && parts[1] == "snapshot" && r.Method == http.MethodGet {
-			s.handleTestSnapshot(w, r, r.URL.Query().Get("host"), r.URL.Query().Get("port"))
+			q := r.URL.Query()
+			s.handleTestSnapshot(w, r, q.Get("host"), q.Get("port"), q.Get("username"), q.Get("password"))
 			return
 		}
 		if len(parts) == 1 && r.Method == http.MethodPost {
@@ -105,14 +109,16 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTestCamera(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		Host string `json:"host"`
-		Port string `json:"port"`
+		Host     string `json:"host"`
+		Port     string `json:"port"`
+		Username string `json:"username"`
+		Password string `json:"password"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Host == "" || body.Port == "" {
 		writeError(w, 400, "host and port are required")
 		return
 	}
-	client := ptz.New(body.Host, body.Port)
+	client := ptz.New(body.Host, body.Port, body.Username, body.Password)
 	pos, err := client.GetPosition()
 	if err != nil {
 		writeError(w, 502, fmt.Sprintf("no camera reachable at %s:%s: %v", body.Host, body.Port, err))
@@ -122,7 +128,8 @@ func (s *Server) handleTestCamera(w http.ResponseWriter, r *http.Request) {
 		"ok":            true,
 		"suggestedName": fmt.Sprintf("Camera %s", body.Host),
 		"position":      pos,
-		"snapshotUrl":   fmt.Sprintf("/api/cameras/test/snapshot?host=%s&port=%s&ts=%d", body.Host, body.Port, nowMs()),
+		"snapshotUrl": fmt.Sprintf("/api/cameras/test/snapshot?host=%s&port=%s&username=%s&password=%s&ts=%d",
+			url.QueryEscape(body.Host), url.QueryEscape(body.Port), url.QueryEscape(body.Username), url.QueryEscape(body.Password), nowMs()),
 	})
 }
 
@@ -133,6 +140,8 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID 
 			Name        string  `json:"name"`
 			Host        string  `json:"host"`
 			Port        string  `json:"port"`
+			Username    *string `json:"username"`
+			Password    *string `json:"password"`
 			TallySource *uint16 `json:"tallySource"`
 			ColumnCount int     `json:"columnCount"`
 		}
@@ -154,13 +163,19 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID 
 		if body.Port == "" {
 			body.Port = cam.Port
 		}
+		if body.Username == nil {
+			body.Username = &cam.Username
+		}
+		if body.Password == nil {
+			body.Password = &cam.Password
+		}
 		if body.ColumnCount == 0 {
 			body.ColumnCount = cam.ColumnCount
 		}
 		if body.TallySource == nil {
 			body.TallySource = &cam.TallySource
 		}
-		if err := s.store.UpdateCamera(camID, body.Name, body.Host, body.Port, *body.TallySource, body.ColumnCount); err != nil {
+		if err := s.store.UpdateCamera(camID, body.Name, body.Host, body.Port, *body.Username, *body.Password, *body.TallySource, body.ColumnCount); err != nil {
 			writeLogicError(w, err)
 			return
 		}
@@ -200,8 +215,8 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, camID st
 
 // ---- settings (config passthrough for the test-snapshot route used before a camera is added) ----
 
-func (s *Server) handleTestSnapshot(w http.ResponseWriter, r *http.Request, host, port string) {
-	client := ptz.New(host, port)
+func (s *Server) handleTestSnapshot(w http.ResponseWriter, r *http.Request, host, port, username, password string) {
+	client := ptz.New(host, port, username, password)
 	img, err := client.Snapshot()
 	if err != nil {
 		writeError(w, 502, err.Error())

@@ -14,9 +14,9 @@ async function request(method, path, body) {
 
 export const api = {
   listCameras: () => request('GET', '/api/cameras'),
-  testCamera: (host, port) => request('POST', '/api/cameras/test', { host, port }),
-  addCamera: (name, host, port, tallySource) =>
-    request('POST', '/api/cameras', { name, host, port, tallySource }),
+  testCamera: (host, port, username, password) => request('POST', '/api/cameras/test', { host, port, username, password }),
+  addCamera: (name, host, port, username, password, tallySource) =>
+    request('POST', '/api/cameras', { name, host, port, username, password, tallySource }),
   updateCamera: (id, patch) => request('PATCH', `/api/cameras/${id}`, patch),
   deleteCamera: (id) => request('DELETE', `/api/cameras/${id}`),
 

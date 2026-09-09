@@ -47,6 +47,8 @@
                 <th>Name</th>
                 <th>Host</th>
                 <th>Port</th>
+                <th>Username</th>
+                <th>Password</th>
                 <th>Tally #</th>
                 <th></th>
               </tr>
@@ -56,6 +58,8 @@
                 <td><input type="text" v-model="edits[c.id].name" placeholder="Name" @blur="saveCamera(c.id)" /></td>
                 <td><input type="text" v-model="edits[c.id].host" placeholder="Host" @blur="saveCamera(c.id)" /></td>
                 <td><input type="text" v-model="edits[c.id].port" placeholder="Port" style="width: 60px" @blur="saveCamera(c.id)" /></td>
+                <td><input type="text" v-model="edits[c.id].username" placeholder="(none)" @blur="saveCamera(c.id)" /></td>
+                <td><input type="password" v-model="edits[c.id].password" placeholder="(unchanged)" autocomplete="new-password" @blur="saveCamera(c.id)" /></td>
                 <td><input type="number" v-model.number="edits[c.id].tallySource" placeholder="Tally #" style="width: 60px" @blur="saveCamera(c.id)" /></td>
                 <td class="cameras-table-actions">
                   <button @click="removeCamera(c.id)">Delete</button>
@@ -69,27 +73,37 @@
 
         <template v-else>
           <div class="detail-panel">
-            <h3 class="detail-title">Add Camera</h3>
-            <div class="field">
-              <label>Name</label>
-              <input type="text" v-model="addName" placeholder="e.g. Camera 1" />
-            </div>
-            <div class="field">
-              <label>Host</label>
-              <input type="text" v-model="addHost" placeholder="e.g. 192.168.1.1" @input="resetTest" />
-            </div>
-            <div class="field">
-              <label>Port</label>
-              <input type="text" v-model="addPort" placeholder="e.g. 80" @input="resetTest" />
-            </div>
-            <div class="field">
-              <label>ATEM tally source number</label>
-              <input type="number" v-model.number="addTallySource" placeholder="e.g. 1" />
-            </div>
+            <div class="detail-scroll">
+              <h3 class="detail-title">Add Camera</h3>
+              <div class="field">
+                <label>Name</label>
+                <input type="text" v-model="addName" placeholder="e.g. Camera 1" />
+              </div>
+              <div class="field">
+                <label>Host</label>
+                <input type="text" v-model="addHost" placeholder="e.g. 192.168.1.1" @input="resetTest" />
+              </div>
+              <div class="field">
+                <label>Port</label>
+                <input type="text" v-model="addPort" placeholder="e.g. 80" @input="resetTest" />
+              </div>
+              <div class="field">
+                <label>Username</label>
+                <input type="text" v-model="addUsername" placeholder="(leave blank if no auth)" @input="resetTest" />
+              </div>
+              <div class="field">
+                <label>Password</label>
+                <input type="password" v-model="addPassword" placeholder="(leave blank if no auth)" autocomplete="new-password" @input="resetTest" />
+              </div>
+              <div class="field">
+                <label>ATEM tally source number</label>
+                <input type="number" v-model.number="addTallySource" placeholder="e.g. 1" />
+              </div>
 
-            <img v-if="tested" class="large-thumb" style="max-width: 300px" :src="testResult.snapshotUrl" alt="preview" />
+              <img v-if="tested" class="large-thumb" style="max-width: 300px" :src="testResult.snapshotUrl" alt="preview" />
 
-            <p v-if="addError" class="error-text">{{ addError }}</p>
+              <p v-if="addError" class="error-text">{{ addError }}</p>
+            </div>
 
             <div class="modal-actions">
               <button v-if="!tested" class="primary" :disabled="!addHost.trim() || !addPort.trim() || testing" @click="test">
@@ -153,7 +167,7 @@ const camerasError = ref('');
 function syncEdits() {
   for (const c of store.cameras) {
     if (!edits[c.id]) {
-      edits[c.id] = { name: c.name, host: c.ip, port: c.port ?? '', tallySource: c.tallySource ?? null };
+      edits[c.id] = { name: c.name, host: c.ip, port: c.port ?? '', username: c.username ?? '', password: '', tallySource: c.tallySource ?? null };
     }
   }
 }
@@ -165,7 +179,10 @@ async function saveCamera(id) {
   camerasError.value = '';
   try {
     const e = edits[id];
-    await api.updateCamera(id, { name: e.name, host: e.host, port: e.port, tallySource: e.tallySource });
+    const patch = { name: e.name, host: e.host, port: e.port, username: e.username, tallySource: e.tallySource };
+    if (e.password) patch.password = e.password;
+    await api.updateCamera(id, patch);
+    e.password = '';
   } catch (err) {
     camerasError.value = err.message;
   }
@@ -184,6 +201,8 @@ async function removeCamera(id) {
 
 const addHost = ref('');
 const addPort = ref('80');
+const addUsername = ref('');
+const addPassword = ref('');
 const addTallySource = ref(null);
 const addName = ref('');
 const testing = ref(false);
@@ -196,6 +215,8 @@ function openAdd() {
   tab.value = 'add';
   addHost.value = '';
   addPort.value = '80';
+  addUsername.value = '';
+  addPassword.value = '';
   addTallySource.value = null;
   addName.value = '';
   addError.value = '';
@@ -211,7 +232,7 @@ async function test() {
   addError.value = '';
   testing.value = true;
   try {
-    const result = await api.testCamera(addHost.value.trim(), addPort.value.trim());
+    const result = await api.testCamera(addHost.value.trim(), addPort.value.trim(), addUsername.value.trim(), addPassword.value);
     testResult.value = result;
     tested.value = true;
     if (!addName.value.trim()) addName.value = result.suggestedName;
@@ -226,7 +247,14 @@ async function add() {
   addError.value = '';
   adding.value = true;
   try {
-    await api.addCamera(addName.value.trim(), addHost.value.trim(), addPort.value.trim(), addTallySource.value);
+    await api.addCamera(
+      addName.value.trim(),
+      addHost.value.trim(),
+      addPort.value.trim(),
+      addUsername.value.trim(),
+      addPassword.value,
+      addTallySource.value,
+    );
     tab.value = 'cameras';
   } catch (e) {
     addError.value = e.message;

@@ -6,3 +6,8 @@ Main changes over initial prototype
 * Added a camera settings modal, with sections to rename presets, manage groups, and re-order the preset thumbnails
 * Groups now have 2 auto-queue modes: random, or sequence. Random mode tracks whether a preset was triggered, and randomly picks a group member not yet triggered. If all group members have been triggered, reset all members to "not triggered". Sequence mode works by queuing whatever group member is after the preset that was just triggered, wrapping around to the start of the preset order if needed. The downside of sequence mode is that manual intervention can result in presets getting skipped or repeated, but the upside is that the auto-queue very predictable and controllable. 
 
+Upcoming Changes:
+I don't like how the camera connection info is part of the configs, rather than part of the global settings. 
+The ideal approach would be that the config only determines which cameras are displayed, and no connection settings. 
+I'm also not sure if we even need a camera name & tally... could we just have a single "CameraNumber" field that's used for the tally?
+Since I'm unsure if the authentication even works, and I'm unsure if CameraNumber is sufficient, I'll wait 'till version 2.0 is beta tested to make this change. 

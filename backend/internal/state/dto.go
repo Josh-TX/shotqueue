@@ -11,6 +11,7 @@ type CameraDTO struct {
 	ID                      string      `json:"id"`
 	IP                      string      `json:"ip"`
 	Port                    string      `json:"port"`
+	Username                string      `json:"username"`
 	TallySource             uint16      `json:"tallySource"`
 	Name                    string      `json:"name"`
 	Status                  string      `json:"status"`
@@ -55,6 +56,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		ID:                      cam.ID,
 		IP:                      cam.Host,
 		Port:                    cam.Port,
+		Username:                cam.Username,
 		TallySource:             cam.TallySource,
 		Name:                    cam.Name,
 		Status:                  cam.Status,

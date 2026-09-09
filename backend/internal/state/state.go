@@ -80,6 +80,8 @@ type Camera struct {
 	Name                    string
 	Host                    string
 	Port                    string
+	Username                string
+	Password                string
 	TallySource             uint16
 	Client                  *ptz.Client
 	Status                  string // "live" | "preview" | "none"
@@ -253,7 +255,7 @@ func (s *Store) Cameras() []*Camera {
 	return out
 }
 
-func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera, error) {
+func (s *Store) AddCamera(name, host, port, username, password string, tallySource uint16) (*Camera, error) {
 	var cam *Camera
 	s.withLock(func() {
 		cam = &Camera{
@@ -261,8 +263,10 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 			Name:        name,
 			Host:        host,
 			Port:        port,
+			Username:    username,
+			Password:    password,
 			TallySource: tallySource,
-			Client:      ptz.New(host, port),
+			Client:      ptz.New(host, port, username, password),
 			Status:      "none",
 			ColumnCount: 2,
 			nextGroupID: 1,
@@ -279,7 +283,7 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 	return cam, nil
 }
 
-func (s *Store) UpdateCamera(id string, name, host, port string, tallySource uint16, columnCount int) error {
+func (s *Store) UpdateCamera(id string, name, host, port, username, password string, tallySource uint16, columnCount int) error {
 	var found bool
 	var cam *Camera
 	var tallySourceChanged bool
@@ -290,11 +294,13 @@ func (s *Store) UpdateCamera(id string, name, host, port string, tallySource uin
 		}
 		found = true
 		cam.Name = name
-		if cam.Host != host || cam.Port != port {
-			cam.Client = ptz.New(host, port)
+		if cam.Host != host || cam.Port != port || cam.Username != username || cam.Password != password {
+			cam.Client = ptz.New(host, port, username, password)
 		}
 		cam.Host = host
 		cam.Port = port
+		cam.Username = username
+		cam.Password = password
 		tallySourceChanged = cam.TallySource != tallySource
 		cam.TallySource = tallySource
 		cam.ColumnCount = columnCount

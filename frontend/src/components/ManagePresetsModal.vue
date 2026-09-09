@@ -24,6 +24,21 @@
             <input type="text" v-model="portDraft" @blur="savePort" @keyup.enter="$event.target.blur()" />
           </div>
           <div class="manage-info-row">
+            <span>Username</span>
+            <input type="text" v-model="usernameDraft" placeholder="(none)" @blur="saveUsername" @keyup.enter="$event.target.blur()" />
+          </div>
+          <div class="manage-info-row">
+            <span>Password</span>
+            <input
+              type="password"
+              v-model="passwordDraft"
+              placeholder="(unchanged)"
+              autocomplete="new-password"
+              @blur="savePassword"
+              @keyup.enter="$event.target.blur()"
+            />
+          </div>
+          <div class="manage-info-row">
             <span>Tally source</span>
             <input type="number" v-model.number="tallyDraft" @blur="saveTally" @keyup.enter="$event.target.blur()" />
           </div>
@@ -193,6 +208,21 @@ function savePort() {
     return;
   }
   api.updateCamera(props.camera.id, { port }).catch((e) => alert(e.message));
+}
+
+const usernameDraft = ref(props.camera.username ?? '');
+watch(() => props.camera.username, (u) => (usernameDraft.value = u ?? ''));
+function saveUsername() {
+  api.updateCamera(props.camera.id, { username: usernameDraft.value.trim() }).catch((e) => alert(e.message));
+}
+
+const passwordDraft = ref('');
+function savePassword() {
+  if (!passwordDraft.value) return;
+  api
+    .updateCamera(props.camera.id, { password: passwordDraft.value })
+    .then(() => (passwordDraft.value = ''))
+    .catch((e) => alert(e.message));
 }
 
 const tallyDraft = ref(props.camera.tallySource);

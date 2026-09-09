@@ -38,14 +38,14 @@ type Client struct {
 	session *auth.Session
 }
 
-// mock-ue150's only account. Harmless if the camera's auth is off; auth.RequestWithAuth only
-// sends it once the camera actually challenges for it.
-func New(host, port string) *Client {
+// username/password may both be empty for a camera with auth turned off; auth.RequestWithAuth
+// only sends credentials once the camera actually challenges for them.
+func New(host, port, username, password string) *Client {
 	return &Client{
 		Host:    host,
 		Port:    port,
 		client:  &http.Client{Timeout: 5 * time.Second},
-		session: auth.NewSession("admin", "wrongpassword"),
+		session: auth.NewSession(username, password),
 	}
 }
 
