@@ -74,8 +74,8 @@
                 @keyup.enter="$event.target.blur()"
               />
               <select :value="g.isSequence ? 'sequence' : 'random'" @change="setGroupMode(g, $event.target.value)">
-                <option value="random">Random</option>
-                <option value="sequence">Sequence</option>
+                <option value="random">Random Mode</option>
+                <option value="sequence">Sequence Mode</option>
               </select>
             </div>
           </div>

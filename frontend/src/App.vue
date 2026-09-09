@@ -4,6 +4,7 @@
       @settings="showSettings = true"
       @configs="showConfigs = true"
       @gen-thumbnails="showGenThumbnails = true"
+      @help="showHelp = true"
     />
 
     <div class="camera-row" ref="cameraRow">
@@ -16,6 +17,7 @@
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
     <ConfigsModal v-if="showConfigs" @close="showConfigs = false" />
     <GenThumbnailsModal v-if="showGenThumbnails" @close="showGenThumbnails = false" />
+    <HelpModal v-if="showHelp" @close="showHelp = false" />
   </div>
 </template>
 
@@ -26,6 +28,7 @@ import CameraColumn from './components/CameraColumn.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import ConfigsModal from './components/ConfigsModal.vue';
 import GenThumbnailsModal from './components/GenThumbnailsModal.vue';
+import HelpModal from './components/HelpModal.vue';
 import { store, loadInitial, connectWebSocket } from './store.js';
 
 const MIN_UNIT_WIDTH = 80;
@@ -37,6 +40,7 @@ const COLUMN_OVERHEAD = 12 * 2 + 1;
 const showSettings = ref(false);
 const showConfigs = ref(false);
 const showGenThumbnails = ref(false);
+const showHelp = ref(false);
 
 const cameraRow = ref(null);
 const containerWidth = ref(0);

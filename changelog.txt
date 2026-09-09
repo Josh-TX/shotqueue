@@ -1,0 +1,8 @@
+Main changes over initial prototype
+* Changed border colors. Live is still red, but Active is now Pink Instead of Cyan (I wanted a color similar to red), Triggering is now Purple, and Queued is now Cyan. 
+* The thumbnails now have a grid layout, with initially 2 columns of thumbnails for each camera, but you can configure this
+* Added configs, where you can save/load all your camera/preset/group settings. There are named configs and auto-saved configs. By default the latest config is loaded.
+* Added a way to automaticall generate thumbnails for all presets (involved moving the cameras), since thumbnails are not persisted across server restarts or config loads. 
+* Added a camera settings modal, with sections to rename presets, manage groups, and re-order the preset thumbnails
+* Groups now have 2 auto-queue modes: random, or sequence. Random mode tracks whether a preset was triggered, and randomly picks a group member not yet triggered. If all group members have been triggered, reset all members to "not triggered". Sequence mode works by queuing whatever group member is after the preset that was just triggered, wrapping around to the start of the preset order if needed. The downside of sequence mode is that manual intervention can result in presets getting skipped or repeated, but the upside is that the auto-queue very predictable and controllable. 
+
