@@ -49,7 +49,7 @@ const groupIds = ref([]);
 const error = ref('');
 const refreshTs = ref(Date.now());
 
-const canCapture = computed(() => !props.camera.triggering);
+const canCapture = computed(() => !props.camera.triggeringPresetId);
 const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.id}/snapshot?t=${refreshTs.value}`);
 
 function refreshThumbnail() {

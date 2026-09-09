@@ -10,8 +10,8 @@
     <div class="preset-thumb-gradient" />
     <div class="preset-thumb-name">{{ preset.name }}</div>
     <span v-if="selectedGroupMember" class="group-swatch" :style="{ background: groupColor(selectedGroupMember.index) }" />
-    <!-- temporary debug indicator for wasTriggered, remove once the auto-queue logic is verified -->
-    <div class="preset-thumb-debug" title="wasTriggered">{{ preset.wasTriggered ? '●' : '' }}</div>
+    <!-- temporary debug indicator for wasTaken, remove once the auto-queue logic is verified -->
+    <div class="preset-thumb-debug" title="wasTaken">{{ preset.wasTaken ? '●' : '' }}</div>
   </div>
 
   <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />

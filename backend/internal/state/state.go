@@ -66,7 +66,7 @@ type Preset struct {
 	Target           ptz.Position
 	Thumbnail        []byte
 	ThumbnailVersion int
-	WasTriggered     bool
+	WasTaken         bool
 }
 
 type Queued struct {
@@ -82,7 +82,6 @@ type Camera struct {
 	TallySource             uint16
 	Client                  *ptz.Client
 	Status                  string // "live" | "preview" | "none"
-	Triggering              bool
 	TriggeringPresetID      *string
 	TriggerGen              int
 	CurrentPosition         *ptz.Position
@@ -171,7 +170,9 @@ func (s *Store) pollLoop(stop chan struct{}) {
 }
 
 // pollTick re-reads every camera's live position and broadcasts once if any camera's
-// activePresetId actually changed as a result.
+// activePresetId actually changed as a result. When a camera lands on a preset this way (e.g.
+// moved by an external controller rather than TriggerPreset), it also refreshes that preset's
+// thumbnail, so the thumbnail stays in sync regardless of what caused the move.
 func (s *Store) pollTick() {
 	changed := false
 	for _, cam := range s.Cameras() {
@@ -180,6 +181,9 @@ func (s *Store) pollTick() {
 		after := s.ActivePresetID(cam)
 		if !strPtrEqual(before, after) {
 			changed = true
+			if after != nil {
+				go s.refreshPresetThumbnail(cam.ID, *after)
+			}
 		}
 	}
 	if changed {

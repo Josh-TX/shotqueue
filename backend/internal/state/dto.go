@@ -4,7 +4,7 @@ type PresetDTO struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
 	ThumbnailVersion *int   `json:"thumbnailVersion"`
-	WasTriggered     bool   `json:"wasTriggered"`
+	WasTaken         bool   `json:"wasTaken"`
 }
 
 type CameraDTO struct {
@@ -14,14 +14,13 @@ type CameraDTO struct {
 	TallySource             uint16      `json:"tallySource"`
 	Name                    string      `json:"name"`
 	Status                  string      `json:"status"`
-	Triggering              bool        `json:"triggering"`
 	TriggeringPresetID      *string     `json:"triggeringPresetId"`
 	SelectedGroupID         *int        `json:"selectedGroupId"`
 	Queued                  *Queued     `json:"queued"`
 	Presets                 []PresetDTO `json:"presets"`
 	Groups                  []Group     `json:"groups"`
 	ColumnCount             int         `json:"columnCount"`
-	ActivePresetID          *string     `json:"activePresetId,omitempty"`
+	ActivePresetID          *string     `json:"activePresetId"`
 	Generating              bool        `json:"generating"`
 }
 
@@ -35,7 +34,7 @@ func presetDTO(p *Preset) PresetDTO {
 		ID:               p.ID,
 		Name:             p.Name,
 		ThumbnailVersion: version,
-		WasTriggered:     p.WasTriggered,
+		WasTaken:         p.WasTaken,
 	}
 }
 
@@ -58,7 +57,6 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		TallySource:             cam.TallySource,
 		Name:                    cam.Name,
 		Status:                  cam.Status,
-		Triggering:              cam.Triggering,
 		TriggeringPresetID:      cam.TriggeringPresetID,
 		SelectedGroupID:         cam.SelectedGroupID,
 		Queued:                  cam.Queued,

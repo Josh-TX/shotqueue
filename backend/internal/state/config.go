@@ -213,7 +213,7 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 		for time.Now().Before(deadline) {
 			s.mu.Lock()
 			c := s.findCameraLocked(cameraID)
-			stillTriggering := c != nil && c.Triggering
+			stillTriggering := c != nil && c.TriggeringPresetID != nil
 			supersededByManualTrigger := c != nil && c.TriggerGen != gen
 			s.mu.Unlock()
 			if c == nil {

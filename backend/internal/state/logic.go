@@ -20,7 +20,7 @@ const triggerTimeout = 5 * time.Second
 func (s *Store) RefreshPosition(cameraID string) {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraID)
-	if cam == nil || cam.Triggering {
+	if cam == nil || cam.TriggeringPresetID != nil {
 		s.mu.Unlock()
 		return
 	}
@@ -33,10 +33,36 @@ func (s *Store) RefreshPosition(cameraID string) {
 	}
 
 	s.mu.Lock()
-	if cam := s.findCameraLocked(cameraID); cam != nil && !cam.Triggering {
+	if cam := s.findCameraLocked(cameraID); cam != nil && cam.TriggeringPresetID == nil {
 		cam.CurrentPosition = &pos
 	}
 	s.mu.Unlock()
+}
+
+// refreshPresetThumbnail captures a fresh snapshot for presetID, called by pollTick right after it
+// notices the camera's position now matches that preset.
+func (s *Store) refreshPresetThumbnail(cameraID, presetID string) {
+	s.mu.Lock()
+	cam := s.findCameraLocked(cameraID)
+	if cam == nil {
+		s.mu.Unlock()
+		return
+	}
+	client := cam.Client
+	s.mu.Unlock()
+
+	thumb, err := client.Snapshot()
+	if err != nil {
+		return
+	}
+
+	s.mu.Lock()
+	if preset := s.presetsByID[presetID]; preset != nil {
+		preset.Thumbnail = thumb
+		preset.ThumbnailVersion++
+	}
+	s.mu.Unlock()
+	s.broadcast()
 }
 
 // AddPreset captures the camera's current live position and a snapshot as a new preset.
@@ -47,7 +73,7 @@ func (s *Store) AddPreset(cameraID string, name string, groupIDs []int) (*Preset
 		s.mu.Unlock()
 		return nil, newErr(404, "camera not found")
 	}
-	if cam.Triggering {
+	if cam.TriggeringPresetID != nil {
 		s.mu.Unlock()
 		return nil, newErr(409, "camera is currently moving, no thumbnail to capture")
 	}
@@ -231,7 +257,6 @@ func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) (int, e
 	if cam.Queued != nil && cam.Queued.PresetID == preset.ID {
 		cam.Queued = nil
 	}
-	cam.Triggering = true
 	pid := preset.ID
 	cam.TriggeringPresetID = &pid
 	cam.TriggerGen++
@@ -276,7 +301,6 @@ func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, tar
 		s.mu.Unlock()
 		return
 	}
-	cam.Triggering = false
 	cam.TriggeringPresetID = nil
 	cam.CurrentPosition = &final
 	if preset := s.presetsByID[presetID]; preset != nil && thumbErr == nil {
@@ -351,8 +375,12 @@ func (s *Store) SetSelectedGroup(cameraID string, groupID *int) error {
 }
 
 // autoQueueFillLocked picks the next preset to auto-queue from the camera's selected group. Each
-// preset in the group carries a WasTriggered bit, set when it goes live; once every member of the
-// group has been triggered, all their bits reset together so the cycle starts over.
+// preset in the group carries a WasTaken bit, set (and reset once the whole group has cycled
+// through) in markLive when it actually goes on air.
+//
+// This runs right after triggering the just-dequeued preset, before that preset has gone live (and
+// so before its own WasTaken bit flips), so it's treated as taken here too via reservedID - both to
+// exclude it from candidates and to detect a group that's completing its cycle right now.
 func (s *Store) autoQueueFillLocked(cam *Camera) {
 	if cam.SelectedGroupID == nil || cam.Queued != nil {
 		return
@@ -368,36 +396,41 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 		return
 	}
 
-	allTriggered := true
+	activeID := activePresetIDLocked(cam)
+	reservedID := cam.TriggeringPresetID
+	if reservedID == nil {
+		reservedID = activeID
+	}
+
+	cycleComplete := true
 	for _, presetID := range group.Members {
 		preset := s.findPresetLocked(cam, presetID)
-		if preset == nil || !preset.WasTriggered {
-			allTriggered = false
+		taken := preset != nil && preset.WasTaken
+		if reservedID != nil && *reservedID == presetID {
+			taken = true
+		}
+		if !taken {
+			cycleComplete = false
 			break
 		}
 	}
-	if allTriggered {
-		for _, presetID := range group.Members {
-			if preset := s.findPresetLocked(cam, presetID); preset != nil {
-				preset.WasTriggered = false
-			}
-		}
-	}
 
-	activeID := activePresetIDLocked(cam)
 	var candidates []string
 	for _, presetID := range group.Members {
+		if reservedID != nil && *reservedID == presetID {
+			continue
+		}
+		if activeID != nil && *activeID == presetID {
+			continue
+		}
 		preset := s.findPresetLocked(cam, presetID)
-		if preset == nil || preset.WasTriggered {
+		if preset == nil {
 			continue
 		}
-		if activeID != nil && *activeID == preset.ID {
+		if !cycleComplete && preset.WasTaken {
 			continue
 		}
-		if cam.TriggeringPresetID != nil && *cam.TriggeringPresetID == preset.ID {
-			continue
-		}
-		candidates = append(candidates, preset.ID)
+		candidates = append(candidates, presetID)
 	}
 	if len(candidates) == 0 {
 		return
@@ -627,11 +660,51 @@ func (s *Store) markLive(cam *Camera) {
 	activeID := activePresetIDLocked(cam)
 	if activeID != nil {
 		if preset := s.presetsByID[*activeID]; preset != nil {
-			preset.WasTriggered = true
+			preset.WasTaken = true
+			s.resetGroupCycleIfCompleteLocked(cam, preset.ID)
 		}
 	}
 	s.mu.Unlock()
 	s.broadcast()
+}
+
+// resetGroupCycleIfCompleteLocked clears WasTaken for every member of the camera's selected group
+// once takenID (just marked taken) is the last one needed to complete the cycle, so the group
+// starts a fresh round next time.
+func (s *Store) resetGroupCycleIfCompleteLocked(cam *Camera, takenID string) {
+	if cam.SelectedGroupID == nil {
+		return
+	}
+	var group *Group
+	for _, g := range cam.Groups {
+		if g.ID == *cam.SelectedGroupID {
+			group = g
+			break
+		}
+	}
+	if group == nil {
+		return
+	}
+	inGroup := false
+	for _, id := range group.Members {
+		if id == takenID {
+			inGroup = true
+			break
+		}
+	}
+	if !inGroup {
+		return
+	}
+	for _, presetID := range group.Members {
+		if preset := s.findPresetLocked(cam, presetID); preset == nil || !preset.WasTaken {
+			return
+		}
+	}
+	for _, presetID := range group.Members {
+		if preset := s.findPresetLocked(cam, presetID); preset != nil {
+			preset.WasTaken = false
+		}
+	}
 }
 
 func (s *Store) markOffLive(cam *Camera, to string) {
