@@ -31,13 +31,12 @@ func genID() string {
 	return string(b)
 }
 
-// AutosaveKeepCount is how many autosaved configs are kept before the oldest is evicted. Small
-// for now; expected to grow to something like 30 once this has proven out.
-const AutosaveKeepCount = 5
+// AutosaveKeepCount is how many autosaved configs are kept before the oldest is evicted.
+const AutosaveKeepCount = 50
 
 // autosaveCheckpointGap is how far apart (by Timestamp) the two most recent autosaves must be
 // before Autosave splits off a new entry instead of overwriting the latest one in place.
-const autosaveCheckpointGap = 20 * time.Minute
+const autosaveCheckpointGap = 10 * time.Minute
 
 type ConfigPreset struct {
 	Name   string       `json:"name"`

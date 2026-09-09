@@ -40,8 +40,8 @@
     <h3 class="help-section">Configs</h3>
     <p class="help-desc help-intro">
       The camera settings, preset settings, and group settings are all part of the config (basically every setting
-      except the ATEM host). Changing any of these will immediately auto-save the config. When the ShotQueue server
-      starts up, it'll always auto-load the latest config. You can also save a named config for easier reference, but named configs must be manually saved.
+      except the ATEM host). Changing any of these will immediately update the latest auto-saved config (or create a new one if it's been 10 minutes since the last auto-save). Only the latest 50 autosaved configs are preserved. When the ShotQueue server
+      starts up, it'll always load the latest config. You can also save a named config for both presistence and easier reference. Loading a named config doesn't cause the named config to be auto-saved... you have to manually save the named config to change it. 
     </p>
 
     <h3 class="help-section">Thumbnails</h3>

@@ -108,12 +108,15 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) broadcastState() {
+	// Marshal while holding the lock so concurrent broadcasts (e.g. one per camera finishing
+	// thumbnail generation) can't race: without this, a stale snapshot marshaled earlier could
+	// win the lock and send after a fresher one, leaving clients stuck on old state.
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	payload, err := json.Marshal(s.currentStateMessage())
 	if err != nil {
 		return
 	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	for conn := range s.clients {
 		if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
 			conn.Close()
