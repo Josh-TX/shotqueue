@@ -682,6 +682,11 @@ h3 {
 .refresh-thumb-link:hover {
   text-decoration: underline;
 }
+.refresh-thumb-note {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 4px;
+}
 .large-thumb {
   width: 100%;
   aspect-ratio: 16 / 9;
@@ -744,6 +749,10 @@ h3 {
 .gen-desc {
   margin-top: 0;
   color: var(--muted);
+  font-size: 13px;
+}
+.help-text {
+  margin-top: 0;
   font-size: 13px;
 }
 .gen-checkbox {

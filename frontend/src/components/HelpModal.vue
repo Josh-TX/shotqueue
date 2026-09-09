@@ -36,6 +36,19 @@
         taken. Gets reset when all presets in the group have been live.
       </p>
     </div>
+
+    <h3 class="help-section">Configs</h3>
+    <p class="help-desc help-intro">
+      The camera settings, preset settings, and group settings are all part of the config (basically every setting
+      except the ATEM host). Changing any of these will immediately auto-save the config. When the ShotQueue server
+      starts up, it'll always auto-load the latest config. You can also save a named config for easier reference, but named configs must be manually saved.
+    </p>
+
+    <h3 class="help-section">Thumbnails</h3>
+    <p class="help-desc help-intro">
+      Whenever a preset becomes active, the preset's thumbnail is updated. Thumbnails don't persist across server
+      restarts, and they don't persist when loading a config, so you may see missing thumbnails. You can fix this by manually triggering each preset, or you can utilize the "Gen Thumbnails" feature for convenience.
+    </p>
   </Modal>
 </template>
 
@@ -46,7 +59,7 @@ defineEmits(['close']);
 
 const controlRows = [
   { label: 'Click', desc: "Triggers the preset, unless the camera is live, in which case it'll queue the preset." },
-  { label: 'Right-Click', desc: 'Opens a context menu, where you can queue, manage group membership, rename, or delete the preset.' },
+  { label: 'Right-Click', desc: 'Opens a context menu, where you can queue, manage group membership, reposition, rename, or delete the preset.' },
   { label: 'Ctrl-Click', desc: 'Queues the preset. Any combination of Ctrl/Alt/Shift will queue instead of trigger.' },
 ];
 

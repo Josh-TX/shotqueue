@@ -55,6 +55,19 @@ func (s *Server) handlePresetByID(w http.ResponseWriter, r *http.Request, camID 
 	}
 }
 
+func (s *Server) handleUpdatePresetPosition(w http.ResponseWriter, r *http.Request, camID string, presetID string) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err := s.store.UpdatePresetPosition(camID, presetID); err != nil {
+		writeLogicError(w, err)
+		return
+	}
+	dto, _ := s.store.PublicCamera(camID)
+	writeJSON(w, 200, dto)
+}
+
 func (s *Server) handleReorderPresets(w http.ResponseWriter, r *http.Request, camID string) {
 	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusMethodNotAllowed)

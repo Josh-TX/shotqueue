@@ -16,6 +16,13 @@
 
   <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />
 
+  <UpdatePresetModal
+    v-if="updatingPosition"
+    :camera="camera"
+    :preset="preset"
+    @close="updatingPosition = false"
+  />
+
   <PromptModal
     v-if="renaming"
     title="Rename Preset"
@@ -29,7 +36,7 @@
   <ConfirmDialog
     v-if="deleting"
     title="Delete Preset"
-    :message="`Delete preset &quot;${preset.name}&quot;? This can't be undone.`"
+    :message="`Delete preset &quot;${preset.name}&quot;?`"
     @confirm="doDelete"
     @cancel="deleting = false"
   />
@@ -42,6 +49,7 @@ import { groupColor } from '../colors.js';
 import ContextMenu from './ContextMenu.vue';
 import PromptModal from './PromptModal.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
+import UpdatePresetModal from './UpdatePresetModal.vue';
 
 const props = defineProps({ camera: Object, preset: Object });
 
@@ -117,9 +125,12 @@ const menuItems = computed(() => [
     onToggle: (checked) => toggleGroup(g, checked),
   })),
   ...(props.camera.groups.length ? [{ divider: true }] : []),
+  { label: 'Update Position', action: () => (updatingPosition.value = true) },
   { label: 'Rename Preset', action: () => (renaming.value = true) },
   { label: 'Delete Preset', action: () => (deleting.value = true) },
 ]);
+
+const updatingPosition = ref(false);
 
 function toggleGroup(g, checked) {
   api.setMember(props.camera.id, g.id, props.preset.id, { inGroup: checked }).catch((e) => alert(e.message));

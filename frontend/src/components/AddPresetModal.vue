@@ -1,5 +1,6 @@
 <template>
   <Modal title="Add Preset" @close="$emit('close')">
+    <p class="help-text">Use an external PTZ controller to position {{ camera.name }} onto the desired shot.</p>
     <a class="refresh-thumb-link" @click="refreshThumbnail">refresh thumbnail</a>
     <img class="large-thumb" :src="currentThumbnailUrl" alt="current position" />
 

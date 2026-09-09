@@ -10,6 +10,7 @@
 
       <div class="manage-content" ref="contentEl" @dragover.prevent="onContentDragOver">
         <template v-if="tab === 'general'">
+          <p class="help-text">Some preset operations (reposition/delete) are only available by right clicking the preset.</p>
           <div class="field">
             <label>Camera name</label>
             <input type="text" v-model="nameDraft" @blur="saveName" @keyup.enter="$event.target.blur()" />

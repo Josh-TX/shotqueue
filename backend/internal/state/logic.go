@@ -121,6 +121,52 @@ func (s *Store) AddPreset(cameraID string, name string, groupIDs []int) (*Preset
 	return preset, nil
 }
 
+// UpdatePresetPosition re-captures the camera's current live position and a snapshot into an
+// existing preset, replacing its saved target and thumbnail.
+func (s *Store) UpdatePresetPosition(cameraID, presetID string) error {
+	s.mu.Lock()
+	cam := s.findCameraLocked(cameraID)
+	if cam == nil {
+		s.mu.Unlock()
+		return newErr(404, "camera not found")
+	}
+	if cam.TriggeringPresetID != nil {
+		s.mu.Unlock()
+		return newErr(409, "camera is currently moving, no thumbnail to capture")
+	}
+	client := cam.Client
+	s.mu.Unlock()
+
+	pos, err := client.GetPosition()
+	if err != nil {
+		return newErr(502, "could not read camera position: %v", err)
+	}
+	thumb, err := client.Snapshot()
+	if err != nil {
+		return newErr(502, "could not capture snapshot: %v", err)
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cam = s.findCameraLocked(cameraID)
+	if cam == nil {
+		return newErr(404, "camera not found")
+	}
+	preset := s.presetsByID[presetID]
+	if preset == nil {
+		return newErr(404, "preset not found")
+	}
+	preset.Target = pos
+	preset.Thumbnail = thumb
+	preset.ThumbnailVersion++
+	cam.CurrentPosition = &pos
+	recomputeActivePresetLocked(cam)
+
+	go s.broadcast()
+	go s.onMutate()
+	return nil
+}
+
 func (s *Store) RenamePreset(cameraID, presetID string, name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -28,6 +28,7 @@ export const api = {
   deletePreset: (camId, presetId) => request('DELETE', `/api/cameras/${camId}/presets/${presetId}`),
   reorderPresets: (camId, order) => request('PATCH', `/api/cameras/${camId}/preset-order`, { order }),
   triggerPreset: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/trigger`),
+  updatePresetPosition: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/position`),
   queuePreset: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/queue`),
   unqueue: (camId) => request('DELETE', `/api/cameras/${camId}/queue`),
 
