@@ -845,7 +845,7 @@ h3 {
   opacity: 0.35;
   cursor: grabbing;
 }
-.preset-thumb-name-input {
+input.preset-thumb-name-input {
   position: absolute;
   left: 6px;
   right: 6px;
@@ -853,13 +853,14 @@ h3 {
   color: #fff;
   font-size: 12px;
   font-weight: 600;
-  background: transparent;
-  border: none;
-  padding: 0;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 6px 8px;
 }
 .preset-thumb-name-input:focus {
   outline: 1px solid var(--accent);
-  outline-offset: 2px;
+  outline-offset: 0;
 }
 .manage-group-checks {
   position: absolute;
@@ -931,5 +932,11 @@ h3 {
   padding: 8px 0;
   border-bottom: 1px solid var(--border);
   font-size: 13px;
+}
+.manage-info-row input,
+.manage-info-row select {
+  width: 110px;
+  padding: 2px 6px;
+  margin: -4px 0;
 }
 

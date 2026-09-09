@@ -2,7 +2,6 @@
   <div class="navbar">
     <span class="brand">ShotQueue</span>
     <span class="ws-dot" :class="{ on: store.wsConnected && store.atemConnected, warn: store.wsConnected && !store.atemConnected }" :title="statusTitle" />
-    <button @click="$emit('add-camera')">+ Add Camera</button>
     <div class="spacer" />
     <button :disabled="anyGenerating" @click="$emit('gen-thumbnails')">Gen Thumbnails</button>
     <button @click="$emit('versions')">Versions</button>
@@ -16,7 +15,7 @@
 import { computed } from 'vue';
 import { store } from '../store.js';
 
-defineEmits(['add-camera', 'settings', 'versions', 'gen-thumbnails']);
+defineEmits(['settings', 'versions', 'gen-thumbnails']);
 
 const statusTitle = computed(() => {
   if (!store.wsConnected) return 'websocket disconnected';

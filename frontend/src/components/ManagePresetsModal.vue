@@ -14,12 +14,26 @@
             <label>Camera name</label>
             <input type="text" v-model="nameDraft" @blur="saveName" @keyup.enter="$event.target.blur()" />
           </div>
-          <div class="manage-info-row"><span>Host</span><span class="metric-block">{{ camera.ip }}:{{ camera.port }}</span></div>
-          <div class="manage-info-row"><span>Tally source</span><span class="metric-block">{{ camera.tallySource }}</span></div>
-          <div class="manage-info-row"><span>Status</span><span class="metric-block">{{ camera.status }}</span></div>
+          <div class="manage-info-row">
+            <span>Host</span>
+            <input type="text" v-model="hostDraft" @blur="saveHost" @keyup.enter="$event.target.blur()" />
+          </div>
+          <div class="manage-info-row">
+            <span>Port</span>
+            <input type="text" v-model="portDraft" @blur="savePort" @keyup.enter="$event.target.blur()" />
+          </div>
+          <div class="manage-info-row">
+            <span>Tally source</span>
+            <input type="number" v-model.number="tallyDraft" @blur="saveTally" @keyup.enter="$event.target.blur()" />
+          </div>
+          <div class="manage-info-row">
+            <span>Thumbnail Columns</span>
+            <select :value="camera.columnCount" @change="setColumnCount($event.target.value)">
+              <option v-for="n in 6" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </div>
           <div class="manage-info-row"><span>Presets</span><span class="metric-block">{{ camera.presets.length }}</span></div>
           <div class="manage-info-row"><span>Groups</span><span class="metric-block">{{ camera.groups.length }}</span></div>
-          <div class="manage-info-row"><span>Columns</span><span class="metric-block">{{ camera.columnCount }}</span></div>
           <div class="modal-actions">
             <button class="danger" @click="deleting = true">Delete Camera</button>
           </div>
@@ -85,7 +99,7 @@
 
         <template v-else-if="tab === 'layout'">
           <div class="manage-group-count-row">
-            <label>Columns</label>
+            <label>Thumbnail Columns</label>
             <select :value="camera.columnCount" @change="setColumnCount($event.target.value)">
               <option v-for="n in 6" :key="n" :value="n">{{ n }}</option>
             </select>
@@ -152,6 +166,34 @@ function saveName() {
     return;
   }
   api.updateCamera(props.camera.id, { name }).catch((e) => alert(e.message));
+}
+
+const hostDraft = ref(props.camera.ip);
+watch(() => props.camera.ip, (h) => (hostDraft.value = h));
+function saveHost() {
+  const host = hostDraft.value.trim();
+  if (!host) {
+    hostDraft.value = props.camera.ip;
+    return;
+  }
+  api.updateCamera(props.camera.id, { host }).catch((e) => alert(e.message));
+}
+
+const portDraft = ref(props.camera.port);
+watch(() => props.camera.port, (p) => (portDraft.value = p));
+function savePort() {
+  const port = String(portDraft.value).trim();
+  if (!port) {
+    portDraft.value = props.camera.port;
+    return;
+  }
+  api.updateCamera(props.camera.id, { port }).catch((e) => alert(e.message));
+}
+
+const tallyDraft = ref(props.camera.tallySource);
+watch(() => props.camera.tallySource, (t) => (tallyDraft.value = t));
+function saveTally() {
+  api.updateCamera(props.camera.id, { tallySource: tallyDraft.value }).catch((e) => alert(e.message));
 }
 
 function renamePreset(p, name) {

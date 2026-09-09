@@ -1,7 +1,6 @@
 <template>
   <div class="app-shell">
     <Navbar
-      @add-camera="showAddCamera = true"
       @settings="showSettings = true"
       @versions="showVersions = true"
       @gen-thumbnails="showGenThumbnails = true"
@@ -10,11 +9,10 @@
     <div class="camera-row" ref="cameraRow">
       <CameraColumn v-for="camera in store.cameras" :key="camera.id" :camera="camera" :unit-width="unitWidth" />
       <div v-if="store.cameras.length === 0" class="no-presets" style="margin: auto">
-        No cameras yet — click "+ Add Camera" to get started.
+        No cameras yet — open Settings to add one.
       </div>
     </div>
 
-    <AddCameraModal v-if="showAddCamera" @close="showAddCamera = false" />
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
     <VersionsModal v-if="showVersions" @close="showVersions = false" />
     <GenThumbnailsModal v-if="showGenThumbnails" @close="showGenThumbnails = false" />
@@ -25,7 +23,6 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Navbar from './components/Navbar.vue';
 import CameraColumn from './components/CameraColumn.vue';
-import AddCameraModal from './components/AddCameraModal.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import VersionsModal from './components/VersionsModal.vue';
 import GenThumbnailsModal from './components/GenThumbnailsModal.vue';
@@ -37,7 +34,6 @@ const MAX_UNIT_WIDTH = 300;
 const GRID_GAP = 10;
 const COLUMN_OVERHEAD = 12 * 2 + 1;
 
-const showAddCamera = ref(false);
 const showSettings = ref(false);
 const showVersions = ref(false);
 const showGenThumbnails = ref(false);
