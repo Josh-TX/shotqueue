@@ -552,6 +552,7 @@ func (s *Store) ApplyTally(ts atem.TallyState) {
 	var changes []change
 
 	s.mu.Lock()
+	s.lastTally = ts
 	for _, cam := range s.cameras {
 		to := "none"
 		if liveSet[cam.TallySource] {
@@ -577,6 +578,46 @@ func (s *Store) ApplyTally(ts atem.TallyState) {
 			s.mu.Unlock()
 			s.broadcast()
 		}
+	}
+}
+
+// reconcileCameraTally recomputes a single camera's status against the last known tally
+// snapshot. It's used when a camera's tally source is edited directly, since that doesn't
+// come with a fresh ATEM tally event to trigger ApplyTally.
+func (s *Store) reconcileCameraTally(cam *Camera) {
+	s.mu.Lock()
+	ts := s.lastTally
+	from := cam.Status
+	s.mu.Unlock()
+
+	to := "none"
+	for _, src := range ts.Live {
+		if src == cam.TallySource {
+			to = "live"
+			break
+		}
+	}
+	if to == "none" {
+		for _, src := range ts.Preview {
+			if src == cam.TallySource {
+				to = "preview"
+				break
+			}
+		}
+	}
+	if to == from {
+		return
+	}
+	switch {
+	case to == "live":
+		s.markLive(cam)
+	case from == "live":
+		s.markOffLive(cam, to)
+	default:
+		s.mu.Lock()
+		cam.Status = to
+		s.mu.Unlock()
+		s.broadcast()
 	}
 }
 

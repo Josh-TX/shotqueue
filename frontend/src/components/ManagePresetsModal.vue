@@ -1,5 +1,5 @@
 <template>
-  <Modal :title="`Manage ${camera.name}`" tall :min-width="modalWidth" @close="$emit('close')">
+  <Modal :title="`${camera.name}`" tall :min-width="modalWidth" @close="$emit('close')">
     <div class="manage-shell">
       <div class="manage-sidebar">
         <button class="manage-tab" :class="{ active: tab === 'general' }" @click="tab = 'general'">General</button>

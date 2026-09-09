@@ -252,6 +252,9 @@ h3 {
   border-right: 1px solid var(--border);
   min-height: 0;
 }
+.camera-column.live {
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.03), var(--bg) 75px, var(--bg) calc(100% - 75px), rgba(239, 68, 68, 0.03));
+}
 .camera-column-header {
   display: flex;
   flex-direction: column;

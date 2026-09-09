@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"shotqueue-backend/internal/atem"
 	"shotqueue-backend/internal/ptz"
 )
 
@@ -105,6 +106,7 @@ type Store struct {
 	pollMu        sync.Mutex
 	pollStop      chan struct{}
 	atemConnected bool
+	lastTally     atem.TallyState
 }
 
 func New() *Store {
@@ -260,6 +262,7 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 		}
 		s.cameras = append(s.cameras, cam)
 	})
+	s.reconcileCameraTally(cam)
 	s.broadcast()
 	s.onMutate()
 	return cam, nil
@@ -267,8 +270,10 @@ func (s *Store) AddCamera(name, host, port string, tallySource uint16) (*Camera,
 
 func (s *Store) UpdateCamera(id string, name, host, port string, tallySource uint16, columnCount int) error {
 	var found bool
+	var cam *Camera
+	var tallySourceChanged bool
 	s.withLock(func() {
-		cam := s.findCameraLocked(id)
+		cam = s.findCameraLocked(id)
 		if cam == nil {
 			return
 		}
@@ -279,11 +284,15 @@ func (s *Store) UpdateCamera(id string, name, host, port string, tallySource uin
 		}
 		cam.Host = host
 		cam.Port = port
+		tallySourceChanged = cam.TallySource != tallySource
 		cam.TallySource = tallySource
 		cam.ColumnCount = columnCount
 	})
 	if !found {
 		return ErrNotFound
+	}
+	if tallySourceChanged {
+		s.reconcileCameraTally(cam)
 	}
 	s.broadcast()
 	s.onMutate()

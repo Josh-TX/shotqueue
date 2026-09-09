@@ -1,5 +1,5 @@
 <template>
-  <div class="camera-column" :style="{ width: columnWidth + 'px' }">
+  <div class="camera-column" :class="{ live: camera.status === 'live' }" :style="{ width: columnWidth + 'px' }">
     <div class="camera-column-header">
       <div class="header-row name-row">
         <span class="camera-name" :title="camera.name">{{ camera.name }}</span>
