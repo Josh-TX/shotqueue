@@ -101,6 +101,7 @@ select {
   min-width: 150px;
 }
 .group-select-trigger {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -114,12 +115,22 @@ select {
   padding: 4px 28px 3px 8px;
   cursor: pointer;
 }
+.group-select-mode-label {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-size: 10px;
+  line-height: 1;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
 .group-select.open .group-select-trigger,
 .group-select-trigger:hover {
   border-color: var(--accent);
 }
 .group-select-tiny-label {
-  font-size: 9px;
+  font-size: 10px;
   line-height: 1;
   color: var(--muted);
   text-transform: uppercase;

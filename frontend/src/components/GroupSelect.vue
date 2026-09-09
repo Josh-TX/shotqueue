@@ -2,6 +2,7 @@
   <div class="group-select" :class="{ open }">
     <button ref="triggerEl" type="button" class="group-select-trigger" @click="toggle">
       <span class="group-select-tiny-label">Auto Queue</span>
+      <span v-if="selectedMode" class="group-select-mode-label">{{ selectedMode }}</span>
       <span class="group-select-value">
         <span class="group-select-swatch" :class="{ none: !selectedColor }" :style="selectedColor ? { background: selectedColor } : {}" />
         <span class="group-select-name">{{ selectedLabel }}</span>
@@ -57,4 +58,5 @@ function choose(id) {
 const selectedIndex = computed(() => props.groups.findIndex((g) => g.id === props.modelValue));
 const selectedLabel = computed(() => (selectedIndex.value >= 0 ? props.groups[selectedIndex.value].name : 'None'));
 const selectedColor = computed(() => (selectedIndex.value >= 0 ? groupColor(selectedIndex.value) : null));
+const selectedMode = computed(() => (selectedIndex.value >= 0 ? (props.groups[selectedIndex.value].isSequence ? 'SEQ' : 'RAND') : ''));
 </script>

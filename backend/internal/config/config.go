@@ -45,8 +45,9 @@ type ConfigPreset struct {
 }
 
 type ConfigGroup struct {
-	Name    string `json:"name"`
-	Members []int  `json:"members"` // preset indices within the camera's Presets slice
+	Name       string `json:"name"`
+	Members    []int  `json:"members"` // preset indices within the camera's Presets slice
+	IsSequence bool   `json:"isSequence"`
 }
 
 type ConfigCamera struct {

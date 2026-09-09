@@ -35,6 +35,7 @@ func (s *Store) RefreshPosition(cameraID string) {
 	s.mu.Lock()
 	if cam := s.findCameraLocked(cameraID); cam != nil && cam.TriggeringPresetID == nil {
 		cam.CurrentPosition = &pos
+		recomputeActivePresetLocked(cam)
 	}
 	s.mu.Unlock()
 }
@@ -202,6 +203,9 @@ func (s *Store) DeletePreset(cameraID, presetID string) error {
 	if cam.Queued != nil && cam.Queued.PresetID == presetID {
 		cam.Queued = nil
 	}
+	if cam.ActivePresetID != nil && *cam.ActivePresetID == presetID {
+		cam.ActivePresetID = nil
+	}
 	go s.broadcast()
 	go s.onMutate()
 	return nil
@@ -259,6 +263,7 @@ func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) (int, e
 	}
 	pid := preset.ID
 	cam.TriggeringPresetID = &pid
+	cam.ActivePresetID = nil
 	cam.TriggerGen++
 	gen := cam.TriggerGen
 	client := cam.Client
@@ -303,6 +308,7 @@ func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, tar
 	}
 	cam.TriggeringPresetID = nil
 	cam.CurrentPosition = &final
+	recomputeActivePresetLocked(cam)
 	if preset := s.presetsByID[presetID]; preset != nil && thumbErr == nil {
 		preset.Thumbnail = thumb
 		preset.ThumbnailVersion++
@@ -396,10 +402,16 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 		return
 	}
 
-	activeID := activePresetIDLocked(cam)
 	reservedID := cam.TriggeringPresetID
 	if reservedID == nil {
-		reservedID = activeID
+		reservedID = activePresetIDLocked(cam)
+	}
+
+	if group.IsSequence {
+		if next := s.sequenceNextLocked(cam, group, reservedID); next != nil {
+			cam.Queued = &Queued{PresetID: *next, Origin: "auto"}
+		}
+		return
 	}
 
 	cycleComplete := true
@@ -420,9 +432,6 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 		if reservedID != nil && *reservedID == presetID {
 			continue
 		}
-		if activeID != nil && *activeID == presetID {
-			continue
-		}
 		preset := s.findPresetLocked(cam, presetID)
 		if preset == nil {
 			continue
@@ -436,6 +445,41 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 		return
 	}
 	cam.Queued = &Queued{PresetID: candidates[rand.Intn(len(candidates))], Origin: "auto"}
+}
+
+// sequenceNextLocked finds the group member that comes right after refID in the camera's preset
+// (thumbnail) order, wrapping around to the start. refID need not itself be a group member.
+// Returns nil if no member qualifies, e.g. a single-member group whose only member is refID itself.
+func (s *Store) sequenceNextLocked(cam *Camera, group *Group, refID *string) *string {
+	n := len(cam.Presets)
+	if n == 0 {
+		return nil
+	}
+	members := make(map[string]bool, len(group.Members))
+	for _, id := range group.Members {
+		members[id] = true
+	}
+	refIdx := -1
+	if refID != nil {
+		for i, p := range cam.Presets {
+			if p.ID == *refID {
+				refIdx = i
+				break
+			}
+		}
+	}
+	for i := 1; i <= n; i++ {
+		p := cam.Presets[(refIdx+i)%n]
+		if !members[p.ID] {
+			continue
+		}
+		if refID != nil && *refID == p.ID {
+			return nil
+		}
+		id := p.ID
+		return &id
+	}
+	return nil
 }
 
 func (s *Store) processOfflive(cameraID string) {
@@ -466,24 +510,40 @@ func (s *Store) processOfflive(cameraID string) {
 
 // ---- groups ----
 
-func (s *Store) UpdateGroup(cameraID string, groupID int, name string) error {
+func (s *Store) UpdateGroup(cameraID string, groupID int, name *string, isSequence *bool) error {
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	cam := s.findCameraLocked(cameraID)
 	if cam == nil {
+		s.mu.Unlock()
 		return newErr(404, "camera not found")
 	}
+	var group *Group
 	for _, g := range cam.Groups {
 		if g.ID == groupID {
-			if name != "" {
-				g.Name = name
-			}
-			go s.broadcast()
-			go s.onMutate()
-			return nil
+			group = g
+			break
 		}
 	}
-	return newErr(404, "group not found")
+	if group == nil {
+		s.mu.Unlock()
+		return newErr(404, "group not found")
+	}
+	if name != nil && *name != "" {
+		group.Name = *name
+	}
+	if isSequence != nil && *isSequence != group.IsSequence {
+		group.IsSequence = *isSequence
+		if cam.SelectedGroupID != nil && *cam.SelectedGroupID == groupID {
+			if cam.Queued != nil && cam.Queued.Origin == "auto" {
+				cam.Queued = nil
+			}
+			s.autoQueueFillLocked(cam)
+		}
+	}
+	s.mu.Unlock()
+	go s.broadcast()
+	go s.onMutate()
+	return nil
 }
 
 // SetGroupCount resizes a camera's group list to exactly count groups (1..MaxGroupCount).

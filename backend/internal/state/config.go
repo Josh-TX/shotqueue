@@ -35,7 +35,7 @@ func (s *Store) BuildSnapshot() []config.ConfigCamera {
 			vc.Presets[j] = config.ConfigPreset{Name: p.Name, Target: p.Target}
 		}
 		for j, g := range cam.Groups {
-			vg := config.ConfigGroup{Name: g.Name, Members: make([]int, 0, len(g.Members))}
+			vg := config.ConfigGroup{Name: g.Name, Members: make([]int, 0, len(g.Members)), IsSequence: g.IsSequence}
 			for _, presetID := range g.Members {
 				if idx, ok := presetIndex[presetID]; ok {
 					vg.Members = append(vg.Members, idx)
@@ -79,7 +79,7 @@ func (s *Store) LoadConfig(cams []config.ConfigCamera) error {
 			presetIDByIndex[j] = p.ID
 		}
 		for _, vg := range vc.Groups {
-			g := &Group{ID: cam.nextGroupID, Name: vg.Name}
+			g := &Group{ID: cam.nextGroupID, Name: vg.Name, IsSequence: vg.IsSequence}
 			cam.nextGroupID++
 			for _, idx := range vg.Members {
 				if idx >= 0 && idx < len(presetIDByIndex) {

@@ -73,6 +73,10 @@
                 @blur="renameGroup(g, $event.target.value)"
                 @keyup.enter="$event.target.blur()"
               />
+              <select :value="g.isSequence ? 'sequence' : 'random'" @change="setGroupMode(g, $event.target.value)">
+                <option value="random">Random</option>
+                <option value="sequence">Sequence</option>
+              </select>
             </div>
           </div>
 
@@ -206,6 +210,9 @@ function setGroupCount(value) {
 function renameGroup(g, name) {
   if (!name.trim()) return;
   api.updateGroup(props.camera.id, g.id, { name: name.trim() }).catch((e) => alert(e.message));
+}
+function setGroupMode(g, value) {
+  api.updateGroup(props.camera.id, g.id, { isSequence: value === 'sequence' }).catch((e) => alert(e.message));
 }
 function toggleMember(g, p, checked) {
   api.setMember(props.camera.id, g.id, p.id, { inGroup: checked }).catch((e) => alert(e.message));

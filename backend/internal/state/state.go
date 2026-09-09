@@ -49,9 +49,10 @@ func newErr(status int, format string, args ...any) *LogicError {
 }
 
 type Group struct {
-	ID      int      `json:"id"`
-	Name    string   `json:"name"`
-	Members []string `json:"members"`
+	ID         int      `json:"id"`
+	Name       string   `json:"name"`
+	Members    []string `json:"members"`
+	IsSequence bool     `json:"isSequence"`
 }
 
 // MaxGroupCount is the largest group count selectable per camera (see SetGroupCount).
@@ -85,6 +86,7 @@ type Camera struct {
 	TriggeringPresetID      *string
 	TriggerGen              int
 	CurrentPosition         *ptz.Position
+	ActivePresetID          *string
 	Presets                 []*Preset
 	Groups                  []*Group
 	ColumnCount             int
@@ -343,17 +345,28 @@ func closeEnough(a, b ptz.Position) bool {
 	return abs(a.Pan-b.Pan) <= positionTolerance && abs(a.Tilt-b.Tilt) <= positionTolerance && abs(a.Zoom-b.Zoom) <= positionTolerance
 }
 
+// activePresetIDLocked reports which preset (if any) the camera is actually sitting on, per the
+// cached value last written by recomputeActivePresetLocked.
 func activePresetIDLocked(cam *Camera) *string {
+	return cam.ActivePresetID
+}
+
+// recomputeActivePresetLocked refreshes cam.ActivePresetID from cam.CurrentPosition. Called
+// whenever a fresh position reading comes in (RefreshPosition, finishTrigger) - never while a
+// trigger is in flight, since triggerPreset clears ActivePresetID immediately and owns the
+// position until the move settles.
+func recomputeActivePresetLocked(cam *Camera) {
+	cam.ActivePresetID = nil
 	if cam.CurrentPosition == nil {
-		return nil
+		return
 	}
 	for _, p := range cam.Presets {
 		if closeEnough(*cam.CurrentPosition, p.Target) {
 			id := p.ID
-			return &id
+			cam.ActivePresetID = &id
+			return
 		}
 	}
-	return nil
 }
 
 // ClientFor returns the PTZ client for a camera, safe to use concurrently with camera edits.

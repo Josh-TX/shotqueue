@@ -36,10 +36,11 @@ func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request, camID s
 		return
 	}
 	var body struct {
-		Name string `json:"name"`
+		Name       *string `json:"name"`
+		IsSequence *bool   `json:"isSequence"`
 	}
 	json.NewDecoder(r.Body).Decode(&body)
-	if err := s.store.UpdateGroup(camID, groupID, body.Name); err != nil {
+	if err := s.store.UpdateGroup(camID, groupID, body.Name, body.IsSequence); err != nil {
 		writeLogicError(w, err)
 		return
 	}
