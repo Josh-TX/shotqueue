@@ -18,7 +18,7 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 for i in "${!ports[@]}"; do
-	node index.js "${images[$i]}" --port="${ports[$i]}" &
+	node index.js "${images[$i]}" --port="${ports[$i]}" --auth=digest &
 	pids+=("$!")
 done
 

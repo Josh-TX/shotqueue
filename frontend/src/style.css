@@ -349,6 +349,17 @@ h3 {
   background: #2563eb;
   color: #fff;
 }
+.name-badges .error-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid #d96709;
+  background: #d96709;
+  color: #fff;
+  text-transform: uppercase;
+}
 
 .preset-scroll {
   flex: 1 1 auto;

@@ -45,7 +45,7 @@ func New(host, port string) *Client {
 		Host:    host,
 		Port:    port,
 		client:  &http.Client{Timeout: 5 * time.Second},
-		session: auth.NewSession("admin", "12345"),
+		session: auth.NewSession("admin", "wrongpassword"),
 	}
 }
 
@@ -67,7 +67,7 @@ func (c *Client) authedGet(url, uri string) (*http.Response, error) {
 		if err != nil {
 			return nil, err
 		}
-		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		if resp.StatusCode >= 400 {
 			resp.Body.Close()
 			return nil, &auth.StatusError{StatusCode: resp.StatusCode, Header: resp.Header}
 		}

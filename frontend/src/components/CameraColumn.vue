@@ -6,6 +6,7 @@
         <span class="name-badges">
           <span v-if="camera.generating" class="gen-badge">GENERATING</span>
           <span v-if="camera.status !== 'none'" class="tally-badge" :class="camera.status">{{ tallyLabel }}</span>
+          <span v-if="camera.error" class="error-badge">{{ camera.error }}</span>
         </span>
       </div>
       <div class="header-row group-row">

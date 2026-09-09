@@ -94,6 +94,7 @@ type Camera struct {
 	Queued                  *Queued
 	nextGroupID             int
 	Generating              bool
+	PollError               string // "" or "401", set when polling the camera fails
 }
 
 type Store struct {
@@ -179,6 +180,7 @@ func (s *Store) pollTick() {
 	changed := false
 	for _, cam := range s.Cameras() {
 		before := s.ActivePresetID(cam)
+		beforeErr := s.PollError(cam)
 		s.RefreshPosition(cam.ID)
 		after := s.ActivePresetID(cam)
 		if !strPtrEqual(before, after) {
@@ -186,6 +188,9 @@ func (s *Store) pollTick() {
 			if after != nil {
 				go s.refreshPresetThumbnail(cam.ID, *after)
 			}
+		}
+		if s.PollError(cam) != beforeErr {
+			changed = true
 		}
 	}
 	if changed {
@@ -332,6 +337,12 @@ func (s *Store) ActivePresetID(cam *Camera) *string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return activePresetIDLocked(cam)
+}
+
+func (s *Store) PollError(cam *Camera) string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return cam.PollError
 }
 
 func abs(a int) int {

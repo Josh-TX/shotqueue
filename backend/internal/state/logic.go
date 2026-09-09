@@ -4,10 +4,12 @@ import (
 	"fmt"
 	"log"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"shotqueue-backend/internal/atem"
 	"shotqueue-backend/internal/ptz"
+	"shotqueue-backend/internal/ptz/auth"
 )
 
 const triggerPollInterval = 150 * time.Millisecond
@@ -28,16 +30,24 @@ func (s *Store) RefreshPosition(cameraID string) {
 	s.mu.Unlock()
 
 	pos, err := client.GetPosition()
-	if err != nil {
-		return
-	}
 
 	s.mu.Lock()
-	if cam := s.findCameraLocked(cameraID); cam != nil && cam.TriggeringPresetID == nil {
-		cam.CurrentPosition = &pos
-		recomputeActivePresetLocked(cam)
+	defer s.mu.Unlock()
+	cam = s.findCameraLocked(cameraID)
+	if cam == nil || cam.TriggeringPresetID != nil {
+		return
 	}
-	s.mu.Unlock()
+	if err != nil {
+		if se, ok := err.(*auth.StatusError); ok {
+			cam.PollError = "error " + strconv.Itoa(se.StatusCode)
+		} else {
+			cam.PollError = "offline"
+		}
+		return
+	}
+	cam.PollError = ""
+	cam.CurrentPosition = &pos
+	recomputeActivePresetLocked(cam)
 }
 
 // refreshPresetThumbnail captures a fresh snapshot for presetID, called by pollTick right after it
