@@ -23,8 +23,6 @@ type CameraDTO struct {
 	ColumnCount             int         `json:"columnCount"`
 	ActivePresetID          *string     `json:"activePresetId,omitempty"`
 	Generating              bool        `json:"generating"`
-	GenDone                 int         `json:"genDone,omitempty"`
-	GenTotal                int         `json:"genTotal,omitempty"`
 }
 
 func presetDTO(p *Preset) PresetDTO {
@@ -69,8 +67,6 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		ColumnCount:             cam.ColumnCount,
 		ActivePresetID:          activePresetIDLocked(cam),
 		Generating:              cam.Generating,
-		GenDone:                 cam.GenDone,
-		GenTotal:                cam.GenTotal,
 	}
 }
 

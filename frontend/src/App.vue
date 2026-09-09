@@ -18,7 +18,6 @@
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
     <VersionsModal v-if="showVersions" @close="showVersions = false" />
     <GenThumbnailsModal v-if="showGenThumbnails" @close="showGenThumbnails = false" />
-    <ToastStack />
   </div>
 </template>
 
@@ -30,7 +29,6 @@ import AddCameraModal from './components/AddCameraModal.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import VersionsModal from './components/VersionsModal.vue';
 import GenThumbnailsModal from './components/GenThumbnailsModal.vue';
-import ToastStack from './components/ToastStack.vue';
 import { store, loadInitial, connectWebSocket } from './store.js';
 
 const MIN_UNIT_WIDTH = 80;

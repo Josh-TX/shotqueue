@@ -42,7 +42,6 @@ func New(store *state.Store, cfg *config.Store, versionsStore *versions.Store, o
 		},
 	}
 	store.SetBroadcaster(s.broadcastState)
-	store.SetGenCompleteHandler(s.broadcastGenComplete)
 	return s
 }
 
@@ -110,28 +109,6 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) broadcastState() {
 	payload, err := json.Marshal(s.currentStateMessage())
-	if err != nil {
-		return
-	}
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for conn := range s.clients {
-		if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-			conn.Close()
-			delete(s.clients, conn)
-		}
-	}
-}
-
-type genCompleteMessage struct {
-	Type      string `json:"type"`
-	Generated int    `json:"generated"`
-	Skipped   int    `json:"skipped"`
-	Failed    int    `json:"failed"`
-}
-
-func (s *Server) broadcastGenComplete(generated, skipped, failed int) {
-	payload, err := json.Marshal(genCompleteMessage{Type: "genComplete", Generated: generated, Skipped: skipped, Failed: failed})
 	if err != nil {
 		return
 	}

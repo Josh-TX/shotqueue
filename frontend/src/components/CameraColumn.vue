@@ -3,7 +3,10 @@
     <div class="camera-column-header">
       <div class="header-row name-row">
         <span class="camera-name" :title="camera.name">{{ camera.name }}</span>
-        <span v-if="camera.status !== 'none'" class="tally-badge" :class="camera.status">{{ tallyLabel }}</span>
+        <span class="name-badges">
+          <span v-if="camera.generating" class="gen-badge">GENERATING</span>
+          <span v-if="camera.status !== 'none'" class="tally-badge" :class="camera.status">{{ tallyLabel }}</span>
+        </span>
       </div>
       <div class="header-row group-row">
         <GroupSelect :model-value="camera.selectedGroupId ?? null" :groups="camera.groups" @update:model-value="onGroupChange" />

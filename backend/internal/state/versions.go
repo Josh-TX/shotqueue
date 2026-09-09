@@ -1,7 +1,6 @@
 package state
 
 import (
-	"sync/atomic"
 	"time"
 
 	"shotqueue-backend/internal/ptz"
@@ -100,13 +99,6 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 	return nil
 }
 
-// genCounters aggregates the outcome of a StartGenThumbnails run across every camera's goroutine.
-type genCounters struct {
-	generated atomic.Int64
-	skipped   atomic.Int64
-	failed    atomic.Int64
-}
-
 // StartGenThumbnails re-triggers presets to (re)capture their thumbnails, one at a time per camera
 // (so as not to fight over a single camera's position) but concurrently across cameras.
 // allowLiveMove lets it move a camera that's currently live (normally blocked); includeExisting
@@ -125,37 +117,18 @@ func (s *Store) StartGenThumbnails(allowLiveMove, includeExisting bool) {
 	for _, cam := range cams {
 		ids := genOrderLocked(cam)
 		order[cam.ID] = ids
-		cam.GenTotal = len(ids)
-		cam.GenDone = 0
 		cam.Generating = len(ids) > 0
 	}
 	s.mu.Unlock()
 	s.broadcast()
 
-	counters := &genCounters{}
-	done := make(chan struct{})
-	var running int
 	for _, cam := range cams {
 		ids := order[cam.ID]
 		if len(ids) == 0 {
 			continue
 		}
-		running++
-		go func(cameraID string, ids []string) {
-			s.genCamera(cameraID, ids, token, allowLiveMove, includeExisting, counters)
-			done <- struct{}{}
-		}(cam.ID, ids)
+		go s.genCamera(cam.ID, ids, token, allowLiveMove, includeExisting)
 	}
-
-	go func() {
-		for i := 0; i < running; i++ {
-			<-done
-		}
-		if s.genCancelled(token) {
-			return
-		}
-		s.genComplete(int(counters.generated.Load()), int(counters.skipped.Load()), int(counters.failed.Load()))
-	}()
 }
 
 func (s *Store) genCancelled(token int) bool {
@@ -186,16 +159,7 @@ func genOrderLocked(cam *Camera) []string {
 	return ids
 }
 
-// finishPresetLocked advances a camera's gen progress by one preset, clearing Generating once
-// every preset's been accounted for. Caller must hold s.mu.
-func finishPresetLocked(cam *Camera) {
-	cam.GenDone++
-	if cam.GenDone >= cam.GenTotal {
-		cam.Generating = false
-	}
-}
-
-func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowLiveMove, includeExisting bool, counters *genCounters) {
+func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowLiveMove, includeExisting bool) {
 	for _, presetID := range presetIDs {
 		if s.genCancelled(token) {
 			return
@@ -210,7 +174,6 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 		preset := s.findPresetLocked(cam, presetID)
 		if preset == nil {
 			// preset was deleted mid-run
-			finishPresetLocked(cam)
 			s.mu.Unlock()
 			s.broadcast()
 			continue
@@ -224,12 +187,6 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 		s.mu.Unlock()
 
 		if skip {
-			s.mu.Lock()
-			if cam := s.findCameraLocked(cameraID); cam != nil {
-				finishPresetLocked(cam)
-			}
-			s.mu.Unlock()
-			counters.skipped.Add(1)
 			s.broadcast()
 			continue
 		}
@@ -240,26 +197,16 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 		if alreadyActive {
 			thumb, err := client.Snapshot()
 			s.mu.Lock()
-			cam = s.findCameraLocked(cameraID)
-			if cam == nil {
-				s.mu.Unlock()
-				return
-			}
 			if p := s.presetsByID[presetID]; p != nil && err == nil {
 				p.Thumbnail = thumb
 				p.ThumbnailVersion++
-				counters.generated.Add(1)
-			} else {
-				counters.failed.Add(1)
 			}
-			finishPresetLocked(cam)
 			s.mu.Unlock()
 			s.broadcast()
 			continue
 		}
 
-		beforeVersion := preset.ThumbnailVersion
-		s.triggerPreset(cameraID, presetID, allowLiveMove) // ignore error: e.g. already-triggering just means nothing to do
+		gen, _ := s.triggerPreset(cameraID, presetID, allowLiveMove) // ignore error: e.g. already-triggering just means nothing to do
 
 		settled := false
 		deadline := time.Now().Add(genSettleTimeout)
@@ -267,8 +214,18 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 			s.mu.Lock()
 			c := s.findCameraLocked(cameraID)
 			stillTriggering := c != nil && c.Triggering
+			supersededByManualTrigger := c != nil && c.TriggerGen != gen
 			s.mu.Unlock()
 			if c == nil {
+				return
+			}
+			if supersededByManualTrigger {
+				s.mu.Lock()
+				if cam := s.findCameraLocked(cameraID); cam != nil {
+					cam.Generating = false
+				}
+				s.mu.Unlock()
+				s.broadcast()
 				return
 			}
 			if !stillTriggering {
@@ -278,26 +235,22 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 			time.Sleep(genPollInterval)
 		}
 
-		s.mu.Lock()
-		cam = s.findCameraLocked(cameraID)
-		if cam == nil {
-			s.mu.Unlock()
-			return
-		}
 		if !settled {
-			cam.Generating = false
+			s.mu.Lock()
+			if cam := s.findCameraLocked(cameraID); cam != nil {
+				cam.Generating = false
+			}
 			s.mu.Unlock()
-			counters.failed.Add(1)
 			s.broadcast()
 			return
 		}
-		if p := s.presetsByID[presetID]; p != nil && p.ThumbnailVersion > beforeVersion {
-			counters.generated.Add(1)
-		} else {
-			counters.failed.Add(1)
-		}
-		finishPresetLocked(cam)
-		s.mu.Unlock()
 		s.broadcast()
 	}
+
+	s.mu.Lock()
+	if cam := s.findCameraLocked(cameraID); cam != nil {
+		cam.Generating = false
+	}
+	s.mu.Unlock()
+	s.broadcast()
 }

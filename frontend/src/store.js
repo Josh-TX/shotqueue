@@ -5,17 +5,7 @@ export const store = reactive({
   cameras: [],
   wsConnected: false,
   atemConnected: false,
-  toasts: [],
 });
-
-let nextToastId = 1;
-export function pushToast(message) {
-  const id = nextToastId++;
-  store.toasts.push({ id, message });
-  setTimeout(() => {
-    store.toasts = store.toasts.filter((t) => t.id !== id);
-  }, 5000);
-}
 
 function findCamera(id) {
   return store.cameras.find((c) => c.id === id);
@@ -54,9 +44,6 @@ export function connectWebSocket() {
     if (msg.type === 'state') {
       mergeStructural(msg.cameras);
       store.atemConnected = msg.atemConnected;
-    }
-    if (msg.type === 'genComplete') {
-      pushToast(`Generated ${msg.generated}, skipped ${msg.skipped}, failed ${msg.failed}`);
     }
   };
   return ws;

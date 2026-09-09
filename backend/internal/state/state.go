@@ -92,8 +92,6 @@ type Camera struct {
 	Queued                  *Queued
 	nextGroupID             int
 	Generating              bool
-	GenDone                 int
-	GenTotal                int
 }
 
 type Store struct {
@@ -104,7 +102,6 @@ type Store struct {
 	onMutate      func()
 	genMu         sync.Mutex
 	genToken      int
-	genComplete   func(generated, skipped, failed int)
 	pollMu        sync.Mutex
 	pollStop      chan struct{}
 	atemConnected bool
@@ -115,7 +112,6 @@ func New() *Store {
 		presetsByID: make(map[string]*Preset),
 		broadcast:   func() {},
 		onMutate:    func() {},
-		genComplete: func(generated, skipped, failed int) {},
 	}
 }
 
@@ -133,10 +129,6 @@ func (s *Store) AtemConnected() bool {
 	defer s.mu.Unlock()
 	return s.atemConnected
 }
-
-// SetGenCompleteHandler registers a hook called once a StartGenThumbnails run finishes (and wasn't
-// superseded by a newer run or a version load), with the aggregate result counts.
-func (s *Store) SetGenCompleteHandler(fn func(generated, skipped, failed int)) { s.genComplete = fn }
 
 // Start begins polling every camera's live position on idlePollInterval, to detect moves made
 // outside of TriggerPreset. The caller (api.Server) invokes this when the first websocket client

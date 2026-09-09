@@ -1,15 +1,16 @@
 <template>
   <Modal title="Generate Thumbnails" @close="$emit('close')">
-    <label class="gen-checkbox">
-      <input type="checkbox" v-model="allowLiveMove" />
-      Allow moving a live camera
-    </label>
+    <p class="gen-desc">This will put all cameras into the "Generating" state, where it triggers a preset, waits for the camera to move there, then takes a snapshot to use as a thumbnail. It does this for all presets.</p>
     <label class="gen-checkbox">
       <input type="checkbox" v-model="onlyMissing" />
       Only Generate Missing Thumbnails
     </label>
+    <label class="gen-checkbox">
+      <input type="checkbox" v-model="allowLiveMove" />
+      Allow moving a live camera
+    </label>
     <div class="modal-actions">
-      <button class="primary" :disabled="loading" @click="doGenerate">
+      <button :class="allowLiveMove ? 'danger' : 'primary'" :disabled="loading" @click="doGenerate">
         {{ loading ? 'Starting…' : 'Generate' }}
       </button>
     </div>

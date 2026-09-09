@@ -238,12 +238,6 @@ h3 {
 .ws-dot.warn {
   background: #eab308;
 }
-.gen-banner {
-  color: var(--muted);
-  font-size: 13px;
-  margin-right: 8px;
-}
-
 /* ---- camera columns ---- */
 .camera-row {
   flex: 1 1 auto;
@@ -287,7 +281,6 @@ h3 {
 }
 .name-row {
   position: relative;
-  overflow: hidden;
 }
 .camera-name {
   display: block;
@@ -305,12 +298,17 @@ h3 {
   border: 1px solid var(--border);
   color: var(--muted);
 }
-.name-row .tally-badge {
+.name-badges {
   position: absolute;
   right: 0;
+  top: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.name-badges .tally-badge {
   background: var(--bg);
-  bottom: 0;
-  z-index: 1;
 }
 .tally-badge.live {
   background: var(--danger);
@@ -318,9 +316,19 @@ h3 {
   color: #fff;
 }
 .tally-badge.preview {
-  background: #22c55e;
-  border-color: #22c55e;
-  color: #06210f;
+  background: #1ea34c;
+  border-color: #1ea34c;
+  color: #fff;
+}
+.name-badges .gen-badge {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid #2563eb;
+  background: #2563eb;
+  color: #fff;
 }
 
 .preset-scroll {
@@ -704,6 +712,11 @@ h3 {
 .version-detail .modal-actions {
   margin-top: auto;
 }
+.gen-desc {
+  margin-top: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
 .gen-checkbox {
   display: flex;
   align-items: center;
@@ -920,21 +933,3 @@ h3 {
   font-size: 13px;
 }
 
-/* ---- toasts ---- */
-.toast-stack {
-  position: fixed;
-  bottom: 16px;
-  right: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  z-index: 1000;
-}
-.toast {
-  background: var(--panel3);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px 14px;
-  font-size: 13px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
-}

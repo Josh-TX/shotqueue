@@ -6,8 +6,7 @@ import (
 )
 
 // POST /api/thumbnails/generate -> kick off a thumbnail generation run across every camera.
-// Progress is reported over the websocket via the normal state broadcast (generating/genDone/
-// genTotal per camera) and a final "genComplete" message with result counts.
+// Progress is reported over the websocket via the normal state broadcast (generating per camera).
 func (s *Server) handleGenThumbnails(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)

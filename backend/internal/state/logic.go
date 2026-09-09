@@ -204,26 +204,29 @@ func (s *Store) findPresetLocked(cam *Camera, presetID string) *Preset {
 }
 
 func (s *Store) TriggerPreset(cameraID, presetID string) error {
-	return s.triggerPreset(cameraID, presetID, false)
+	_, err := s.triggerPreset(cameraID, presetID, false)
+	return err
 }
 
 // triggerPreset is TriggerPreset with an allowLive escape hatch, used only by genCamera when the
-// "allow moving a live camera" option is enabled.
-func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) error {
+// "allow moving a live camera" option is enabled. It returns the TriggerGen it assigned, so a
+// caller like genCamera can later tell whether a different trigger (e.g. a manual one) took over
+// the camera before this one settled.
+func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) (int, error) {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraID)
 	if cam == nil {
 		s.mu.Unlock()
-		return newErr(404, "camera not found")
+		return 0, newErr(404, "camera not found")
 	}
 	preset := s.findPresetLocked(cam, presetID)
 	if preset == nil {
 		s.mu.Unlock()
-		return newErr(404, "preset not found")
+		return 0, newErr(404, "preset not found")
 	}
 	if err := s.isTriggerableLocked(cam, preset, allowLive); err != nil {
 		s.mu.Unlock()
-		return err
+		return 0, err
 	}
 	if cam.Queued != nil && cam.Queued.PresetID == preset.ID {
 		cam.Queued = nil
@@ -239,7 +242,7 @@ func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) error {
 
 	s.broadcast()
 	go s.finishTrigger(cameraID, presetID, client, target, gen)
-	return nil
+	return gen, nil
 }
 
 // finishTrigger drives one preset move to completion. gen is the camera's TriggerGen at the moment
