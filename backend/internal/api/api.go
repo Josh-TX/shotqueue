@@ -1,5 +1,5 @@
 // Package api wires shotqueue's HTTP+websocket surface (ported from server/src/routes/api.js and
-// index.js) onto internal/state and internal/config.
+// index.js) onto internal/state and internal/settings.
 package api
 
 import (
@@ -14,27 +14,27 @@ import (
 	"github.com/gorilla/websocket"
 
 	"shotqueue-backend/internal/config"
+	"shotqueue-backend/internal/settings"
 	"shotqueue-backend/internal/state"
-	"shotqueue-backend/internal/versions"
 )
 
 type Server struct {
 	store        *state.Store
-	cfg          *config.Store
-	versions     *versions.Store
+	settings     *settings.Store
+	config       *config.Store
 	onAtemChange func(host string)
 	upgrader     websocket.Upgrader
 	mu           sync.Mutex
 	clients      map[*websocket.Conn]struct{}
 }
 
-// New wires the HTTP surface onto store/cfg/versions. onAtemChange is called after a settings
+// New wires the HTTP surface onto store/settings/config. onAtemChange is called after a settings
 // update changes the ATEM host, so main can restart the tally listener against the new address.
-func New(store *state.Store, cfg *config.Store, versionsStore *versions.Store, onAtemChange func(host string)) *Server {
+func New(store *state.Store, settingsStore *settings.Store, configStore *config.Store, onAtemChange func(host string)) *Server {
 	s := &Server{
 		store:        store,
-		cfg:          cfg,
-		versions:     versionsStore,
+		settings:     settingsStore,
+		config:       configStore,
 		onAtemChange: onAtemChange,
 		clients:      make(map[*websocket.Conn]struct{}),
 		upgrader: websocket.Upgrader{
@@ -54,8 +54,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/cameras/", s.handleCameraSubroutes)
 	mux.HandleFunc("/api/presets/", s.handlePresetThumbnail)
 	mux.HandleFunc("/api/settings", s.handleSettings)
-	mux.HandleFunc("/api/versions", s.handleVersions)
-	mux.HandleFunc("/api/versions/", s.handleVersionSubroutes)
+	mux.HandleFunc("/api/configs", s.handleConfigs)
+	mux.HandleFunc("/api/configs/", s.handleConfigSubroutes)
 	mux.HandleFunc("/api/thumbnails/generate", s.handleGenThumbnails)
 }
 

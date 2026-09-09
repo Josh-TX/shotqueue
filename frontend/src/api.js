@@ -38,11 +38,11 @@ export const api = {
   setMember: (camId, groupId, presetId, patch) =>
     request('PATCH', `/api/cameras/${camId}/groups/${groupId}/members/${presetId}`, patch),
 
-  listVersions: () => request('GET', '/api/versions'),
-  saveVersion: (name) => request('POST', '/api/versions', { name }),
-  deleteVersion: (id) => request('DELETE', `/api/versions/${id}`),
-  loadVersion: (id, generateThumbnails) =>
-    request('POST', `/api/versions/${id}/load`, { generateThumbnails }),
+  listConfigs: () => request('GET', '/api/configs'),
+  saveConfig: (name) => request('POST', '/api/configs', { name }),
+  deleteConfig: (id) => request('DELETE', `/api/configs/${id}`),
+  loadConfig: (id, generateThumbnails) =>
+    request('POST', `/api/configs/${id}/load`, { generateThumbnails }),
 
   genThumbnails: (allowLiveMove, includeExisting) =>
     request('POST', '/api/thumbnails/generate', { allowLiveMove, includeExisting }),

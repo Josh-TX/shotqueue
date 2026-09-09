@@ -4,13 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"shotqueue-backend/internal/config"
+	"shotqueue-backend/internal/settings"
 )
 
 func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		writeJSON(w, 200, map[string]any{"atemHost": s.cfg.Get().Atem.Host})
+		writeJSON(w, 200, map[string]any{"atemHost": s.settings.Get().Atem.Host})
 
 	case http.MethodPut:
 		var body struct {
@@ -20,7 +20,7 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 			writeError(w, 400, "invalid body")
 			return
 		}
-		if err := s.cfg.SetAtem(config.Atem{Host: body.AtemHost}); err != nil {
+		if err := s.settings.SetAtem(settings.Atem{Host: body.AtemHost}); err != nil {
 			writeError(w, 500, err.Error())
 			return
 		}

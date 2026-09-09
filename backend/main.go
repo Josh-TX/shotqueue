@@ -13,8 +13,8 @@ import (
 	"shotqueue-backend/internal/api"
 	"shotqueue-backend/internal/atem"
 	"shotqueue-backend/internal/config"
+	"shotqueue-backend/internal/settings"
 	"shotqueue-backend/internal/state"
-	"shotqueue-backend/internal/versions"
 )
 
 // webDistDir resolves relative to this source file so `go run .` works from anywhere.
@@ -57,28 +57,28 @@ func main() {
 	port := flag.String("port", "8080", "port to serve the API and web UI on")
 	flag.Parse()
 
-	cfg, err := config.Load()
+	settingsStore, err := settings.Load()
+	if err != nil {
+		log.Fatalf("loading settings: %v", err)
+	}
+
+	configStore, err := config.Load()
 	if err != nil {
 		log.Fatalf("loading config: %v", err)
 	}
 
-	versionsStore, err := versions.Load()
-	if err != nil {
-		log.Fatalf("loading versions: %v", err)
-	}
-
 	store := state.New()
-	if latest, ok := versionsStore.LatestAutosave(); ok {
-		if err := store.LoadVersion(latest.Cameras); err != nil {
-			log.Fatalf("loading latest version: %v", err)
+	if latest, ok := configStore.LatestAutosave(); ok {
+		if err := store.LoadConfig(latest.Cameras); err != nil {
+			log.Fatalf("loading latest config: %v", err)
 		}
 	}
-	store.SetOnMutate(func() { versionsStore.Autosave(store.BuildSnapshot()) })
+	store.SetOnMutate(func() { configStore.Autosave(store.BuildSnapshot()) })
 
 	supervisor := &atemSupervisor{store: store}
 
-	server := api.New(store, cfg, versionsStore, supervisor.restart)
-	supervisor.restart(cfg.Get().Atem.Host)
+	server := api.New(store, settingsStore, configStore, supervisor.restart)
+	supervisor.restart(settingsStore.Get().Atem.Host)
 
 	mux := http.NewServeMux()
 	server.RegisterRoutes(mux)

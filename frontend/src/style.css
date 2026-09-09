@@ -631,14 +631,14 @@ h3 {
   background: #000;
 }
 
-/* ---- versions modal ---- */
-.versions-shell {
+/* ---- tabbed modal shell (used by configs + settings modals) ---- */
+.tabbed-modal {
   display: flex;
   gap: 16px;
   min-height: 380px;
   max-height: 62vh;
 }
-.versions-sidebar {
+.tabbed-modal-sidebar {
   flex: 0 0 170px;
   display: flex;
   flex-direction: column;
@@ -646,33 +646,25 @@ h3 {
   padding-right: 12px;
   border-right: 1px solid var(--border);
 }
-.versions-sidebar .spacer {
+.tabbed-modal-sidebar .spacer {
   flex: 1;
 }
-.versions-tab {
+.tabbed-modal-tab {
   text-align: left;
   background: transparent;
   border: none;
   border-radius: 6px;
   padding: 8px 10px;
 }
-.versions-tab.active {
+.tabbed-modal-tab.active {
   background: var(--panel3);
   font-weight: 600;
 }
-.versions-save-title {
+.detail-title {
   font-size: 18px;
   margin-bottom: 12px;
 }
-.versions-save-suggestions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-.versions-save-suggestions button.version-match {
-  border-color: var(--accent);
-}
-.versions-content {
+.tabbed-modal-content {
   flex: 1;
   min-width: 0;
   display: flex;
@@ -680,39 +672,13 @@ h3 {
   gap: 12px;
   overflow: auto;
 }
-.versions-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-.versions-table th {
-  text-align: left;
-  font-size: 12px;
-  font-weight: 400;
-  color: var(--muted);
-  padding: 4px 10px;
-  border-bottom: 1px solid var(--border);
-}
-.versions-table td {
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--border);
-  font-size: 13px;
-}
-.versions-table td.name {
-  font-weight: 600;
-}
-.versions-table tr.version-row {
-  cursor: pointer;
-}
-.versions-table tr.version-row:hover {
-  background: var(--panel3);
-}
-.version-detail {
+.detail-panel {
   display: flex;
   flex-direction: column;
   flex: 1;
   min-height: 0;
 }
-.version-detail .modal-actions {
+.detail-panel .modal-actions {
   margin-top: auto;
 }
 .gen-desc {
@@ -726,24 +692,60 @@ h3 {
   gap: 6px;
   font-size: 13px;
 }
-.versions-detail-header {
+.detail-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   margin-bottom: 12px;
 }
-.versions-detail-header .versions-save-title {
+.detail-header .detail-title {
   margin-bottom: 0;
 }
-.versions-detail-header-actions {
+
+/* ---- configs modal ---- */
+.config-save-suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.config-save-suggestions button.config-match {
+  border-color: var(--accent);
+}
+.configs-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.configs-table th {
+  text-align: left;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  padding: 4px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.configs-table td {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.configs-table td.name {
+  font-weight: 600;
+}
+.configs-table tr.config-row {
+  cursor: pointer;
+}
+.configs-table tr.config-row:hover {
+  background: var(--panel3);
+}
+.config-detail-header-actions {
   display: flex;
   gap: 8px;
 }
-.delete-version-btn {
+.delete-config-btn {
   margin-right: auto;
 }
-.versions-last-modified {
+.config-last-modified {
   margin-bottom: 8px;
 }
 

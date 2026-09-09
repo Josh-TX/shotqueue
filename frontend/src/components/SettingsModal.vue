@@ -1,20 +1,20 @@
 <template>
   <Modal title="Settings" wide @close="$emit('close')">
-    <div class="versions-shell">
-      <div class="versions-sidebar">
-        <button class="versions-tab" :class="{ active: tab === 'general' }" @click="tab = 'general'">
+    <div class="tabbed-modal">
+      <div class="tabbed-modal-sidebar">
+        <button class="tabbed-modal-tab" :class="{ active: tab === 'general' }" @click="tab = 'general'">
           General
         </button>
-        <button class="versions-tab" :class="{ active: tab === 'cameras' }" @click="tab = 'cameras'">
+        <button class="tabbed-modal-tab" :class="{ active: tab === 'cameras' }" @click="tab = 'cameras'">
           Cameras
         </button>
         <div class="spacer"></div>
-        <button class="versions-tab" :class="{ active: tab === 'add' }" @click="openAdd">
+        <button class="tabbed-modal-tab" :class="{ active: tab === 'add' }" @click="openAdd">
           Add Camera
         </button>
       </div>
 
-      <div class="versions-content">
+      <div class="tabbed-modal-content">
         <template v-if="tab === 'general'">
           <div class="field">
             <label>Server connection</label>
@@ -36,8 +36,8 @@
         </template>
 
         <template v-else-if="tab === 'cameras'">
-          <div class="versions-detail-header">
-            <h3 class="versions-save-title">Cameras</h3>
+          <div class="detail-header">
+            <h3 class="detail-title">Cameras</h3>
             <button @click="openAdd">+ Add Camera</button>
           </div>
           <div v-if="store.cameras.length === 0" class="metric-block">No cameras yet</div>
@@ -68,8 +68,8 @@
         </template>
 
         <template v-else>
-          <div class="version-detail">
-            <h3 class="versions-save-title">Add Camera</h3>
+          <div class="detail-panel">
+            <h3 class="detail-title">Add Camera</h3>
             <div class="field">
               <label>Name</label>
               <input type="text" v-model="addName" placeholder="e.g. Camera 1" />

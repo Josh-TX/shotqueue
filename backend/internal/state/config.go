@@ -3,8 +3,8 @@ package state
 import (
 	"time"
 
+	"shotqueue-backend/internal/config"
 	"shotqueue-backend/internal/ptz"
-	"shotqueue-backend/internal/versions"
 )
 
 const (
@@ -13,29 +13,29 @@ const (
 )
 
 // BuildSnapshot captures the current camera roster, presets and groups in the shape saved to a
-// version. IDs are intentionally omitted (see internal/versions); group members reference presets
+// config. IDs are intentionally omitted (see internal/config); group members reference presets
 // by index instead.
-func (s *Store) BuildSnapshot() []versions.VersionCamera {
+func (s *Store) BuildSnapshot() []config.ConfigCamera {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	out := make([]versions.VersionCamera, len(s.cameras))
+	out := make([]config.ConfigCamera, len(s.cameras))
 	for i, cam := range s.cameras {
 		presetIndex := make(map[string]int, len(cam.Presets))
-		vc := versions.VersionCamera{
+		vc := config.ConfigCamera{
 			Name:        cam.Name,
 			Host:        cam.Host,
 			Port:        cam.Port,
 			TallySource: cam.TallySource,
 			ColumnCount: cam.ColumnCount,
-			Presets:     make([]versions.VersionPreset, len(cam.Presets)),
-			Groups:      make([]versions.VersionGroup, len(cam.Groups)),
+			Presets:     make([]config.ConfigPreset, len(cam.Presets)),
+			Groups:      make([]config.ConfigGroup, len(cam.Groups)),
 		}
 		for j, p := range cam.Presets {
 			presetIndex[p.ID] = j
-			vc.Presets[j] = versions.VersionPreset{Name: p.Name, Target: p.Target}
+			vc.Presets[j] = config.ConfigPreset{Name: p.Name, Target: p.Target}
 		}
 		for j, g := range cam.Groups {
-			vg := versions.VersionGroup{Name: g.Name, Members: make([]int, 0, len(g.Members))}
+			vg := config.ConfigGroup{Name: g.Name, Members: make([]int, 0, len(g.Members))}
 			for _, presetID := range g.Members {
 				if idx, ok := presetIndex[presetID]; ok {
 					vg.Members = append(vg.Members, idx)
@@ -48,10 +48,10 @@ func (s *Store) BuildSnapshot() []versions.VersionCamera {
 	return out
 }
 
-// LoadVersion fully replaces the camera roster and every camera's presets and groups (all in
+// LoadConfig fully replaces the camera roster and every camera's presets and groups (all in
 // memory only) with the given snapshot. Cameras/presets/groups all get fresh IDs; any in-flight
 // thumbnail generation is implicitly cancelled since it tracks cameras by the old IDs.
-func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
+func (s *Store) LoadConfig(cams []config.ConfigCamera) error {
 	s.genMu.Lock()
 	s.genToken++
 	s.genMu.Unlock()
@@ -103,7 +103,7 @@ func (s *Store) LoadVersion(cams []versions.VersionCamera) error {
 // (so as not to fight over a single camera's position) but concurrently across cameras.
 // allowLiveMove lets it move a camera that's currently live (normally blocked); includeExisting
 // makes it redo presets that already have a thumbnail instead of only filling in missing ones.
-// Starting a new run (or loading another version) cancels any run already in flight.
+// Starting a new run (or loading another config) cancels any run already in flight.
 func (s *Store) StartGenThumbnails(allowLiveMove, includeExisting bool) {
 	s.genMu.Lock()
 	s.genToken++

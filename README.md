@@ -14,7 +14,8 @@ Automates PTZ cameras between saved shot presets, cued by which camera is live o
 - **Triggering** — transient state while a preset's position is being applied to the camera.
 - **Camera status** — `none` / `preview` / `live`, derived from tally + the camera's configured tally source number.
 - **TallySource** — the ATEM input number a camera is wired to.
-- **Version** - A saved configuration encompassing the camera, preset, and group settings
+- **Config** - A saved configuration encompassing the camera, preset, and group settings
+
 ## How it works
 
 1. Backend listens to the ATEM's tally feed and tracks each camera's status.
@@ -22,7 +23,7 @@ Automates PTZ cameras between saved shot presets, cued by which camera is live o
 3. When the camera goes off-live, its queued preset fires: backend sends the saved position to the camera, polls until it settles, grabs a fresh snapshot.
 4. Frontend gets structural state (cameras, presets, groups, queue) over a websocket, and polls position over REST (1s normally, 100ms while triggering) to catch when a trigger has settled.
 
-Only the ATEM host and camera roster are persisted (`config.json`); presets/groups are runtime state — see `todo.txt`.
+Only the ATEM host and camera roster are persisted (`settings.json`); presets/groups are runtime state — see `todo.txt`.
 
 ## Layout
 

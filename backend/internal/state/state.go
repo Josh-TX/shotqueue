@@ -1,7 +1,7 @@
 // Package state holds shotqueue's runtime model: cameras, presets, groups and queueing.
 // Ported from the old server's state.js + logic.js. Nothing here is persisted directly; main
-// wires OnMutate to save a "latest" version (see internal/versions) after every change, and
-// reloads it via LoadVersion on startup.
+// wires OnMutate to save a "latest" config (see internal/config) after every change, and
+// reloads it via LoadConfig on startup.
 package state
 
 import (
@@ -196,7 +196,7 @@ func strPtrEqual(a, b *string) bool {
 
 // SetOnMutate registers a hook called after every mutation that changes cameras, presets or
 // groups (but not runtime-only state like trigger/queue/tally). Used by main to persist a
-// "latest" version after each change.
+// "latest" config after each change.
 func (s *Store) SetOnMutate(fn func()) { s.onMutate = fn }
 
 func (s *Store) withLock(fn func()) {
