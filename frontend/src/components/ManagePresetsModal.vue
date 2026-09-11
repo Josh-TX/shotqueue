@@ -3,33 +3,55 @@
     <div class="manage-shell">
       <div class="manage-sidebar">
         <button class="manage-tab" :class="{ active: tab === 'general' }" @click="tab = 'general'">General</button>
-        <button class="manage-tab" :class="{ active: tab === 'names' }" @click="tab = 'names'">Preset Names</button>
         <button class="manage-tab" :class="{ active: tab === 'groups' }" @click="tab = 'groups'">Groups</button>
         <button class="manage-tab" :class="{ active: tab === 'layout' }" @click="tab = 'layout'">Layout &amp; Order</button>
       </div>
 
       <div class="manage-content" ref="contentEl" @dragover.prevent="onContentDragOver">
         <template v-if="tab === 'general'">
-          <p class="help-text">Some preset operations (reposition/delete) are only available by right clicking the preset.</p>
-          <p class="help-text">Connection info and hiding/deleting this camera are managed on the Settings page.</p>
+          <p class="help-text">Connection info is managed on the <a href="#" class="settings-link" @click.prevent="openSettings">Settings page</a>.</p>
           <div class="manage-info-row">
             <span>Thumbnail Columns</span>
             <select :value="camera.columnCount" @change="setColumnCount($event.target.value)">
               <option v-for="n in 6" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
-          <div class="manage-info-row"><span>Presets</span><span class="metric-block">{{ camera.presets.length }}</span></div>
-          <div class="manage-info-row"><span>Groups</span><span class="metric-block">{{ camera.groups.length }}</span></div>
-        </template>
+          <div class="manage-info-row">
+            <span>Number of Groups</span>
+            <select :value="camera.groups.length" @change="setGroupCount($event.target.value)">
+              <option v-for="n in 4" :key="n" :value="n">{{ n }}</option>
+            </select>
+          </div>
 
-        <template v-else-if="tab === 'names'">
+          <div class="general-actions">
+            <button @click="openAddPreset">+ Add Preset</button>
+            <button class="danger" @click="hideCamera">Hide Camera</button>
+          </div>
+
           <div class="manage-preset-grid" :style="gridStyle">
             <ManagePresetTile v-for="p in camera.presets" :key="p.id" :preset="p">
+              <template #overlay>
+                <div class="thumb-overlay-btns">
+                  <button type="button" class="thumb-overlay-btn thumb-overlay-btn-text" @click.stop="$emit('reposition', p)">
+                    Reposition
+                  </button>
+                  <button type="button" class="thumb-overlay-btn" title="Delete" @click.stop="deletePreset(p)">
+                    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="3 6 5 6 21 6" />
+                      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+                      <path d="M10 11v6" />
+                      <path d="M14 11v6" />
+                      <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+                    </svg>
+                  </button>
+                </div>
+              </template>
               <template #title>
                 <input
                   type="text"
                   class="preset-thumb-name-input"
                   :value="p.name"
+                  @click.stop
                   @blur="renamePreset(p, $event.target.value)"
                   @keyup.enter="$event.target.blur()"
                 />
@@ -40,8 +62,11 @@
         </template>
 
         <template v-else-if="tab === 'groups'">
-          <div class="manage-group-count-row">
-            <label>Group count</label>
+          <p class="help-text">Groups allow you to have presets auto-queued when you go off of live.</p>
+          <p class="help-text">In random Mode, presets will be auto-queued at random among presets in the group.</p>
+          <p class="help-text">In sequence Mode, the next preset in the group will be auto-queued.</p>
+          <div class="manage-info-row">
+            <span>Number of Groups</span>
             <select :value="camera.groups.length" @change="setGroupCount($event.target.value)">
               <option v-for="n in 4" :key="n" :value="n">{{ n }}</option>
             </select>
@@ -85,13 +110,13 @@
         </template>
 
         <template v-else-if="tab === 'layout'">
-          <div class="manage-group-count-row">
-            <label>Thumbnail Columns</label>
+          <div class="manage-info-row">
+            <span>Thumbnail Columns</span>
             <select :value="camera.columnCount" @change="setColumnCount($event.target.value)">
               <option v-for="n in 6" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
-          <p class="metric-block">Drag a tile to reorder.</p>
+          <p class="detail-title">Drag a tile to reorder</p>
           <div class="manage-preset-grid" :style="gridStyle">
             <ManagePresetTile
               v-for="(p, i) in camera.presets"
@@ -122,7 +147,7 @@ import { cameraName } from '../store.js';
 import { groupColor } from '../colors.js';
 
 const props = defineProps({ camera: Object, unitWidth: Number });
-defineEmits(['close']);
+const emit = defineEmits(['close', 'add-preset', 'reposition', 'open-settings']);
 
 const tab = ref('general');
 
@@ -140,6 +165,28 @@ const cameraLabel = computed(() => cameraName(props.camera));
 
 function renamePreset(p, name) {
   api.renamePreset(props.camera.cameraNum, p.id, name).catch((e) => alert(e.message));
+}
+
+function deletePreset(p) {
+  if (!confirm(`Delete preset "${p.name}"?`)) return;
+  api.deletePreset(props.camera.cameraNum, p.id).catch((e) => alert(e.message));
+}
+
+function openAddPreset() {
+  emit('add-preset');
+}
+
+function openSettings() {
+  emit('close');
+  emit('open-settings');
+}
+
+function hideCamera() {
+  if (!confirm(`Hide ${cameraLabel.value}? Presets will be lost. You can unhide it from the Settings page.`)) return;
+  api
+    .setCameraHidden(props.camera.cameraNum, true)
+    .then(() => emit('close'))
+    .catch((e) => alert(e.message));
 }
 
 function setGroupCount(value) {

@@ -25,7 +25,21 @@
     </div>
 
     <AddPresetModal v-if="showAddPreset" :camera="camera" @close="showAddPreset = false" />
-    <ManagePresetsModal v-if="showManage" :camera="camera" :unit-width="unitWidth" @close="showManage = false" />
+    <ManagePresetsModal
+      v-if="showManage"
+      :camera="camera"
+      :unit-width="unitWidth"
+      @close="showManage = false"
+      @add-preset="onAddPresetFromManage"
+      @reposition="onRepositionFromManage"
+      @open-settings="$emit('open-settings')"
+    />
+    <UpdatePresetModal
+      v-if="repositioningPreset"
+      :camera="camera"
+      :preset="repositioningPreset"
+      @close="repositioningPreset = null"
+    />
   </div>
 </template>
 
@@ -36,9 +50,11 @@ import { cameraName } from '../store.js';
 import PresetThumbnail from './PresetThumbnail.vue';
 import AddPresetModal from './AddPresetModal.vue';
 import ManagePresetsModal from './ManagePresetsModal.vue';
+import UpdatePresetModal from './UpdatePresetModal.vue';
 import GroupSelect from './GroupSelect.vue';
 
 const props = defineProps({ camera: Object, unitWidth: Number });
+defineEmits(['open-settings']);
 
 // must match .preset-grid gap and .preset-scroll padding (incl. reserved scrollbar gutter) + .camera-column border in style.css
 const GRID_GAP = 10;
@@ -56,6 +72,17 @@ function onGroupChange(id) {
 
 const showAddPreset = ref(false);
 const showManage = ref(false);
+
+function onAddPresetFromManage() {
+  showManage.value = false;
+  showAddPreset.value = true;
+}
+
+const repositioningPreset = ref(null);
+function onRepositionFromManage(preset) {
+  showManage.value = false;
+  repositioningPreset.value = preset;
+}
 
 const scrollEl = ref(null);
 const hasOverflow = ref(false);

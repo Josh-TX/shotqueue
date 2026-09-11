@@ -1,7 +1,7 @@
 <template>
   <Modal title="Add Preset" @close="$emit('close')">
-    <p class="help-text">Use an external PTZ controller to position {{ cameraLabel }} onto the desired shot.</p>
-    <a class="refresh-thumb-link" @click="refreshThumbnail">refresh thumbnail</a>
+    <p class="help-text">Use an external PTZ controller to move {{ cameraLabel }} to the desired position.</p>
+    <p class="refresh-thumb-note">thumbnail refreshed every 500ms</p>
     <img class="large-thumb" :src="currentThumbnailUrl" alt="current position" />
 
     <p v-if="!canCapture" class="error-text">Camera is currently moving. Wait for it to settle before adding a preset.</p>
@@ -37,7 +37,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Modal from './Modal.vue';
 import { api } from '../api.js';
 import { cameraName } from '../store.js';
@@ -55,9 +55,11 @@ const refreshTs = ref(Date.now());
 const canCapture = computed(() => !props.camera.triggeringPresetId);
 const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.cameraNum}/snapshot?t=${refreshTs.value}`);
 
-function refreshThumbnail() {
-  refreshTs.value = Date.now();
-}
+let interval;
+onMounted(() => {
+  interval = setInterval(() => (refreshTs.value = Date.now()), 500);
+});
+onUnmounted(() => clearInterval(interval));
 
 async function submit() {
   try {

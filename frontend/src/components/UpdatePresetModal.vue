@@ -1,6 +1,6 @@
 <template>
   <Modal :title="`Update Position of ${preset.name}`" @close="$emit('close')">
-    <p class="help-text">Use an external PTZ controller to position {{ cameraLabel }} onto the desired shot.</p>
+    <p class="help-text">Use an external PTZ controller to move {{ cameraLabel }} to the desired position.</p>
     <p class="refresh-thumb-note">thumbnail refreshed every 500ms</p>
     <img class="large-thumb" :src="currentThumbnailUrl" alt="current position" />
 
