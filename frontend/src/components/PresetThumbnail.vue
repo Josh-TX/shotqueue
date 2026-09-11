@@ -78,13 +78,13 @@ const imgError = ref(false);
 watch(() => props.preset.thumbnailVersion, () => (imgError.value = false));
 
 function trigger() {
-  api.triggerPreset(props.camera.id, props.preset.id).catch((e) => alert(e.message));
+  api.triggerPreset(props.camera.cameraNum, props.preset.id).catch((e) => alert(e.message));
 }
 function queue() {
-  api.queuePreset(props.camera.id, props.preset.id).catch((e) => alert(e.message));
+  api.queuePreset(props.camera.cameraNum, props.preset.id).catch((e) => alert(e.message));
 }
 function unqueue() {
-  api.unqueue(props.camera.id).catch((e) => alert(e.message));
+  api.unqueue(props.camera.cameraNum).catch((e) => alert(e.message));
 }
 function toggleQueue() {
   if (isActive.value || isTriggering.value) return;
@@ -133,17 +133,17 @@ const menuItems = computed(() => [
 const updatingPosition = ref(false);
 
 function toggleGroup(g, checked) {
-  api.setMember(props.camera.id, g.id, props.preset.id, { inGroup: checked }).catch((e) => alert(e.message));
+  api.setMember(props.camera.cameraNum, g.id, props.preset.id, { inGroup: checked }).catch((e) => alert(e.message));
 }
 
 const renaming = ref(false);
 async function doRename(name) {
-  await api.renamePreset(props.camera.id, props.preset.id, name);
+  await api.renamePreset(props.camera.cameraNum, props.preset.id, name);
 }
 
 const deleting = ref(false);
 async function doDelete() {
-  await api.deletePreset(props.camera.id, props.preset.id);
+  await api.deletePreset(props.camera.cameraNum, props.preset.id);
   deleting.value = false;
 }
 </script>

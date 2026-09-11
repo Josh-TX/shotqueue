@@ -15,13 +15,15 @@ async function request(method, path, body) {
 export const api = {
   listCameras: () => request('GET', '/api/cameras'),
   testCamera: (host, port, username, password) => request('POST', '/api/cameras/test', { host, port, username, password }),
-  addCamera: (name, host, port, username, password, tallySource) =>
-    request('POST', '/api/cameras', { name, host, port, username, password, tallySource }),
-  updateCamera: (id, patch) => request('PATCH', `/api/cameras/${id}`, patch),
-  deleteCamera: (id) => request('DELETE', `/api/cameras/${id}`),
+  setColumnCount: (cameraNum, columnCount) => request('PATCH', `/api/cameras/${cameraNum}`, { columnCount }),
 
   getSettings: () => request('GET', '/api/settings'),
   updateSettings: (patch) => request('PUT', '/api/settings', patch),
+  addCameraSettings: (cameraNum, host, port, username, password) =>
+    request('POST', '/api/settings/cameras', { cameraNum, host, port, username, password }),
+  updateCameraSettings: (currentCameraNum, patch) =>
+    request('PATCH', `/api/settings/cameras/${currentCameraNum}`, patch),
+  deleteCameraSettings: (cameraNum) => request('DELETE', `/api/settings/cameras/${cameraNum}`),
 
   addPreset: (camId, name, groupIds) => request('POST', `/api/cameras/${camId}/presets`, { name, groupIds }),
   renamePreset: (camId, presetId, name) => request('PATCH', `/api/cameras/${camId}/presets/${presetId}`, { name }),

@@ -2,7 +2,10 @@ package api
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
+
+	"shotqueue-backend/internal/state"
 )
 
 // GET  /api/configs -> list every config (named + autosave), full snapshot content included
@@ -80,7 +83,11 @@ func (s *Server) handleLoadConfig(w http.ResponseWriter, r *http.Request, id str
 	}
 	json.NewDecoder(r.Body).Decode(&body)
 
-	if err := s.store.LoadConfig(c.Cameras); err != nil {
+	seeds, dropped := state.BuildLoadSeeds(c.Cameras, s.settings)
+	if len(dropped) > 0 {
+		log.Printf("[api] load config %s: dropped cameraNums %v (no longer in settings)", id, dropped)
+	}
+	if err := s.store.LoadConfig(seeds); err != nil {
 		writeLogicError(w, err)
 		return
 	}

@@ -76,27 +76,21 @@ type Queued struct {
 }
 
 type Camera struct {
-	ID                      string
-	Name                    string
-	Host                    string
-	Port                    string
-	Username                string
-	Password                string
-	TallySource             uint16
-	Client                  *ptz.Client
-	Status                  string // "live" | "preview" | "none"
-	TriggeringPresetID      *string
-	TriggerGen              int
-	CurrentPosition         *ptz.Position
-	ActivePresetID          *string
-	Presets                 []*Preset
-	Groups                  []*Group
-	ColumnCount             int
-	SelectedGroupID         *int
-	Queued                  *Queued
-	nextGroupID             int
-	Generating              bool
-	PollError               string // "" or "401", set when polling the camera fails
+	CameraNum          int
+	Client             *ptz.Client
+	Status             string // "live" | "preview" | "none"
+	TriggeringPresetID *string
+	TriggerGen         int
+	CurrentPosition    *ptz.Position
+	ActivePresetID     *string
+	Presets            []*Preset
+	Groups             []*Group
+	ColumnCount        int
+	SelectedGroupID    *int
+	Queued             *Queued
+	nextGroupID        int
+	Generating         bool
+	PollError          string // "" or "401", set when polling the camera fails
 }
 
 type Store struct {
@@ -183,12 +177,12 @@ func (s *Store) pollTick() {
 	for _, cam := range s.Cameras() {
 		before := s.ActivePresetID(cam)
 		beforeErr := s.PollError(cam)
-		s.RefreshPosition(cam.ID)
+		s.RefreshPosition(cam.CameraNum)
 		after := s.ActivePresetID(cam)
 		if !strPtrEqual(before, after) {
 			changed = true
 			if after != nil {
-				go s.refreshPresetThumbnail(cam.ID, *after)
+				go s.refreshPresetThumbnail(cam.CameraNum, *after)
 			}
 		}
 		if s.PollError(cam) != beforeErr {
@@ -218,32 +212,20 @@ func (s *Store) withLock(fn func()) {
 	fn()
 }
 
-func (s *Store) findCameraLocked(id string) *Camera {
+func (s *Store) findCameraLocked(cameraNum int) *Camera {
 	for _, c := range s.cameras {
-		if c.ID == id {
+		if c.CameraNum == cameraNum {
 			return c
 		}
 	}
 	return nil
 }
 
-// FindCamera returns a camera by id, or nil.
-func (s *Store) FindCamera(id string) *Camera {
+// FindCamera returns a camera by cameraNum, or nil.
+func (s *Store) FindCamera(cameraNum int) *Camera {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.findCameraLocked(id)
-}
-
-// FindByTallySource returns the camera mapped to an ATEM tally source number, or nil.
-func (s *Store) FindByTallySource(source uint16) *Camera {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, c := range s.cameras {
-		if c.TallySource == source {
-			return c
-		}
-	}
-	return nil
+	return s.findCameraLocked(cameraNum)
 }
 
 // Cameras returns a snapshot of the camera list.
@@ -255,72 +237,73 @@ func (s *Store) Cameras() []*Camera {
 	return out
 }
 
-func (s *Store) AddCamera(name, host, port, username, password string, tallySource uint16) (*Camera, error) {
-	var cam *Camera
-	s.withLock(func() {
-		cam = &Camera{
-			ID:          genID(),
-			Name:        name,
-			Host:        host,
-			Port:        port,
-			Username:    username,
-			Password:    password,
-			TallySource: tallySource,
-			Client:      ptz.New(host, port, username, password),
-			Status:      "none",
-			ColumnCount: 2,
-			nextGroupID: 1,
-		}
-		for i := 0; i < DefaultGroupCount; i++ {
-			cam.Groups = append(cam.Groups, &Group{ID: cam.nextGroupID, Name: fmt.Sprintf("Group %d", i+1)})
-			cam.nextGroupID++
-		}
-		s.cameras = append(s.cameras, cam)
-	})
-	s.reconcileCameraTally(cam)
-	s.broadcast()
-	s.onMutate()
-	return cam, nil
+// CameraSeed is a camera's connection info, used to create or refresh a Camera's ptz.Client.
+type CameraSeed struct {
+	CameraNum int
+	Host      string
+	Port      string
+	Username  string
+	Password  string
 }
 
-func (s *Store) UpdateCamera(id string, name, host, port, username, password string, tallySource uint16, columnCount int) error {
-	var found bool
+// UpsertCamera ensures a Camera exists for seed.CameraNum: creating one (with default groups) if
+// it's new, or just rebuilding its ptz.Client in place if it already exists (connection info was
+// edited while the camera is active) — presets/groups/columnCount are left untouched either way.
+func (s *Store) UpsertCamera(seed CameraSeed) *Camera {
 	var cam *Camera
-	var tallySourceChanged bool
+	var isNew bool
 	s.withLock(func() {
-		cam = s.findCameraLocked(id)
+		cam = s.findCameraLocked(seed.CameraNum)
+		if cam == nil {
+			isNew = true
+			cam = &Camera{
+				CameraNum:   seed.CameraNum,
+				Client:      ptz.New(seed.Host, seed.Port, seed.Username, seed.Password),
+				Status:      "none",
+				ColumnCount: 2,
+				nextGroupID: 1,
+			}
+			for i := 0; i < DefaultGroupCount; i++ {
+				cam.Groups = append(cam.Groups, &Group{ID: cam.nextGroupID, Name: fmt.Sprintf("Group %d", i+1)})
+				cam.nextGroupID++
+			}
+			s.cameras = append(s.cameras, cam)
+		} else {
+			cam.Client = ptz.New(seed.Host, seed.Port, seed.Username, seed.Password)
+		}
+	})
+	if isNew {
+		s.reconcileCameraTally(cam)
+	}
+	s.broadcast()
+	s.onMutate()
+	return cam
+}
+
+// SetColumnCount updates a camera's thumbnail-grid column count.
+func (s *Store) SetColumnCount(cameraNum int, columnCount int) error {
+	var found bool
+	s.withLock(func() {
+		cam := s.findCameraLocked(cameraNum)
 		if cam == nil {
 			return
 		}
 		found = true
-		cam.Name = name
-		if cam.Host != host || cam.Port != port || cam.Username != username || cam.Password != password {
-			cam.Client = ptz.New(host, port, username, password)
-		}
-		cam.Host = host
-		cam.Port = port
-		cam.Username = username
-		cam.Password = password
-		tallySourceChanged = cam.TallySource != tallySource
-		cam.TallySource = tallySource
 		cam.ColumnCount = columnCount
 	})
 	if !found {
 		return ErrNotFound
-	}
-	if tallySourceChanged {
-		s.reconcileCameraTally(cam)
 	}
 	s.broadcast()
 	s.onMutate()
 	return nil
 }
 
-func (s *Store) RemoveCamera(id string) error {
+func (s *Store) RemoveCamera(cameraNum int) error {
 	var found bool
 	s.withLock(func() {
 		for i, c := range s.cameras {
-			if c.ID == id {
+			if c.CameraNum == cameraNum {
 				found = true
 				for _, p := range c.Presets {
 					delete(s.presetsByID, p.ID)
@@ -387,10 +370,10 @@ func recomputeActivePresetLocked(cam *Camera) {
 }
 
 // ClientFor returns the PTZ client for a camera, safe to use concurrently with camera edits.
-func (s *Store) ClientFor(cameraID string) (*ptz.Client, bool) {
+func (s *Store) ClientFor(cameraNum int) (*ptz.Client, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return nil, false
 	}

@@ -5,7 +5,7 @@ import (
 	"net/http"
 )
 
-func (s *Server) handleGroupCount(w http.ResponseWriter, r *http.Request, camID string) {
+func (s *Server) handleGroupCount(w http.ResponseWriter, r *http.Request, camNum int) {
 	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -17,15 +17,15 @@ func (s *Server) handleGroupCount(w http.ResponseWriter, r *http.Request, camID 
 		writeError(w, 400, "invalid body")
 		return
 	}
-	if err := s.store.SetGroupCount(camID, body.Count); err != nil {
+	if err := s.store.SetGroupCount(camNum, body.Count); err != nil {
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID)
+	dto, _ := s.store.PublicCamera(camNum)
 	writeJSON(w, 200, dto)
 }
 
-func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request, camID string, groupIDStr string) {
+func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request, camNum int, groupIDStr string) {
 	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -40,15 +40,15 @@ func (s *Server) handleGroupByID(w http.ResponseWriter, r *http.Request, camID s
 		IsSequence *bool   `json:"isSequence"`
 	}
 	json.NewDecoder(r.Body).Decode(&body)
-	if err := s.store.UpdateGroup(camID, groupID, body.Name, body.IsSequence); err != nil {
+	if err := s.store.UpdateGroup(camNum, groupID, body.Name, body.IsSequence); err != nil {
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID)
+	dto, _ := s.store.PublicCamera(camNum)
 	writeJSON(w, 200, dto)
 }
 
-func (s *Server) handleGroupMember(w http.ResponseWriter, r *http.Request, camID string, groupIDStr, presetIDStr string) {
+func (s *Server) handleGroupMember(w http.ResponseWriter, r *http.Request, camNum int, groupIDStr, presetIDStr string) {
 	if r.Method != http.MethodPatch {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
@@ -66,10 +66,10 @@ func (s *Server) handleGroupMember(w http.ResponseWriter, r *http.Request, camID
 		writeError(w, 400, "invalid body")
 		return
 	}
-	if err := s.store.SetGroupMember(camID, groupID, presetID, body.InGroup); err != nil {
+	if err := s.store.SetGroupMember(camNum, groupID, presetID, body.InGroup); err != nil {
 		writeLogicError(w, err)
 		return
 	}
-	dto, _ := s.store.PublicCamera(camID)
+	dto, _ := s.store.PublicCamera(camNum)
 	writeJSON(w, 200, dto)
 }

@@ -75,6 +75,9 @@
             <div v-else class="config-preview-scroll">
               <ConfigCameraPreviewRow :cameras="selected.cameras" />
             </div>
+            <p v-if="missingCameraNums(selected).length" class="error-text">
+              References a missing camera, which will be dropped upon loading.
+            </p>
             <div class="modal-actions">
               <button v-if="selected.type === 'named'" class="delete-config-btn" @click="deleting = selected">Delete</button>
               <label class="gen-checkbox">
@@ -164,6 +167,16 @@ api
   .listConfigs()
   .then((c) => (configs.value = c))
   .catch((e) => (listError.value = e.message));
+
+const knownCameraNums = ref(new Set());
+api
+  .getSettings()
+  .then((s) => (knownCameraNums.value = new Set((s.cameras ?? []).map((c) => c.cameraNum))))
+  .catch((e) => (listError.value = e.message));
+
+function missingCameraNums(config) {
+  return config.cameras.filter((c) => !knownCameraNums.value.has(c.cameraNum));
+}
 
 const named = computed(() =>
   configs.value.filter((c) => c.type === 'named').slice().sort((a, b) => a.name.localeCompare(b.name))

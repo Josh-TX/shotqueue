@@ -1,7 +1,7 @@
 <template>
   <div class="config-preview-row" ref="rowEl">
     <div v-for="(c, i) in cameras" :key="i" class="config-preview-column">
-      <div class="config-preview-name" :title="c.name">{{ c.name }}</div>
+      <div class="config-preview-name" :title="cameraName(c)">{{ cameraName(c) }}</div>
       <div
         class="config-preview-grid"
         :style="{ gridTemplateColumns: `repeat(${c.columnCount}, 1fr)`, width: columnWidth(c) + 'px' }"
@@ -25,6 +25,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 import { groupColor } from '../colors.js';
+import { cameraName } from '../store.js';
 
 const props = defineProps({ cameras: { type: Array, default: () => [] } });
 

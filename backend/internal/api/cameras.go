@@ -9,48 +9,18 @@ import (
 	"shotqueue-backend/internal/ptz"
 )
 
-// GET  /api/cameras       -> list
-// POST /api/cameras       -> add
+// GET /api/cameras -> list
 func (s *Server) handleCameras(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		writeJSON(w, 200, s.store.PublicCameras())
-
-	case http.MethodPost:
-		var body struct {
-			Name        string `json:"name"`
-			Host        string `json:"host"`
-			Port        string `json:"port"`
-			Username    string `json:"username"`
-			Password    string `json:"password"`
-			TallySource uint16 `json:"tallySource"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeError(w, 400, "invalid body")
-			return
-		}
-		if body.Host == "" || body.Port == "" {
-			writeError(w, 400, "host and port are required")
-			return
-		}
-		if body.Name == "" {
-			body.Name = fmt.Sprintf("Camera %s", body.Host)
-		}
-		cam, err := s.store.AddCamera(body.Name, body.Host, body.Port, body.Username, body.Password, body.TallySource)
-		if err != nil {
-			writeLogicError(w, err)
-			return
-		}
-		dto, _ := s.store.PublicCamera(cam.ID)
-		writeJSON(w, 201, dto)
-
-	default:
+	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
 	}
+	writeJSON(w, 200, s.store.PublicCameras())
 }
 
 // handleCameraSubroutes dispatches everything under /api/cameras/... that isn't the collection
-// route above: /api/cameras/test, /api/cameras/:id, and its nested preset/group/position routes.
+// route above: /api/cameras/test, /api/cameras/:cameraNum, and its nested preset/group/position
+// routes.
 func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 	parts := pathParts("/api/cameras/", r.URL.Path)
 	if len(parts) == 0 {
@@ -72,36 +42,40 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	camID := parts[0]
+	camNum, ok := atoi(parts[0])
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
 	rest := parts[1:]
 
 	switch {
 	case len(rest) == 0:
-		s.handleCameraByID(w, r, camID)
+		s.handleCameraByID(w, r, camNum)
 	case len(rest) == 1 && rest[0] == "snapshot":
-		s.handleSnapshot(w, r, camID)
+		s.handleSnapshot(w, r, camNum)
 	case len(rest) == 1 && rest[0] == "presets":
-		s.handleAddPreset(w, r, camID)
+		s.handleAddPreset(w, r, camNum)
 	case len(rest) == 2 && rest[0] == "presets":
-		s.handlePresetByID(w, r, camID, rest[1])
+		s.handlePresetByID(w, r, camNum, rest[1])
 	case len(rest) == 3 && rest[0] == "presets" && rest[2] == "trigger":
-		s.handleTriggerPreset(w, r, camID, rest[1])
+		s.handleTriggerPreset(w, r, camNum, rest[1])
 	case len(rest) == 3 && rest[0] == "presets" && rest[2] == "queue":
-		s.handleQueuePreset(w, r, camID, rest[1])
+		s.handleQueuePreset(w, r, camNum, rest[1])
 	case len(rest) == 3 && rest[0] == "presets" && rest[2] == "position":
-		s.handleUpdatePresetPosition(w, r, camID, rest[1])
+		s.handleUpdatePresetPosition(w, r, camNum, rest[1])
 	case len(rest) == 1 && rest[0] == "queue":
-		s.handleUnqueue(w, r, camID)
+		s.handleUnqueue(w, r, camNum)
 	case len(rest) == 1 && rest[0] == "selected-group":
-		s.handleSelectedGroup(w, r, camID)
+		s.handleSelectedGroup(w, r, camNum)
 	case len(rest) == 1 && rest[0] == "group-count":
-		s.handleGroupCount(w, r, camID)
+		s.handleGroupCount(w, r, camNum)
 	case len(rest) == 1 && rest[0] == "preset-order":
-		s.handleReorderPresets(w, r, camID)
+		s.handleReorderPresets(w, r, camNum)
 	case len(rest) == 2 && rest[0] == "groups":
-		s.handleGroupByID(w, r, camID, rest[1])
+		s.handleGroupByID(w, r, camNum, rest[1])
 	case len(rest) == 4 && rest[0] == "groups" && rest[2] == "members":
-		s.handleGroupMember(w, r, camID, rest[1], rest[3])
+		s.handleGroupMember(w, r, camNum, rest[1], rest[3])
 	default:
 		http.NotFound(w, r)
 	}
@@ -125,81 +99,49 @@ func (s *Server) handleTestCamera(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]any{
-		"ok":            true,
-		"suggestedName": fmt.Sprintf("Camera %s", body.Host),
-		"position":      pos,
+		"ok":       true,
+		"position": pos,
 		"snapshotUrl": fmt.Sprintf("/api/cameras/test/snapshot?host=%s&port=%s&username=%s&password=%s&ts=%d",
 			url.QueryEscape(body.Host), url.QueryEscape(body.Port), url.QueryEscape(body.Username), url.QueryEscape(body.Password), nowMs()),
 	})
 }
 
-func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camID string) {
+func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camNum int) {
 	switch r.Method {
 	case http.MethodPatch:
 		var body struct {
-			Name        string  `json:"name"`
-			Host        string  `json:"host"`
-			Port        string  `json:"port"`
-			Username    *string `json:"username"`
-			Password    *string `json:"password"`
-			TallySource *uint16 `json:"tallySource"`
-			ColumnCount int     `json:"columnCount"`
+			ColumnCount int `json:"columnCount"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeError(w, 400, "invalid body")
 			return
 		}
-		cam := s.store.FindCamera(camID)
+		cam := s.store.FindCamera(camNum)
 		if cam == nil {
 			writeError(w, 404, "camera not found")
 			return
 		}
-		if body.Name == "" {
-			body.Name = cam.Name
-		}
-		if body.Host == "" {
-			body.Host = cam.Host
-		}
-		if body.Port == "" {
-			body.Port = cam.Port
-		}
-		if body.Username == nil {
-			body.Username = &cam.Username
-		}
-		if body.Password == nil {
-			body.Password = &cam.Password
-		}
 		if body.ColumnCount == 0 {
 			body.ColumnCount = cam.ColumnCount
 		}
-		if body.TallySource == nil {
-			body.TallySource = &cam.TallySource
-		}
-		if err := s.store.UpdateCamera(camID, body.Name, body.Host, body.Port, *body.Username, *body.Password, *body.TallySource, body.ColumnCount); err != nil {
+		if err := s.store.SetColumnCount(camNum, body.ColumnCount); err != nil {
 			writeLogicError(w, err)
 			return
 		}
-		dto, _ := s.store.PublicCamera(camID)
+		dto, _ := s.store.PublicCamera(camNum)
 		writeJSON(w, 200, dto)
-
-	case http.MethodDelete:
-		if err := s.store.RemoveCamera(camID); err != nil {
-			writeLogicError(w, err)
-			return
-		}
-		w.WriteHeader(http.StatusNoContent)
 
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
 }
 
-func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, camID string) {
+func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, camNum int) {
 	if r.Method != http.MethodGet {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	client, ok := s.store.ClientFor(camID)
+	client, ok := s.store.ClientFor(camNum)
 	if !ok {
 		writeError(w, 404, "camera not found")
 		return

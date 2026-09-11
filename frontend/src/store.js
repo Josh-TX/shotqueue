@@ -7,22 +7,19 @@ export const store = reactive({
   atemConnected: false,
 });
 
-function findCamera(id) {
-  return store.cameras.find((c) => c.id === id);
+function findCamera(cameraNum) {
+  return store.cameras.find((c) => c.cameraNum === cameraNum);
 }
 
 function mergeStructural(incoming) {
-  const seen = new Set();
-  for (const cam of incoming) {
-    seen.add(cam.id);
-    const existing = findCamera(cam.id);
+  store.cameras = incoming.map((cam) => {
+    const existing = findCamera(cam.cameraNum);
     if (existing) {
       Object.assign(existing, cam);
-    } else {
-      store.cameras.push({ ...cam });
+      return existing;
     }
-  }
-  store.cameras = store.cameras.filter((c) => seen.has(c.id));
+    return { ...cam };
+  });
 }
 
 export async function loadInitial() {
@@ -51,4 +48,8 @@ export function connectWebSocket() {
 
 export function activePresetOf(camera) {
   return camera.presets.find((p) => p.id === camera.activePresetId) ?? null;
+}
+
+export function cameraName(camera) {
+  return `Camera ${camera.cameraNum}`;
 }

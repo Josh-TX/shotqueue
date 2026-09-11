@@ -1,6 +1,6 @@
 <template>
   <Modal title="Add Preset" @close="$emit('close')">
-    <p class="help-text">Use an external PTZ controller to position {{ camera.name }} onto the desired shot.</p>
+    <p class="help-text">Use an external PTZ controller to position {{ cameraLabel }} onto the desired shot.</p>
     <a class="refresh-thumb-link" @click="refreshThumbnail">refresh thumbnail</a>
     <img class="large-thumb" :src="currentThumbnailUrl" alt="current position" />
 
@@ -40,18 +40,20 @@
 import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import { api } from '../api.js';
+import { cameraName } from '../store.js';
 import { groupColor } from '../colors.js';
 
 const props = defineProps({ camera: Object });
 const emit = defineEmits(['close']);
 
+const cameraLabel = computed(() => cameraName(props.camera));
 const name = ref(`Preset ${props.camera.presets.length + 1}`);
 const groupIds = ref([]);
 const error = ref('');
 const refreshTs = ref(Date.now());
 
 const canCapture = computed(() => !props.camera.triggeringPresetId);
-const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.id}/snapshot?t=${refreshTs.value}`);
+const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.cameraNum}/snapshot?t=${refreshTs.value}`);
 
 function refreshThumbnail() {
   refreshTs.value = Date.now();
@@ -59,7 +61,7 @@ function refreshThumbnail() {
 
 async function submit() {
   try {
-    await api.addPreset(props.camera.id, name.value.trim(), groupIds.value);
+    await api.addPreset(props.camera.cameraNum, name.value.trim(), groupIds.value);
     emit('close');
   } catch (e) {
     error.value = e.message;

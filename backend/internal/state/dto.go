@@ -8,22 +8,17 @@ type PresetDTO struct {
 }
 
 type CameraDTO struct {
-	ID                      string      `json:"id"`
-	IP                      string      `json:"ip"`
-	Port                    string      `json:"port"`
-	Username                string      `json:"username"`
-	TallySource             uint16      `json:"tallySource"`
-	Name                    string      `json:"name"`
-	Status                  string      `json:"status"`
-	TriggeringPresetID      *string     `json:"triggeringPresetId"`
-	SelectedGroupID         *int        `json:"selectedGroupId"`
-	Queued                  *Queued     `json:"queued"`
-	Presets                 []PresetDTO `json:"presets"`
-	Groups                  []Group     `json:"groups"`
-	ColumnCount             int         `json:"columnCount"`
-	ActivePresetID          *string     `json:"activePresetId"`
-	Generating              bool        `json:"generating"`
-	Error                   string      `json:"error"`
+	CameraNum          int         `json:"cameraNum"`
+	Status             string      `json:"status"`
+	TriggeringPresetID *string     `json:"triggeringPresetId"`
+	SelectedGroupID    *int        `json:"selectedGroupId"`
+	Queued             *Queued     `json:"queued"`
+	Presets            []PresetDTO `json:"presets"`
+	Groups             []Group     `json:"groups"`
+	ColumnCount        int         `json:"columnCount"`
+	ActivePresetID     *string     `json:"activePresetId"`
+	Generating         bool        `json:"generating"`
+	Error              string      `json:"error"`
 }
 
 func presetDTO(p *Preset) PresetDTO {
@@ -53,30 +48,25 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		groups[i] = Group{ID: g.ID, Name: g.Name, Members: members, IsSequence: g.IsSequence}
 	}
 	return CameraDTO{
-		ID:                      cam.ID,
-		IP:                      cam.Host,
-		Port:                    cam.Port,
-		Username:                cam.Username,
-		TallySource:             cam.TallySource,
-		Name:                    cam.Name,
-		Status:                  cam.Status,
-		TriggeringPresetID:      cam.TriggeringPresetID,
-		SelectedGroupID:         cam.SelectedGroupID,
-		Queued:                  cam.Queued,
-		Presets:                 presets,
-		Groups:                  groups,
-		ColumnCount:             cam.ColumnCount,
-		ActivePresetID:          activePresetIDLocked(cam),
-		Generating:              cam.Generating,
-		Error:                   cam.PollError,
+		CameraNum:          cam.CameraNum,
+		Status:             cam.Status,
+		TriggeringPresetID: cam.TriggeringPresetID,
+		SelectedGroupID:    cam.SelectedGroupID,
+		Queued:             cam.Queued,
+		Presets:            presets,
+		Groups:             groups,
+		ColumnCount:        cam.ColumnCount,
+		ActivePresetID:     activePresetIDLocked(cam),
+		Generating:         cam.Generating,
+		Error:              cam.PollError,
 	}
 }
 
 // PublicCamera returns a JSON-safe snapshot of one camera.
-func (s *Store) PublicCamera(cameraID string) (CameraDTO, bool) {
+func (s *Store) PublicCamera(cameraNum int) (CameraDTO, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return CameraDTO{}, false
 	}

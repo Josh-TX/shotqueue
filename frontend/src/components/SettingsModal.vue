@@ -2,11 +2,11 @@
   <Modal title="Settings" wide @close="$emit('close')">
     <div class="tabbed-modal">
       <div class="tabbed-modal-sidebar">
-        <button class="tabbed-modal-tab" :class="{ active: tab === 'general' }" @click="tab = 'general'">
-          General
-        </button>
         <button class="tabbed-modal-tab" :class="{ active: tab === 'cameras' }" @click="tab = 'cameras'">
           Cameras
+        </button>
+        <button class="tabbed-modal-tab" :class="{ active: tab === 'atem' }" @click="tab = 'atem'">
+          ATEM
         </button>
         <div class="spacer"></div>
         <button class="tabbed-modal-tab" :class="{ active: tab === 'add' }" @click="openAdd">
@@ -15,7 +15,7 @@
       </div>
 
       <div class="tabbed-modal-content">
-        <template v-if="tab === 'general'">
+        <template v-if="tab === 'atem'">
           <div class="field">
             <label>Server connection</label>
             <div>
@@ -40,33 +40,41 @@
             <h3 class="detail-title">Cameras</h3>
             <button @click="openAdd">+ Add Camera</button>
           </div>
-          <div v-if="store.cameras.length === 0" class="metric-block">No cameras yet</div>
-          <table v-else class="cameras-table">
+          <div v-if="settingsCameras.length === 0" class="metric-block">No cameras yet</div>
+          <template v-else>
+          <p style="margin: 0; color: var(--muted)">Camera visibility is part of the configs, but the connection info is part of the global settings</p>
+          <table class="cameras-table">
             <thead>
               <tr>
-                <th>Name</th>
+                <th>Visible</th>
+                <th>Camera #</th>
                 <th>Host</th>
                 <th>Port</th>
                 <th>Username</th>
-                <th>Password</th>
-                <th>Tally #</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
-              <tr v-for="c in store.cameras" :key="c.id">
-                <td><input type="text" v-model="edits[c.id].name" placeholder="Name" @blur="saveCamera(c.id)" /></td>
-                <td><input type="text" v-model="edits[c.id].host" placeholder="Host" @blur="saveCamera(c.id)" /></td>
-                <td><input type="text" v-model="edits[c.id].port" placeholder="Port" style="width: 60px" @blur="saveCamera(c.id)" /></td>
-                <td><input type="text" v-model="edits[c.id].username" placeholder="(none)" @blur="saveCamera(c.id)" /></td>
-                <td><input type="password" v-model="edits[c.id].password" placeholder="(unchanged)" autocomplete="new-password" @blur="saveCamera(c.id)" /></td>
-                <td><input type="number" v-model.number="edits[c.id].tallySource" placeholder="Tally #" style="width: 60px" @blur="saveCamera(c.id)" /></td>
+              <tr v-for="c in settingsCameras" :key="c.cameraNum">
+                <td style="padding-left: 6px">
+                  <input
+                    type="checkbox"
+                    style="width: 24px; height: 24px"
+                    :checked="!edits[c.cameraNum].hidden"
+                    @change="edits[c.cameraNum].hidden = !$event.target.checked; saveCamera(c.cameraNum)"
+                  />
+                </td>
+                <td><input type="number" v-model.number="edits[c.cameraNum].cameraNum" placeholder="Camera #" style="width: 70px" @blur="saveCamera(c.cameraNum)" /></td>
+                <td><input type="text" v-model="edits[c.cameraNum].host" placeholder="Host" @blur="saveCamera(c.cameraNum)" /></td>
+                <td><input type="text" v-model="edits[c.cameraNum].port" placeholder="Port" style="width: 60px" @blur="saveCamera(c.cameraNum)" /></td>
+                <td><input type="text" v-model="edits[c.cameraNum].username" placeholder="(none)" @blur="saveCamera(c.cameraNum)" /></td>
                 <td class="cameras-table-actions">
-                  <button @click="removeCamera(c.id)">Delete</button>
+                  <button @click="removeCamera(c.cameraNum)">Delete</button>
                 </td>
               </tr>
             </tbody>
           </table>
+          </template>
 
           <p v-if="camerasError" class="error-text">{{ camerasError }}</p>
         </template>
@@ -76,8 +84,8 @@
             <div class="detail-scroll">
               <h3 class="detail-title">Add Camera</h3>
               <div class="field">
-                <label>Name</label>
-                <input type="text" v-model="addName" placeholder="e.g. Camera 1" />
+                <label>Camera # (also its ATEM tally source number)</label>
+                <input type="number" v-model.number="addCameraNum" placeholder="e.g. 1" />
               </div>
               <div class="field">
                 <label>Host</label>
@@ -95,10 +103,6 @@
                 <label>Password</label>
                 <input type="password" v-model="addPassword" placeholder="(leave blank if no auth)" autocomplete="new-password" @input="resetTest" />
               </div>
-              <div class="field">
-                <label>ATEM tally source number</label>
-                <input type="number" v-model.number="addTallySource" placeholder="e.g. 1" />
-              </div>
 
               <img v-if="tested" class="large-thumb" style="max-width: 300px" :src="testResult.snapshotUrl" alt="preview" />
 
@@ -109,7 +113,7 @@
               <button v-if="!tested" class="primary" :disabled="!addHost.trim() || !addPort.trim() || testing" @click="test">
                 {{ testing ? 'Testing…' : 'Test Camera' }}
               </button>
-              <button v-else class="primary" :disabled="!addName.trim() || !addTallySource || adding" @click="add">
+              <button v-else class="primary" :disabled="!addCameraNum || adding" @click="add">
                 {{ adding ? 'Adding…' : 'Add Camera' }}
               </button>
             </div>
@@ -121,13 +125,13 @@
 </template>
 
 <script setup>
-import { computed, onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import Modal from './Modal.vue';
 import { api } from '../api.js';
 import { store } from '../store.js';
 
 defineEmits(['close']);
-const tab = ref('general');
+const tab = ref('cameras');
 
 const wsConnected = computed(() => store.wsConnected);
 const atemConnected = computed(() => store.atemConnected);
@@ -161,50 +165,57 @@ async function saveAtem() {
   }
 }
 
+const settingsCameras = ref([]);
 const edits = reactive({});
 const camerasError = ref('');
 
-function syncEdits() {
-  for (const c of store.cameras) {
-    if (!edits[c.id]) {
-      edits[c.id] = { name: c.name, host: c.ip, port: c.port ?? '', username: c.username ?? '', password: '', tallySource: c.tallySource ?? null };
-    }
+async function loadSettingsCameras() {
+  const settings = await api.getSettings();
+  settingsCameras.value = settings.cameras ?? [];
+  for (const c of settingsCameras.value) {
+    edits[c.cameraNum] = { cameraNum: c.cameraNum, host: c.host, port: c.port ?? '', username: c.username ?? '', hidden: c.hidden };
   }
 }
 
-watch(() => store.cameras.length, syncEdits);
-syncEdits();
+onMounted(() => {
+  loadSettingsCameras().catch((e) => (camerasError.value = e.message));
+});
 
-async function saveCamera(id) {
+async function saveCamera(originalNum) {
   camerasError.value = '';
   try {
-    const e = edits[id];
-    const patch = { name: e.name, host: e.host, port: e.port, username: e.username, tallySource: e.tallySource };
-    if (e.password) patch.password = e.password;
-    await api.updateCamera(id, patch);
-    e.password = '';
+    const e = edits[originalNum];
+    await api.updateCameraSettings(originalNum, {
+      cameraNum: e.cameraNum,
+      host: e.host,
+      port: e.port,
+      username: e.username,
+      hidden: e.hidden,
+    });
+    delete edits[originalNum];
+    await loadSettingsCameras();
   } catch (err) {
     camerasError.value = err.message;
   }
 }
 
-async function removeCamera(id) {
-  if (!confirm('Delete this camera and all its presets/groups?')) return;
+async function removeCamera(cameraNum) {
+  if (!confirm('Delete this camera? Any config/state referencing it will be dropped.')) return;
   camerasError.value = '';
   try {
-    await api.deleteCamera(id);
-    delete edits[id];
+    await api.deleteCameraSettings(cameraNum);
+    delete edits[cameraNum];
+    await loadSettingsCameras();
   } catch (e) {
     camerasError.value = e.message;
   }
 }
 
+const addCameraNum = ref(null);
 const addHost = ref('');
 const addPort = ref('80');
 const addUsername = ref('');
 const addPassword = ref('');
-const addTallySource = ref(null);
-const addName = ref('');
 const testing = ref(false);
 const adding = ref(false);
 const tested = ref(false);
@@ -213,12 +224,11 @@ const addError = ref('');
 
 function openAdd() {
   tab.value = 'add';
+  addCameraNum.value = null;
   addHost.value = '';
   addPort.value = '80';
   addUsername.value = '';
   addPassword.value = '';
-  addTallySource.value = null;
-  addName.value = '';
   addError.value = '';
   resetTest();
 }
@@ -235,7 +245,6 @@ async function test() {
     const result = await api.testCamera(addHost.value.trim(), addPort.value.trim(), addUsername.value.trim(), addPassword.value);
     testResult.value = result;
     tested.value = true;
-    if (!addName.value.trim()) addName.value = result.suggestedName;
   } catch (e) {
     addError.value = e.message;
   } finally {
@@ -247,14 +256,14 @@ async function add() {
   addError.value = '';
   adding.value = true;
   try {
-    await api.addCamera(
-      addName.value.trim(),
+    await api.addCameraSettings(
+      addCameraNum.value,
       addHost.value.trim(),
       addPort.value.trim(),
       addUsername.value.trim(),
       addPassword.value,
-      addTallySource.value,
     );
+    await loadSettingsCameras();
     tab.value = 'cameras';
   } catch (e) {
     addError.value = e.message;

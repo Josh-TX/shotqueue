@@ -19,9 +19,9 @@ const triggerTimeout = 5 * time.Second
 // activePresetId, so the idle poll loop (Store.Start) notices moves made by anything other than
 // TriggerPreset (an external controller, a physical joystick, etc). A no-op while a trigger is in
 // flight, since that goroutine owns the position until it settles.
-func (s *Store) RefreshPosition(cameraID string) {
+func (s *Store) RefreshPosition(cameraNum int) {
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil || cam.TriggeringPresetID != nil {
 		s.mu.Unlock()
 		return
@@ -33,7 +33,7 @@ func (s *Store) RefreshPosition(cameraID string) {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam = s.findCameraLocked(cameraID)
+	cam = s.findCameraLocked(cameraNum)
 	if cam == nil || cam.TriggeringPresetID != nil {
 		return
 	}
@@ -52,9 +52,9 @@ func (s *Store) RefreshPosition(cameraID string) {
 
 // refreshPresetThumbnail captures a fresh snapshot for presetID, called by pollTick right after it
 // notices the camera's position now matches that preset.
-func (s *Store) refreshPresetThumbnail(cameraID, presetID string) {
+func (s *Store) refreshPresetThumbnail(cameraNum int, presetID string) {
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
 		return
@@ -77,9 +77,9 @@ func (s *Store) refreshPresetThumbnail(cameraID, presetID string) {
 }
 
 // AddPreset captures the camera's current live position and a snapshot as a new preset.
-func (s *Store) AddPreset(cameraID string, name string, groupIDs []int) (*Preset, error) {
+func (s *Store) AddPreset(cameraNum int, name string, groupIDs []int) (*Preset, error) {
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
 		return nil, newErr(404, "camera not found")
@@ -102,7 +102,7 @@ func (s *Store) AddPreset(cameraID string, name string, groupIDs []int) (*Preset
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam = s.findCameraLocked(cameraID)
+	cam = s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return nil, newErr(404, "camera not found")
 	}
@@ -133,9 +133,9 @@ func (s *Store) AddPreset(cameraID string, name string, groupIDs []int) (*Preset
 
 // UpdatePresetPosition re-captures the camera's current live position and a snapshot into an
 // existing preset, replacing its saved target and thumbnail.
-func (s *Store) UpdatePresetPosition(cameraID, presetID string) error {
+func (s *Store) UpdatePresetPosition(cameraNum int, presetID string) error {
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
 		return newErr(404, "camera not found")
@@ -158,7 +158,7 @@ func (s *Store) UpdatePresetPosition(cameraID, presetID string) error {
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam = s.findCameraLocked(cameraID)
+	cam = s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
@@ -177,10 +177,10 @@ func (s *Store) UpdatePresetPosition(cameraID, presetID string) error {
 	return nil
 }
 
-func (s *Store) RenamePreset(cameraID, presetID string, name string) error {
+func (s *Store) RenamePreset(cameraNum int, presetID string, name string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
@@ -197,10 +197,10 @@ func (s *Store) RenamePreset(cameraID, presetID string, name string) error {
 
 // ReorderPresets rearranges cam.Presets to match order, which must contain exactly the IDs of the
 // camera's existing presets (in any order).
-func (s *Store) ReorderPresets(cameraID string, order []string) error {
+func (s *Store) ReorderPresets(cameraNum int, order []string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
@@ -226,10 +226,10 @@ func (s *Store) ReorderPresets(cameraID string, order []string) error {
 	return nil
 }
 
-func (s *Store) DeletePreset(cameraID, presetID string) error {
+func (s *Store) DeletePreset(cameraNum int, presetID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
@@ -289,8 +289,8 @@ func (s *Store) findPresetLocked(cam *Camera, presetID string) *Preset {
 	return nil
 }
 
-func (s *Store) TriggerPreset(cameraID, presetID string) error {
-	_, err := s.triggerPreset(cameraID, presetID, false)
+func (s *Store) TriggerPreset(cameraNum int, presetID string) error {
+	_, err := s.triggerPreset(cameraNum, presetID, false)
 	return err
 }
 
@@ -298,9 +298,9 @@ func (s *Store) TriggerPreset(cameraID, presetID string) error {
 // "allow moving a live camera" option is enabled. It returns the TriggerGen it assigned, so a
 // caller like genCamera can later tell whether a different trigger (e.g. a manual one) took over
 // the camera before this one settled.
-func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) (int, error) {
+func (s *Store) triggerPreset(cameraNum int, presetID string, allowLive bool) (int, error) {
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
 		return 0, newErr(404, "camera not found")
@@ -327,7 +327,7 @@ func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) (int, e
 	s.mu.Unlock()
 
 	s.broadcast()
-	go s.finishTrigger(cameraID, presetID, client, target, gen)
+	go s.finishTrigger(cameraNum, presetID, client, target, gen)
 	return gen, nil
 }
 
@@ -335,9 +335,9 @@ func (s *Store) triggerPreset(cameraID, presetID string, allowLive bool) (int, e
 // this trigger was issued; if a newer trigger has since bumped it, this goroutine's results are
 // stale (superseded by whatever the newer trigger is doing) and are discarded instead of being
 // written back, so an in-flight trigger can never clobber a later one's preset/thumbnail/position.
-func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, target ptz.Position, gen int) {
+func (s *Store) finishTrigger(cameraNum int, presetID string, client *ptz.Client, target ptz.Position, gen int) {
 	if err := client.SetPositionRaw(target); err != nil {
-		log.Printf("[state] camera %s: set position failed: %v", cameraID, err)
+		log.Printf("[state] camera %d: set position failed: %v", cameraNum, err)
 	}
 
 	deadline := time.Now().Add(triggerTimeout)
@@ -356,7 +356,7 @@ func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, tar
 	thumb, thumbErr := client.Snapshot()
 
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil || cam.TriggerGen != gen {
 		// A newer trigger superseded this one; let it own the camera's state instead.
 		s.mu.Unlock()
@@ -374,10 +374,10 @@ func (s *Store) finishTrigger(cameraID, presetID string, client *ptz.Client, tar
 	s.broadcast()
 }
 
-func (s *Store) QueuePreset(cameraID, presetID string, origin string) error {
+func (s *Store) QueuePreset(cameraNum int, presetID string, origin string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
@@ -396,10 +396,10 @@ func (s *Store) QueuePreset(cameraID, presetID string, origin string) error {
 	return nil
 }
 
-func (s *Store) UnqueuePreset(cameraID string) error {
+func (s *Store) UnqueuePreset(cameraNum int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
@@ -408,9 +408,9 @@ func (s *Store) UnqueuePreset(cameraID string) error {
 	return nil
 }
 
-func (s *Store) SetSelectedGroup(cameraID string, groupID *int) error {
+func (s *Store) SetSelectedGroup(cameraNum int, groupID *int) error {
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
 		return newErr(404, "camera not found")
@@ -538,9 +538,9 @@ func (s *Store) sequenceNextLocked(cam *Camera, group *Group, refID *string) *st
 	return nil
 }
 
-func (s *Store) processOfflive(cameraID string) {
+func (s *Store) processOfflive(cameraNum int) {
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
 		return
@@ -549,7 +549,7 @@ func (s *Store) processOfflive(cameraID string) {
 	s.mu.Unlock()
 
 	if queued != nil {
-		if err := s.TriggerPreset(cameraID, queued.PresetID); err != nil {
+		if err := s.TriggerPreset(cameraNum, queued.PresetID); err != nil {
 			s.mu.Lock()
 			if cam.Queued != nil && cam.Queued.PresetID == queued.PresetID {
 				cam.Queued = nil
@@ -566,9 +566,9 @@ func (s *Store) processOfflive(cameraID string) {
 
 // ---- groups ----
 
-func (s *Store) UpdateGroup(cameraID string, groupID int, name *string, isSequence *bool) error {
+func (s *Store) UpdateGroup(cameraNum int, groupID int, name *string, isSequence *bool) error {
 	s.mu.Lock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
 		return newErr(404, "camera not found")
@@ -605,13 +605,13 @@ func (s *Store) UpdateGroup(cameraID string, groupID int, name *string, isSequen
 // SetGroupCount resizes a camera's group list to exactly count groups (1..MaxGroupCount).
 // Growing appends newly-named default groups ("Group N"); shrinking discards the trailing
 // groups and their membership data.
-func (s *Store) SetGroupCount(cameraID string, count int) error {
+func (s *Store) SetGroupCount(cameraNum int, count int) error {
 	if count < 1 || count > MaxGroupCount {
 		return newErr(400, "group count must be between 1 and %d", MaxGroupCount)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
@@ -638,10 +638,10 @@ func (s *Store) SetGroupCount(cameraID string, count int) error {
 	return nil
 }
 
-func (s *Store) SetGroupMember(cameraID string, groupID int, presetID string, inGroup bool) error {
+func (s *Store) SetGroupMember(cameraNum int, groupID int, presetID string, inGroup bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	cam := s.findCameraLocked(cameraID)
+	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
@@ -704,9 +704,9 @@ func (s *Store) ApplyTally(ts atem.TallyState) {
 	s.lastTally = ts
 	for _, cam := range s.cameras {
 		to := "none"
-		if liveSet[cam.TallySource] {
+		if liveSet[uint16(cam.CameraNum)] {
 			to = "live"
-		} else if previewSet[cam.TallySource] {
+		} else if previewSet[uint16(cam.CameraNum)] {
 			to = "preview"
 		}
 		if to != cam.Status {
@@ -731,24 +731,25 @@ func (s *Store) ApplyTally(ts atem.TallyState) {
 }
 
 // reconcileCameraTally recomputes a single camera's status against the last known tally
-// snapshot. It's used when a camera's tally source is edited directly, since that doesn't
-// come with a fresh ATEM tally event to trigger ApplyTally.
+// snapshot. It's used when a camera is newly added/unhidden, since that doesn't come with a
+// fresh ATEM tally event to trigger ApplyTally.
 func (s *Store) reconcileCameraTally(cam *Camera) {
 	s.mu.Lock()
 	ts := s.lastTally
 	from := cam.Status
 	s.mu.Unlock()
 
+	source := uint16(cam.CameraNum)
 	to := "none"
 	for _, src := range ts.Live {
-		if src == cam.TallySource {
+		if src == source {
 			to = "live"
 			break
 		}
 	}
 	if to == "none" {
 		for _, src := range ts.Preview {
-			if src == cam.TallySource {
+			if src == source {
 				to = "preview"
 				break
 			}
@@ -826,8 +827,8 @@ func (s *Store) resetGroupCycleIfCompleteLocked(cam *Camera, takenID string) {
 func (s *Store) markOffLive(cam *Camera, to string) {
 	s.mu.Lock()
 	cam.Status = to
-	cameraID := cam.ID
+	cameraNum := cam.CameraNum
 	s.mu.Unlock()
 	s.broadcast()
-	time.AfterFunc(50*time.Millisecond, func() { s.processOfflive(cameraID) })
+	time.AfterFunc(50*time.Millisecond, func() { s.processOfflive(cameraNum) })
 }

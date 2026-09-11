@@ -75,7 +75,8 @@ button.icon-btn:hover {
 }
 
 input[type='text'],
-input[type='number'] {
+input[type='number'],
+input[type='password'] {
   font-family: inherit;
   font-size: 13px;
   color: var(--text);

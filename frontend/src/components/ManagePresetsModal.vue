@@ -1,5 +1,5 @@
 <template>
-  <Modal :title="`${camera.name}`" tall :min-width="modalWidth" @close="$emit('close')">
+  <Modal :title="cameraLabel" tall :min-width="modalWidth" @close="$emit('close')">
     <div class="manage-shell">
       <div class="manage-sidebar">
         <button class="manage-tab" :class="{ active: tab === 'general' }" @click="tab = 'general'">General</button>
@@ -11,37 +11,7 @@
       <div class="manage-content" ref="contentEl" @dragover.prevent="onContentDragOver">
         <template v-if="tab === 'general'">
           <p class="help-text">Some preset operations (reposition/delete) are only available by right clicking the preset.</p>
-          <div class="field">
-            <label>Camera name</label>
-            <input type="text" v-model="nameDraft" @blur="saveName" @keyup.enter="$event.target.blur()" />
-          </div>
-          <div class="manage-info-row">
-            <span>Host</span>
-            <input type="text" v-model="hostDraft" @blur="saveHost" @keyup.enter="$event.target.blur()" />
-          </div>
-          <div class="manage-info-row">
-            <span>Port</span>
-            <input type="text" v-model="portDraft" @blur="savePort" @keyup.enter="$event.target.blur()" />
-          </div>
-          <div class="manage-info-row">
-            <span>Username</span>
-            <input type="text" v-model="usernameDraft" placeholder="(none)" @blur="saveUsername" @keyup.enter="$event.target.blur()" />
-          </div>
-          <div class="manage-info-row">
-            <span>Password</span>
-            <input
-              type="password"
-              v-model="passwordDraft"
-              placeholder="(unchanged)"
-              autocomplete="new-password"
-              @blur="savePassword"
-              @keyup.enter="$event.target.blur()"
-            />
-          </div>
-          <div class="manage-info-row">
-            <span>Tally source</span>
-            <input type="number" v-model.number="tallyDraft" @blur="saveTally" @keyup.enter="$event.target.blur()" />
-          </div>
+          <p class="help-text">Connection info and hiding/deleting this camera are managed on the Settings page.</p>
           <div class="manage-info-row">
             <span>Thumbnail Columns</span>
             <select :value="camera.columnCount" @change="setColumnCount($event.target.value)">
@@ -50,9 +20,6 @@
           </div>
           <div class="manage-info-row"><span>Presets</span><span class="metric-block">{{ camera.presets.length }}</span></div>
           <div class="manage-info-row"><span>Groups</span><span class="metric-block">{{ camera.groups.length }}</span></div>
-          <div class="modal-actions">
-            <button class="danger" @click="deleting = true">Delete Camera</button>
-          </div>
         </template>
 
         <template v-else-if="tab === 'names'">
@@ -143,27 +110,19 @@
         </template>
       </div>
     </div>
-
-    <ConfirmDialog
-      v-if="deleting"
-      title="Delete Camera"
-      :message="`Delete &quot;${camera.name}&quot; and all its presets and groups?`"
-      @confirm="doDelete"
-      @cancel="deleting = false"
-    />
   </Modal>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref } from 'vue';
 import Modal from './Modal.vue';
 import ManagePresetTile from './ManagePresetTile.vue';
-import ConfirmDialog from './ConfirmDialog.vue';
 import { api } from '../api.js';
+import { cameraName } from '../store.js';
 import { groupColor } from '../colors.js';
 
 const props = defineProps({ camera: Object, unitWidth: Number });
-const emit = defineEmits(['close']);
+defineEmits(['close']);
 
 const tab = ref('general');
 
@@ -177,80 +136,28 @@ const modalWidth = computed(() => {
   return Math.max(620, gridWidth + manageShellOverhead);
 });
 
-const nameDraft = ref(props.camera.name);
-watch(() => props.camera.name, (n) => (nameDraft.value = n));
-function saveName() {
-  const name = nameDraft.value.trim();
-  if (!name) {
-    nameDraft.value = props.camera.name;
-    return;
-  }
-  api.updateCamera(props.camera.id, { name }).catch((e) => alert(e.message));
-}
-
-const hostDraft = ref(props.camera.ip);
-watch(() => props.camera.ip, (h) => (hostDraft.value = h));
-function saveHost() {
-  const host = hostDraft.value.trim();
-  if (!host) {
-    hostDraft.value = props.camera.ip;
-    return;
-  }
-  api.updateCamera(props.camera.id, { host }).catch((e) => alert(e.message));
-}
-
-const portDraft = ref(props.camera.port);
-watch(() => props.camera.port, (p) => (portDraft.value = p));
-function savePort() {
-  const port = String(portDraft.value).trim();
-  if (!port) {
-    portDraft.value = props.camera.port;
-    return;
-  }
-  api.updateCamera(props.camera.id, { port }).catch((e) => alert(e.message));
-}
-
-const usernameDraft = ref(props.camera.username ?? '');
-watch(() => props.camera.username, (u) => (usernameDraft.value = u ?? ''));
-function saveUsername() {
-  api.updateCamera(props.camera.id, { username: usernameDraft.value.trim() }).catch((e) => alert(e.message));
-}
-
-const passwordDraft = ref('');
-function savePassword() {
-  if (!passwordDraft.value) return;
-  api
-    .updateCamera(props.camera.id, { password: passwordDraft.value })
-    .then(() => (passwordDraft.value = ''))
-    .catch((e) => alert(e.message));
-}
-
-const tallyDraft = ref(props.camera.tallySource);
-watch(() => props.camera.tallySource, (t) => (tallyDraft.value = t));
-function saveTally() {
-  api.updateCamera(props.camera.id, { tallySource: tallyDraft.value }).catch((e) => alert(e.message));
-}
+const cameraLabel = computed(() => cameraName(props.camera));
 
 function renamePreset(p, name) {
-  api.renamePreset(props.camera.id, p.id, name).catch((e) => alert(e.message));
+  api.renamePreset(props.camera.cameraNum, p.id, name).catch((e) => alert(e.message));
 }
 
 function setGroupCount(value) {
-  api.setGroupCount(props.camera.id, Number(value)).catch((e) => alert(e.message));
+  api.setGroupCount(props.camera.cameraNum, Number(value)).catch((e) => alert(e.message));
 }
 function renameGroup(g, name) {
   if (!name.trim()) return;
-  api.updateGroup(props.camera.id, g.id, { name: name.trim() }).catch((e) => alert(e.message));
+  api.updateGroup(props.camera.cameraNum, g.id, { name: name.trim() }).catch((e) => alert(e.message));
 }
 function setGroupMode(g, value) {
-  api.updateGroup(props.camera.id, g.id, { isSequence: value === 'sequence' }).catch((e) => alert(e.message));
+  api.updateGroup(props.camera.cameraNum, g.id, { isSequence: value === 'sequence' }).catch((e) => alert(e.message));
 }
 function toggleMember(g, p, checked) {
-  api.setMember(props.camera.id, g.id, p.id, { inGroup: checked }).catch((e) => alert(e.message));
+  api.setMember(props.camera.cameraNum, g.id, p.id, { inGroup: checked }).catch((e) => alert(e.message));
 }
 
 function setColumnCount(value) {
-  api.updateCamera(props.camera.id, { columnCount: Number(value) }).catch((e) => alert(e.message));
+  api.setColumnCount(props.camera.cameraNum, Number(value)).catch((e) => alert(e.message));
 }
 
 const dragIndex = ref(null);
@@ -297,15 +204,8 @@ function onDragEnter(i) {
 function onDragEnd() {
   dragIndex.value = null;
   stopAutoScroll();
-  api.reorderPresets(props.camera.id, props.camera.presets.map((p) => p.id)).catch((e) => alert(e.message));
+  api.reorderPresets(props.camera.cameraNum, props.camera.presets.map((p) => p.id)).catch((e) => alert(e.message));
 }
 
 onBeforeUnmount(stopAutoScroll);
-
-const deleting = ref(false);
-async function doDelete() {
-  await api.deleteCamera(props.camera.id);
-  deleting.value = false;
-  emit('close');
-}
 </script>

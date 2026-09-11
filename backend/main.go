@@ -82,7 +82,11 @@ func main() {
 
 	store := state.New()
 	if latest, ok := configStore.LatestAutosave(); ok {
-		if err := store.LoadConfig(latest.Cameras); err != nil {
+		seeds, dropped := state.BuildLoadSeeds(latest.Cameras, settingsStore)
+		if len(dropped) > 0 {
+			log.Printf("dropped cameraNums %v from latest config (no longer in settings)", dropped)
+		}
+		if err := store.LoadConfig(seeds); err != nil {
 			log.Fatalf("loading latest config: %v", err)
 		}
 	}

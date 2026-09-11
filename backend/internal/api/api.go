@@ -54,6 +54,8 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/cameras/", s.handleCameraSubroutes)
 	mux.HandleFunc("/api/presets/", s.handlePresetThumbnail)
 	mux.HandleFunc("/api/settings", s.handleSettings)
+	mux.HandleFunc("/api/settings/cameras", s.handleSettingsCameras)
+	mux.HandleFunc("/api/settings/cameras/", s.handleSettingsCameraSubroutes)
 	mux.HandleFunc("/api/configs", s.handleConfigs)
 	mux.HandleFunc("/api/configs/", s.handleConfigSubroutes)
 	mux.HandleFunc("/api/thumbnails/generate", s.handleGenThumbnails)

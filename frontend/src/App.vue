@@ -8,7 +8,7 @@
     />
 
     <div class="camera-row" ref="cameraRow">
-      <CameraColumn v-for="camera in store.cameras" :key="camera.id" :camera="camera" :unit-width="unitWidth" />
+      <CameraColumn v-for="camera in store.cameras" :key="camera.cameraNum" :camera="camera" :unit-width="unitWidth" />
       <div v-if="store.cameras.length === 0" class="no-presets" style="margin: auto">
         No cameras yet — open Settings to add one.
       </div>

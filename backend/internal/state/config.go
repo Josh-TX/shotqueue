@@ -5,6 +5,7 @@ import (
 
 	"shotqueue-backend/internal/config"
 	"shotqueue-backend/internal/ptz"
+	"shotqueue-backend/internal/settings"
 )
 
 const (
@@ -22,12 +23,7 @@ func (s *Store) BuildSnapshot() []config.ConfigCamera {
 	for i, cam := range s.cameras {
 		presetIndex := make(map[string]int, len(cam.Presets))
 		vc := config.ConfigCamera{
-			Name:        cam.Name,
-			Host:        cam.Host,
-			Port:        cam.Port,
-			Username:    cam.Username,
-			Password:    cam.Password,
-			TallySource: cam.TallySource,
+			CameraNum:   cam.CameraNum,
 			ColumnCount: cam.ColumnCount,
 			Presets:     make([]config.ConfigPreset, len(cam.Presets)),
 			Groups:      make([]config.ConfigGroup, len(cam.Groups)),
@@ -50,39 +46,75 @@ func (s *Store) BuildSnapshot() []config.ConfigCamera {
 	return out
 }
 
+// LoadSeed is one camera's full state as loaded from a config, joined with its connection info
+// from settings (see BuildLoadSeeds).
+type LoadSeed struct {
+	CameraNum   int
+	Host        string
+	Port        string
+	Username    string
+	Password    string
+	ColumnCount int
+	Presets     []config.ConfigPreset
+	Groups      []config.ConfigGroup
+}
+
+// BuildLoadSeeds joins a config's camera list against the current settings roster: cameraNums no
+// longer present in settings are dropped (returned separately, for logging), and any referenced
+// camera that's currently Hidden is unhidden (persisted) so it comes back into the loaded state.
+func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (seeds []LoadSeed, dropped []int) {
+	for _, cc := range cams {
+		cs, ok := settingsStore.CameraByNum(cc.CameraNum)
+		if !ok {
+			dropped = append(dropped, cc.CameraNum)
+			continue
+		}
+		if cs.Hidden {
+			if updated, err := settingsStore.SetHidden(cc.CameraNum, false); err == nil {
+				cs = updated
+			}
+		}
+		seeds = append(seeds, LoadSeed{
+			CameraNum:   cc.CameraNum,
+			Host:        cs.Host,
+			Port:        cs.Port,
+			Username:    cs.Username,
+			Password:    cs.Password,
+			ColumnCount: cc.ColumnCount,
+			Presets:     cc.Presets,
+			Groups:      cc.Groups,
+		})
+	}
+	return seeds, dropped
+}
+
 // LoadConfig fully replaces the camera roster and every camera's presets and groups (all in
-// memory only) with the given snapshot. Cameras/presets/groups all get fresh IDs; any in-flight
-// thumbnail generation is implicitly cancelled since it tracks cameras by the old IDs.
-func (s *Store) LoadConfig(cams []config.ConfigCamera) error {
+// memory only) with the given seeds. Presets/groups all get fresh IDs; any in-flight thumbnail
+// generation is implicitly cancelled since it tracks presets by the old IDs.
+func (s *Store) LoadConfig(seeds []LoadSeed) error {
 	s.genMu.Lock()
 	s.genToken++
 	s.genMu.Unlock()
 
 	s.mu.Lock()
-	newCameras := make([]*Camera, len(cams))
+	newCameras := make([]*Camera, len(seeds))
 	presetsByID := make(map[string]*Preset)
-	for i, vc := range cams {
+	for i, seed := range seeds {
 		cam := &Camera{
-			ID:          genID(),
-			Name:        vc.Name,
-			Host:        vc.Host,
-			Port:        vc.Port,
-			Username:    vc.Username,
-			Password:    vc.Password,
-			TallySource: vc.TallySource,
-			ColumnCount: vc.ColumnCount,
-			Client:      ptz.New(vc.Host, vc.Port, vc.Username, vc.Password),
+			CameraNum:   seed.CameraNum,
+			ColumnCount: seed.ColumnCount,
+			Client:      ptz.New(seed.Host, seed.Port, seed.Username, seed.Password),
 			Status:      "none",
 			nextGroupID: 1,
 		}
-		presetIDByIndex := make([]string, len(vc.Presets))
-		for j, vp := range vc.Presets {
+		presetIDByIndex := make([]string, len(seed.Presets))
+		for j, vp := range seed.Presets {
 			p := &Preset{ID: genID(), Name: vp.Name, Target: vp.Target, ThumbnailVersion: 1}
 			cam.Presets = append(cam.Presets, p)
 			presetsByID[p.ID] = p
 			presetIDByIndex[j] = p.ID
 		}
-		for _, vg := range vc.Groups {
+		for _, vg := range seed.Groups {
 			g := &Group{ID: cam.nextGroupID, Name: vg.Name, IsSequence: vg.IsSequence}
 			cam.nextGroupID++
 			for _, idx := range vg.Members {
@@ -117,21 +149,21 @@ func (s *Store) StartGenThumbnails(allowLiveMove, includeExisting bool) {
 	s.mu.Lock()
 	cams := make([]*Camera, len(s.cameras))
 	copy(cams, s.cameras)
-	order := make(map[string][]string, len(cams))
+	order := make(map[int][]string, len(cams))
 	for _, cam := range cams {
 		ids := genOrderLocked(cam)
-		order[cam.ID] = ids
+		order[cam.CameraNum] = ids
 		cam.Generating = len(ids) > 0
 	}
 	s.mu.Unlock()
 	s.broadcast()
 
 	for _, cam := range cams {
-		ids := order[cam.ID]
+		ids := order[cam.CameraNum]
 		if len(ids) == 0 {
 			continue
 		}
-		go s.genCamera(cam.ID, ids, token, allowLiveMove, includeExisting)
+		go s.genCamera(cam.CameraNum, ids, token, allowLiveMove, includeExisting)
 	}
 }
 
@@ -163,14 +195,14 @@ func genOrderLocked(cam *Camera) []string {
 	return ids
 }
 
-func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowLiveMove, includeExisting bool) {
+func (s *Store) genCamera(cameraNum int, presetIDs []string, token int, allowLiveMove, includeExisting bool) {
 	for _, presetID := range presetIDs {
 		if s.genCancelled(token) {
 			return
 		}
 
 		s.mu.Lock()
-		cam := s.findCameraLocked(cameraID)
+		cam := s.findCameraLocked(cameraNum)
 		if cam == nil {
 			s.mu.Unlock()
 			return
@@ -210,13 +242,13 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 			continue
 		}
 
-		gen, _ := s.triggerPreset(cameraID, presetID, allowLiveMove) // ignore error: e.g. already-triggering just means nothing to do
+		gen, _ := s.triggerPreset(cameraNum, presetID, allowLiveMove) // ignore error: e.g. already-triggering just means nothing to do
 
 		settled := false
 		deadline := time.Now().Add(genSettleTimeout)
 		for time.Now().Before(deadline) {
 			s.mu.Lock()
-			c := s.findCameraLocked(cameraID)
+			c := s.findCameraLocked(cameraNum)
 			stillTriggering := c != nil && c.TriggeringPresetID != nil
 			supersededByManualTrigger := c != nil && c.TriggerGen != gen
 			s.mu.Unlock()
@@ -225,7 +257,7 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 			}
 			if supersededByManualTrigger {
 				s.mu.Lock()
-				if cam := s.findCameraLocked(cameraID); cam != nil {
+				if cam := s.findCameraLocked(cameraNum); cam != nil {
 					cam.Generating = false
 				}
 				s.mu.Unlock()
@@ -241,7 +273,7 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 
 		if !settled {
 			s.mu.Lock()
-			if cam := s.findCameraLocked(cameraID); cam != nil {
+			if cam := s.findCameraLocked(cameraNum); cam != nil {
 				cam.Generating = false
 			}
 			s.mu.Unlock()
@@ -252,7 +284,7 @@ func (s *Store) genCamera(cameraID string, presetIDs []string, token int, allowL
 	}
 
 	s.mu.Lock()
-	if cam := s.findCameraLocked(cameraID); cam != nil {
+	if cam := s.findCameraLocked(cameraNum); cam != nil {
 		cam.Generating = false
 	}
 	s.mu.Unlock()

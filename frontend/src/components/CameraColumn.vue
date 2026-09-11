@@ -2,7 +2,7 @@
   <div class="camera-column" :class="{ live: camera.status === 'live' }" :style="{ width: columnWidth + 'px' }">
     <div class="camera-column-header">
       <div class="header-row name-row">
-        <span class="camera-name" :title="camera.name">{{ camera.name }}</span>
+        <span class="camera-name" :title="name">{{ name }}</span>
         <span class="name-badges">
           <span v-if="camera.generating" class="gen-badge">GENERATING</span>
           <span v-if="camera.status !== 'none'" class="tally-badge" :class="camera.status">{{ tallyLabel }}</span>
@@ -32,6 +32,7 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { api } from '../api.js';
+import { cameraName } from '../store.js';
 import PresetThumbnail from './PresetThumbnail.vue';
 import AddPresetModal from './AddPresetModal.vue';
 import ManagePresetsModal from './ManagePresetsModal.vue';
@@ -43,13 +44,14 @@ const props = defineProps({ camera: Object, unitWidth: Number });
 const GRID_GAP = 10;
 const COLUMN_OVERHEAD = 12 * 2 + 1;
 
+const name = computed(() => cameraName(props.camera));
 const tallyLabel = computed(() => props.camera.status.toUpperCase());
 const columnWidth = computed(
   () => props.unitWidth * props.camera.columnCount + GRID_GAP * (props.camera.columnCount - 1) + COLUMN_OVERHEAD,
 );
 
 function onGroupChange(id) {
-  api.setSelectedGroup(props.camera.id, id).catch((err) => alert(err.message));
+  api.setSelectedGroup(props.camera.cameraNum, id).catch((err) => alert(err.message));
 }
 
 const showAddPreset = ref(false);

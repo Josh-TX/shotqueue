@@ -1,6 +1,6 @@
 <template>
   <Modal :title="`Update Position of ${preset.name}`" @close="$emit('close')">
-    <p class="help-text">Use an external PTZ controller to position {{ camera.name }} onto the desired shot.</p>
+    <p class="help-text">Use an external PTZ controller to position {{ cameraLabel }} onto the desired shot.</p>
     <p class="refresh-thumb-note">thumbnail refreshed every 500ms</p>
     <img class="large-thumb" :src="currentThumbnailUrl" alt="current position" />
 
@@ -19,15 +19,17 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Modal from './Modal.vue';
 import { api } from '../api.js';
+import { cameraName } from '../store.js';
 
 const props = defineProps({ camera: Object, preset: Object });
 const emit = defineEmits(['close']);
 
+const cameraLabel = computed(() => cameraName(props.camera));
 const error = ref('');
 const refreshTs = ref(Date.now());
 
 const canCapture = computed(() => !props.camera.triggeringPresetId);
-const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.id}/snapshot?t=${refreshTs.value}`);
+const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.cameraNum}/snapshot?t=${refreshTs.value}`);
 
 let interval;
 onMounted(() => {
@@ -37,7 +39,7 @@ onUnmounted(() => clearInterval(interval));
 
 async function submit() {
   try {
-    await api.updatePresetPosition(props.camera.id, props.preset.id);
+    await api.updatePresetPosition(props.camera.cameraNum, props.preset.id);
     emit('close');
   } catch (e) {
     error.value = e.message;
