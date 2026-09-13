@@ -2,37 +2,25 @@ package atem
 
 import "encoding/binary"
 
-// Wire format ported from sofie-atem-connection's client (src/lib/atemSocketChild.ts).
+// Wire format ported from mocks/go-atem-listener-v2, which itself follows
+// sofie-atem-connection's client (src/lib/atemSocketChild.ts).
 
 const (
-	flagAckRequest    uint16 = 0x01
-	flagNewSessionID  uint16 = 0x02
-	flagIsRetransmit  uint16 = 0x04
-	flagRetransmitReq uint16 = 0x08
-	flagAckReply      uint16 = 0x10
-	helloSessionID    uint16 = 0x53ab
-	maxPacketID       uint16 = 1 << 15
+	atemPort    = 9910
+	maxPacketID = 1 << 15
 )
 
-type header struct {
-	flags            uint16
-	length           uint16
-	sessionID        uint16
-	ackID            uint16
-	retransmitFromID uint16
-	packetID         uint16
-}
+const (
+	flagAckRequest   uint16 = 0x01
+	flagNewSessionID uint16 = 0x02
+	flagAckReply     uint16 = 0x10
+)
 
-func parseHeader(pkt []byte) header {
-	first16 := binary.BigEndian.Uint16(pkt[0:2])
-	return header{
-		flags:            first16 >> 11,
-		length:           first16 & 0x07ff,
-		sessionID:        binary.BigEndian.Uint16(pkt[2:4]),
-		ackID:            binary.BigEndian.Uint16(pkt[4:6]),
-		retransmitFromID: binary.BigEndian.Uint16(pkt[6:8]),
-		packetID:         binary.BigEndian.Uint16(pkt[10:12]),
-	}
+// commandConnectHello is the fixed COMMAND_CONNECT_HELLO packet real ATEM firmware expects to
+// start a session.
+var commandConnectHello = []byte{
+	0x10, 0x14, 0x53, 0xab, 0x00, 0x00, 0x00, 0x00, 0x00, 0x3a, 0x00, 0x00,
+	0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
 }
 
 func buildPacket(flags, sessionID, ackID, retransmitFromID, packetID uint16, payload []byte) []byte {
@@ -46,9 +34,10 @@ func buildPacket(flags, sessionID, ackID, retransmitFromID, packetID uint16, pay
 	return buf
 }
 
-// isPacketCoveredByAck mirrors the wraparound-tolerant comparison the real ATEM protocol uses.
+// isPacketCoveredByAck mirrors the wraparound-tolerant packet-ID comparison the ATEM protocol
+// uses to tell whether a given packet ID was already covered by an earlier ACK.
 func isPacketCoveredByAck(ackID, packetID uint16) bool {
-	tolerance := maxPacketID / 2
+	const tolerance = maxPacketID / 2
 	shortlyBefore := packetID < ackID && packetID+tolerance > ackID
 	shortlyAfter := packetID > ackID && packetID < ackID+tolerance
 	beforeWrap := packetID > ackID+tolerance

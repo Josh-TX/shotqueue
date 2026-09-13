@@ -25,3 +25,4 @@ mocks/mock-ue150/images/
 # Editor
 .vscode/*
 !.vscode/launch.json
+mocks/go-atem-listener-v2/go-atem-listener-v2
