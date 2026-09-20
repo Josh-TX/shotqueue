@@ -34,9 +34,10 @@ func genID() string {
 // AutosaveKeepCount is how many autosaved configs are kept before the oldest is evicted.
 const AutosaveKeepCount = 50
 
-// autosaveCheckpointGap is how far apart (by Timestamp) the two most recent autosaves must be
-// before Autosave splits off a new entry instead of overwriting the latest one in place.
-const autosaveCheckpointGap = 10 * time.Minute
+// autosaveHistoryGap is the minimum spacing (by Timestamp) between older autosaves. The two newest
+// autosaves are always kept; the 3rd newest is dropped unless it is at least this much newer than
+// the 4th newest.
+const autosaveHistoryGap = 5 * time.Minute
 
 type ConfigPreset struct {
 	Name   string       `json:"name"`
@@ -215,42 +216,31 @@ func (s *Store) latestAutosaveIdxLocked() int {
 
 // Autosave records snapshot as the current live state, called after every mutation that changes
 // cameras, presets or groups (including loading another config, named or autosaved, which
-// immediately becomes the new latest autosave). Rather than rewriting a single dedicated "latest"
-// slot forever, it keeps a trail of checkpoints: if the current latest autosave is more than
-// autosaveCheckpointGap newer than the one before it, that latest is left alone as history and
-// snapshot becomes a brand new entry; otherwise snapshot simply overwrites the latest in place
-// (bumping its Timestamp to now), so a burst of rapid edits collapses into one checkpoint. Oldest
-// autosaves beyond AutosaveKeepCount are evicted afterward.
+// immediately becomes the new latest autosave). Every call appends a new entry, so the two newest
+// autosaves are always the last two states. The entry that just became 3rd newest is then dropped
+// unless it is at least autosaveHistoryGap newer than the 4th newest, which thins older history to
+// roughly that spacing. Autosaves beyond AutosaveKeepCount are evicted afterward.
 func (s *Store) Autosave(snapshot []ConfigCamera) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	now := time.Now().UnixMilli()
-	latestIdx := s.latestAutosaveIdxLocked()
+	s.configs = append(s.configs, Config{ID: genID(), Type: "autosave", Timestamp: time.Now().UnixMilli(), Cameras: snapshot})
 
-	var secondIdx int = -1
-	if latestIdx != -1 {
-		for i, c := range s.configs {
-			if i == latestIdx || c.Type != "autosave" {
-				continue
-			}
-			if secondIdx == -1 || c.Timestamp > s.configs[secondIdx].Timestamp {
-				secondIdx = i
-			}
+	// autosave indices, newest first: [0]=new, [1]=previous latest, [2]=candidate, [3]=older neighbor
+	var idxs []int
+	for i, c := range s.configs {
+		if c.Type == "autosave" {
+			idxs = append(idxs, i)
 		}
 	}
-
-	checkpoint := latestIdx == -1 || secondIdx == -1 ||
-		s.configs[latestIdx].Timestamp-s.configs[secondIdx].Timestamp > autosaveCheckpointGap.Milliseconds()
-
-	if !checkpoint {
-		s.configs[latestIdx].Cameras = snapshot
-		s.configs[latestIdx].Timestamp = now
-	} else {
-		c := Config{ID: genID(), Type: "autosave", Timestamp: now, Cameras: snapshot}
-		s.configs = append(s.configs, c)
-		s.evictOldAutosavesLocked()
+	sort.SliceStable(idxs, func(a, b int) bool { return s.configs[idxs[a]].Timestamp > s.configs[idxs[b]].Timestamp })
+	if len(idxs) >= 4 {
+		cand, older := s.configs[idxs[2]], s.configs[idxs[3]]
+		if cand.Timestamp-older.Timestamp < autosaveHistoryGap.Milliseconds() {
+			s.configs = append(s.configs[:idxs[2]], s.configs[idxs[2]+1:]...)
+		}
 	}
+	s.evictOldAutosavesLocked()
 	return s.saveLocked()
 }
 

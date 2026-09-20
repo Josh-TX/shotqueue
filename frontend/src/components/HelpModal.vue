@@ -40,7 +40,7 @@
     <h3 class="help-section">Configs</h3>
     <p class="help-desc help-intro">
       The camera visibility, preset settings, and group settings are all part of the config (the camera connection
-      settings and ATEM settings are not). Changing any of these will immediately update the latest auto-saved config (or create a new one if it's been 10 minutes since the last auto-save). Only the latest 50 autosaved configs are preserved. When the ShotQueue server
+      settings and ATEM settings are not). Changing any of these will immediately create a new auto-saved config. The 2 latest autosaves are always kept; older ones are thinned so they're at least 5 minutes apart. Only the latest 50 autosaved configs are preserved. When the ShotQueue server
       starts up, it'll always load the latest config. You can also save a named config for both presistence and easier reference. Loading a named config doesn't cause the named config to be auto-saved... you have to manually save the named config to change it.
     </p>
     <p v-if="configPath" class="help-desc help-intro">Configs are stored at <code>{{ configPath }}</code></p>
