@@ -7,9 +7,11 @@
       @help="showHelp = true"
     />
 
+    <div class="camera-area">
+    <!-- the sidebar is a sibling, so cameraRow's measured width already excludes its 24px -->
     <div class="camera-row" ref="cameraRow">
       <CameraColumn
-        v-for="camera in store.cameras"
+        v-for="camera in visibleCameras"
         :key="camera.cameraNum"
         :camera="camera"
         :unit-width="unitWidth"
@@ -18,6 +20,11 @@
       <div v-if="store.cameras.length === 0" class="no-presets" style="margin: auto">
         No cameras yet — open Settings to add one.
       </div>
+      <div v-else-if="visibleCameras.length === 0" class="no-presets" style="margin: auto">
+        All cameras are hidden — use the checkboxes on the right to show one.
+      </div>
+    </div>
+    <CameraSidebar />
     </div>
 
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
@@ -31,11 +38,12 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Navbar from './components/Navbar.vue';
 import CameraColumn from './components/CameraColumn.vue';
+import CameraSidebar from './components/CameraSidebar.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import ConfigsModal from './components/ConfigsModal.vue';
 import GenThumbnailsModal from './components/GenThumbnailsModal.vue';
 import HelpModal from './components/HelpModal.vue';
-import { store, loadInitial, connectWebSocket } from './store.js';
+import { store, visibleCameras, loadInitial, connectWebSocket } from './store.js';
 
 const MIN_UNIT_WIDTH = 80;
 const MAX_UNIT_WIDTH = 300;
@@ -53,9 +61,9 @@ const containerWidth = ref(0);
 let resizeObserver;
 
 const totalColumns = computed(() =>
-  Math.max(1, store.cameras.reduce((sum, c) => sum + c.columnCount, 0)),
+  Math.max(1, visibleCameras.value.reduce((sum, c) => sum + c.columnCount, 0)),
 );
-const cameraCount = computed(() => Math.max(1, store.cameras.length));
+const cameraCount = computed(() => Math.max(1, visibleCameras.value.length));
 
 // Each camera column pays COLUMN_OVERHEAD once (padding + border) plus a GRID_GAP
 // between each of its cells, not per total column, so that has to be backed out

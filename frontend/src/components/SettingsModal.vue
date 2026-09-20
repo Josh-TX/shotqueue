@@ -42,12 +42,10 @@
           </div>
           <div v-if="settingsCameras.length === 0" class="metric-block">No cameras yet</div>
           <template v-else>
-          <p style="margin: 0; color: var(--muted)">Camera visibility is part of the configs, but the connection info is part of the global settings</p>
           <table class="cameras-table">
             <thead>
               <tr>
-                <th>Visible</th>
-                <th>Camera #</th>
+                <th class="cameras-table-num">Camera #</th>
                 <th>Host</th>
                 <th>Port</th>
                 <th>Username</th>
@@ -56,15 +54,7 @@
             </thead>
             <tbody>
               <tr v-for="c in settingsCameras" :key="c.cameraNum">
-                <td style="padding-left: 6px">
-                  <input
-                    type="checkbox"
-                    style="width: 24px; height: 24px"
-                    :checked="!edits[c.cameraNum].hidden"
-                    @change="edits[c.cameraNum].hidden = !$event.target.checked; saveCamera(c.cameraNum)"
-                  />
-                </td>
-                <td><input type="number" v-model.number="edits[c.cameraNum].cameraNum" placeholder="Camera #" style="width: 70px" @blur="saveCamera(c.cameraNum)" /></td>
+                <td class="cameras-table-num">{{ c.cameraNum }}</td>
                 <td><input type="text" v-model="edits[c.cameraNum].host" placeholder="Host" @blur="saveCamera(c.cameraNum)" /></td>
                 <td><input type="text" v-model="edits[c.cameraNum].port" placeholder="Port" style="width: 60px" @blur="saveCamera(c.cameraNum)" /></td>
                 <td><input type="text" v-model="edits[c.cameraNum].username" placeholder="(none)" @blur="saveCamera(c.cameraNum)" /></td>
@@ -173,7 +163,7 @@ async function loadSettingsCameras() {
   const settings = await api.getSettings();
   settingsCameras.value = settings.cameras ?? [];
   for (const c of settingsCameras.value) {
-    edits[c.cameraNum] = { cameraNum: c.cameraNum, host: c.host, port: c.port ?? '', username: c.username ?? '', hidden: c.hidden };
+    edits[c.cameraNum] = { host: c.host, port: c.port ?? '', username: c.username ?? '' };
   }
 }
 
@@ -186,11 +176,9 @@ async function saveCamera(originalNum) {
   try {
     const e = edits[originalNum];
     await api.updateCameraSettings(originalNum, {
-      cameraNum: e.cameraNum,
       host: e.host,
       port: e.port,
       username: e.username,
-      hidden: e.hidden,
     });
     delete edits[originalNum];
     await loadSettingsCameras();

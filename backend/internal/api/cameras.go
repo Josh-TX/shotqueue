@@ -110,7 +110,8 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camNum
 	switch r.Method {
 	case http.MethodPatch:
 		var body struct {
-			ColumnCount int `json:"columnCount"`
+			ColumnCount int   `json:"columnCount"`
+			IsHidden    *bool `json:"isHidden"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeError(w, 400, "invalid body")
@@ -127,6 +128,12 @@ func (s *Server) handleCameraByID(w http.ResponseWriter, r *http.Request, camNum
 		if err := s.store.SetColumnCount(camNum, body.ColumnCount); err != nil {
 			writeLogicError(w, err)
 			return
+		}
+		if body.IsHidden != nil {
+			if err := s.store.SetHidden(camNum, *body.IsHidden); err != nil {
+				writeLogicError(w, err)
+				return
+			}
 		}
 		dto, _ := s.store.PublicCamera(camNum)
 		writeJSON(w, 200, dto)

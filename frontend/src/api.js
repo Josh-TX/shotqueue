@@ -24,7 +24,7 @@ export const api = {
   updateCameraSettings: (currentCameraNum, patch) =>
     request('PATCH', `/api/settings/cameras/${currentCameraNum}`, patch),
   deleteCameraSettings: (cameraNum) => request('DELETE', `/api/settings/cameras/${cameraNum}`),
-  setCameraHidden: (cameraNum, hidden) => request('PATCH', `/api/settings/cameras/${cameraNum}/hidden`, { hidden }),
+  setCameraHidden: (cameraNum, isHidden) => request('PATCH', `/api/cameras/${cameraNum}`, { isHidden }),
 
   addPreset: (camId, name, groupIds) => request('POST', `/api/cameras/${camId}/presets`, { name, groupIds }),
   renamePreset: (camId, presetId, name) => request('PATCH', `/api/cameras/${camId}/presets/${presetId}`, { name }),

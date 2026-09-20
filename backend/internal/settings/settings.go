@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"sync"
 )
 
@@ -33,7 +34,6 @@ type CameraSettings struct {
 	Port      string `json:"port"`
 	Username  string `json:"username"`
 	Password  string `json:"password"`
-	Hidden    bool   `json:"hidden"`
 }
 
 type Settings struct {
@@ -62,7 +62,6 @@ type fileCameraSettings struct {
 	Port      string `json:"port"`
 	Username  string `json:"username"`
 	Password  string `json:"password"`
-	Hidden    bool   `json:"hidden"`
 }
 
 type fileFormat struct {
@@ -108,10 +107,15 @@ func Load() (*Store, error) {
 			Port:      fc.Port,
 			Username:  fc.Username,
 			Password:  password,
-			Hidden:    fc.Hidden,
 		}
 	}
+	sortCameras(s.cfg.Cameras)
 	return s, nil
+}
+
+// sortCameras keeps the roster ordered by cameraNum, which the rest of the app relies on.
+func sortCameras(cams []CameraSettings) {
+	sort.Slice(cams, func(i, j int) bool { return cams[i].CameraNum < cams[j].CameraNum })
 }
 
 func (s *Store) saveLocked() error {
@@ -127,7 +131,6 @@ func (s *Store) saveLocked() error {
 			Port:      c.Port,
 			Username:  c.Username,
 			Password:  password,
-			Hidden:    c.Hidden,
 		}
 	}
 	data, err := json.MarshalIndent(f, "", "  ")
@@ -242,45 +245,22 @@ func (s *Store) AddCamera(cs CameraSettings) error {
 		return fmt.Errorf("camera number %d already exists", cs.CameraNum)
 	}
 	s.cfg.Cameras = append(s.cfg.Cameras, cs)
+	sortCameras(s.cfg.Cameras)
 	return s.saveLocked()
 }
 
-// UpdateCamera edits an existing camera's number/host/port/username/hidden (password is
-// intentionally not editable here — see CameraSettings doc comment). If newNum differs from
-// currentNum, it must not already be in use by another camera.
-func (s *Store) UpdateCamera(currentNum, newNum int, host, port, username string, hidden bool) (CameraSettings, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	idx := s.findCameraLocked(currentNum)
-	if idx == -1 {
-		return CameraSettings{}, errors.New("camera not found")
-	}
-	if newNum != currentNum {
-		if s.findCameraLocked(newNum) != -1 {
-			return CameraSettings{}, fmt.Errorf("camera number %d already exists", newNum)
-		}
-		s.cfg.Cameras[idx].CameraNum = newNum
-	}
-	s.cfg.Cameras[idx].Host = host
-	s.cfg.Cameras[idx].Port = port
-	s.cfg.Cameras[idx].Username = username
-	s.cfg.Cameras[idx].Hidden = hidden
-	if err := s.saveLocked(); err != nil {
-		return CameraSettings{}, err
-	}
-	return s.cfg.Cameras[idx], nil
-}
-
-// SetHidden is a narrow helper used when auto-unhiding a camera referenced by a config being
-// loaded (see state.BuildLoadSeeds).
-func (s *Store) SetHidden(num int, hidden bool) (CameraSettings, error) {
+// UpdateCamera edits an existing camera's host/port/username (password is intentionally not
+// editable here — see CameraSettings doc comment). The camera number can't be changed.
+func (s *Store) UpdateCamera(num int, host, port, username string) (CameraSettings, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	idx := s.findCameraLocked(num)
 	if idx == -1 {
 		return CameraSettings{}, errors.New("camera not found")
 	}
-	s.cfg.Cameras[idx].Hidden = hidden
+	s.cfg.Cameras[idx].Host = host
+	s.cfg.Cameras[idx].Port = port
+	s.cfg.Cameras[idx].Username = username
 	if err := s.saveLocked(); err != nil {
 		return CameraSettings{}, err
 	}

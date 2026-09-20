@@ -1,4 +1,4 @@
-import { reactive } from 'vue';
+import { computed, reactive } from 'vue';
 import { api } from './api.js';
 
 export const store = reactive({
@@ -6,6 +6,11 @@ export const store = reactive({
   wsConnected: false,
   atemConnected: false,
 });
+
+// store.cameras arrives sorted by cameraNum from the backend; sort again here so the columns and
+// the visibility sidebar can't disagree.
+export const sortedCameras = computed(() => [...store.cameras].sort((a, b) => a.cameraNum - b.cameraNum));
+export const visibleCameras = computed(() => sortedCameras.value.filter((c) => !c.isHidden));
 
 function findCamera(cameraNum) {
   return store.cameras.find((c) => c.cameraNum === cameraNum);

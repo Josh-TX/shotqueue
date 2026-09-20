@@ -703,6 +703,9 @@ func (s *Store) ApplyTally(ts atem.TallyState) {
 	s.mu.Lock()
 	s.lastTally = ts
 	for _, cam := range s.cameras {
+		if cam.IsHidden {
+			continue
+		}
 		to := "none"
 		if liveSet[uint16(cam.CameraNum)] {
 			to = "live"

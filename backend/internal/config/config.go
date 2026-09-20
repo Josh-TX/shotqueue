@@ -52,6 +52,7 @@ type ConfigGroup struct {
 type ConfigCamera struct {
 	CameraNum   int            `json:"cameraNum"`
 	ColumnCount int            `json:"columnCount"`
+	IsHidden    bool           `json:"isHidden"`
 	Presets     []ConfigPreset `json:"presets"`
 	Groups      []ConfigGroup  `json:"groups"`
 }

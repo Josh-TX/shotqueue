@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"sort"
 	"sync"
 	"time"
 
@@ -61,6 +62,9 @@ const MaxGroupCount = 4
 // DefaultGroupCount is how many groups a newly added camera starts with.
 const DefaultGroupCount = 2
 
+// DefaultColumnCount is the thumbnail-grid column count a newly added camera starts with.
+const DefaultColumnCount = 2
+
 type Preset struct {
 	ID               string
 	Name             string
@@ -86,6 +90,7 @@ type Camera struct {
 	Presets            []*Preset
 	Groups             []*Group
 	ColumnCount        int
+	IsHidden           bool // hidden cameras keep their presets/groups but sit out polling, tally and thumbnail generation
 	SelectedGroupID    *int
 	Queued             *Queued
 	nextGroupID        int
@@ -175,6 +180,9 @@ func (s *Store) pollLoop(stop chan struct{}) {
 func (s *Store) pollTick() {
 	changed := false
 	for _, cam := range s.Cameras() {
+		if s.IsHidden(cam) {
+			continue
+		}
 		before := s.ActivePresetID(cam)
 		beforeErr := s.PollError(cam)
 		s.RefreshPosition(cam.CameraNum)
@@ -260,7 +268,7 @@ func (s *Store) UpsertCamera(seed CameraSeed) *Camera {
 				CameraNum:   seed.CameraNum,
 				Client:      ptz.New(seed.Host, seed.Port, seed.Username, seed.Password),
 				Status:      "none",
-				ColumnCount: 2,
+				ColumnCount: DefaultColumnCount,
 				nextGroupID: 1,
 			}
 			for i := 0; i < DefaultGroupCount; i++ {
@@ -268,6 +276,7 @@ func (s *Store) UpsertCamera(seed CameraSeed) *Camera {
 				cam.nextGroupID++
 			}
 			s.cameras = append(s.cameras, cam)
+			sortCameras(s.cameras)
 		} else {
 			cam.Client = ptz.New(seed.Host, seed.Port, seed.Username, seed.Password)
 		}
@@ -297,6 +306,44 @@ func (s *Store) SetColumnCount(cameraNum int, columnCount int) error {
 	s.broadcast()
 	s.onMutate()
 	return nil
+}
+
+// SetHidden shows or hides a camera without touching its presets or groups. Hiding also clears
+// its runtime state (tally status, queue, poll error) since nothing keeps that current while
+// hidden; unhiding re-syncs tally against the last known ATEM snapshot.
+func (s *Store) SetHidden(cameraNum int, hidden bool) error {
+	var cam *Camera
+	s.withLock(func() {
+		cam = s.findCameraLocked(cameraNum)
+		if cam == nil {
+			return
+		}
+		cam.IsHidden = hidden
+		if hidden {
+			cam.Status = "none"
+			cam.Queued = nil
+			cam.PollError = ""
+		}
+	})
+	if cam == nil {
+		return ErrNotFound
+	}
+	if !hidden {
+		s.reconcileCameraTally(cam)
+	}
+	s.broadcast()
+	s.onMutate()
+	return nil
+}
+
+func (s *Store) IsHidden(cam *Camera) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return cam.IsHidden
+}
+
+func sortCameras(cams []*Camera) {
+	sort.Slice(cams, func(i, j int) bool { return cams[i].CameraNum < cams[j].CameraNum })
 }
 
 func (s *Store) RemoveCamera(cameraNum int) error {

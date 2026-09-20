@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+	"sort"
 	"time"
 
 	"shotqueue-backend/internal/config"
@@ -25,6 +27,7 @@ func (s *Store) BuildSnapshot() []config.ConfigCamera {
 		vc := config.ConfigCamera{
 			CameraNum:   cam.CameraNum,
 			ColumnCount: cam.ColumnCount,
+			IsHidden:    cam.IsHidden,
 			Presets:     make([]config.ConfigPreset, len(cam.Presets)),
 			Groups:      make([]config.ConfigGroup, len(cam.Groups)),
 		}
@@ -55,36 +58,56 @@ type LoadSeed struct {
 	Username    string
 	Password    string
 	ColumnCount int
+	IsHidden    bool
 	Presets     []config.ConfigPreset
 	Groups      []config.ConfigGroup
 }
 
-// BuildLoadSeeds joins a config's camera list against the current settings roster: cameraNums no
-// longer present in settings are dropped (returned separately, for logging), and any referenced
-// camera that's currently Hidden is unhidden (persisted) so it comes back into the loaded state.
+// BuildLoadSeeds joins a config's camera list against the current settings roster, sorted by
+// cameraNum: cameraNums no longer present in settings are dropped (returned separately, for
+// logging), and cameras in settings but absent from the config are added hidden and empty (default
+// columnCount and groups) so they still show up in the visibility sidebar.
 func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (seeds []LoadSeed, dropped []int) {
+	seen := make(map[int]bool, len(cams))
 	for _, cc := range cams {
 		cs, ok := settingsStore.CameraByNum(cc.CameraNum)
 		if !ok {
 			dropped = append(dropped, cc.CameraNum)
 			continue
 		}
-		if cs.Hidden {
-			if updated, err := settingsStore.SetHidden(cc.CameraNum, false); err == nil {
-				cs = updated
-			}
-		}
+		seen[cc.CameraNum] = true
 		seeds = append(seeds, LoadSeed{
-			CameraNum:   cc.CameraNum,
+			CameraNum:   cs.CameraNum,
 			Host:        cs.Host,
 			Port:        cs.Port,
 			Username:    cs.Username,
 			Password:    cs.Password,
 			ColumnCount: cc.ColumnCount,
+			IsHidden:    cc.IsHidden,
 			Presets:     cc.Presets,
 			Groups:      cc.Groups,
 		})
 	}
+	for _, cs := range settingsStore.Cameras() {
+		if seen[cs.CameraNum] {
+			continue
+		}
+		groups := make([]config.ConfigGroup, DefaultGroupCount)
+		for i := range groups {
+			groups[i] = config.ConfigGroup{Name: fmt.Sprintf("Group %d", i+1), Members: []int{}}
+		}
+		seeds = append(seeds, LoadSeed{
+			CameraNum:   cs.CameraNum,
+			Host:        cs.Host,
+			Port:        cs.Port,
+			Username:    cs.Username,
+			Password:    cs.Password,
+			ColumnCount: DefaultColumnCount,
+			IsHidden:    true,
+			Groups:      groups,
+		})
+	}
+	sort.Slice(seeds, func(i, j int) bool { return seeds[i].CameraNum < seeds[j].CameraNum })
 	return seeds, dropped
 }
 
@@ -103,6 +126,7 @@ func (s *Store) LoadConfig(seeds []LoadSeed) error {
 		cam := &Camera{
 			CameraNum:   seed.CameraNum,
 			ColumnCount: seed.ColumnCount,
+			IsHidden:    seed.IsHidden,
 			Client:      ptz.New(seed.Host, seed.Port, seed.Username, seed.Password),
 			Status:      "none",
 			nextGroupID: 1,
@@ -126,6 +150,7 @@ func (s *Store) LoadConfig(seeds []LoadSeed) error {
 		}
 		newCameras[i] = cam
 	}
+	sortCameras(newCameras)
 	s.cameras = newCameras
 	s.presetsByID = presetsByID
 	s.mu.Unlock()
@@ -147,8 +172,12 @@ func (s *Store) StartGenThumbnails(allowLiveMove, includeExisting bool) {
 	s.genMu.Unlock()
 
 	s.mu.Lock()
-	cams := make([]*Camera, len(s.cameras))
-	copy(cams, s.cameras)
+	cams := make([]*Camera, 0, len(s.cameras))
+	for _, cam := range s.cameras {
+		if !cam.IsHidden {
+			cams = append(cams, cam)
+		}
+	}
 	order := make(map[int][]string, len(cams))
 	for _, cam := range cams {
 		ids := genOrderLocked(cam)

@@ -15,7 +15,6 @@ func publicCameraSettings(cs settings.CameraSettings) map[string]any {
 		"host":      cs.Host,
 		"port":      cs.Port,
 		"username":  cs.Username,
-		"hidden":    cs.Hidden,
 	}
 }
 
@@ -96,11 +95,10 @@ func (s *Server) handleSettingsCameras(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 201, publicCameraSettings(cs))
 }
 
-// handleSettingsCameraSubroutes dispatches /api/settings/cameras/:cameraNum (edit/delete) and
-// /api/settings/cameras/:cameraNum/hidden (visibility toggle).
+// handleSettingsCameraSubroutes dispatches /api/settings/cameras/:cameraNum (edit host/port/username, delete).
 func (s *Server) handleSettingsCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 	parts := pathParts("/api/settings/cameras/", r.URL.Path)
-	if len(parts) == 0 || len(parts) > 2 {
+	if len(parts) != 1 {
 		http.NotFound(w, r)
 		return
 	}
@@ -110,68 +108,31 @@ func (s *Server) handleSettingsCameraSubroutes(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if len(parts) == 2 {
-		if parts[1] != "hidden" || r.Method != http.MethodPatch {
-			http.NotFound(w, r)
-			return
-		}
-		var body struct {
-			Hidden bool `json:"hidden"`
-		}
-		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-			writeError(w, 400, "invalid body")
-			return
-		}
-		updated, err := s.settings.SetHidden(num, body.Hidden)
-		if err != nil {
-			writeError(w, 400, err.Error())
-			return
-		}
-		if updated.Hidden {
-			s.store.RemoveCamera(num)
-		} else {
-			s.store.UpsertCamera(state.CameraSeed{
-				CameraNum: updated.CameraNum, Host: updated.Host, Port: updated.Port,
-				Username: updated.Username, Password: updated.Password,
-			})
-		}
-		writeJSON(w, 200, publicCameraSettings(updated))
-		return
-	}
-
 	switch r.Method {
 	case http.MethodPatch:
 		var body struct {
-			CameraNum int    `json:"cameraNum"`
-			Host      string `json:"host"`
-			Port      string `json:"port"`
-			Username  string `json:"username"`
-			Hidden    bool   `json:"hidden"`
+			Host     string `json:"host"`
+			Port     string `json:"port"`
+			Username string `json:"username"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			writeError(w, 400, "invalid body")
 			return
 		}
-		if body.CameraNum <= 0 || body.Host == "" || body.Port == "" {
-			writeError(w, 400, "cameraNum, host and port are required")
+		if body.Host == "" || body.Port == "" {
+			writeError(w, 400, "host and port are required")
 			return
 		}
-		updated, err := s.settings.UpdateCamera(num, body.CameraNum, body.Host, body.Port, body.Username, body.Hidden)
+		updated, err := s.settings.UpdateCamera(num, body.Host, body.Port, body.Username)
 		if err != nil {
 			writeError(w, 400, err.Error())
 			return
 		}
-		// Reconcile the active state: a rename moves the camera to a new key, so the old one is
-		// always dropped; the new one is only (re)added when it isn't hidden.
-		if num != updated.CameraNum || updated.Hidden {
-			s.store.RemoveCamera(num)
-		}
-		if !updated.Hidden {
-			s.store.UpsertCamera(state.CameraSeed{
-				CameraNum: updated.CameraNum, Host: updated.Host, Port: updated.Port,
-				Username: updated.Username, Password: updated.Password,
-			})
-		}
+		// Rebuilds the ptz client in place; presets, groups and visibility are kept.
+		s.store.UpsertCamera(state.CameraSeed{
+			CameraNum: updated.CameraNum, Host: updated.Host, Port: updated.Port,
+			Username: updated.Username, Password: updated.Password,
+		})
 		writeJSON(w, 200, publicCameraSettings(updated))
 
 	case http.MethodDelete:

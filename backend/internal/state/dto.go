@@ -16,6 +16,7 @@ type CameraDTO struct {
 	Presets            []PresetDTO `json:"presets"`
 	Groups             []Group     `json:"groups"`
 	ColumnCount        int         `json:"columnCount"`
+	IsHidden           bool        `json:"isHidden"`
 	ActivePresetID     *string     `json:"activePresetId"`
 	Generating         bool        `json:"generating"`
 	Error              string      `json:"error"`
@@ -56,6 +57,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		Presets:            presets,
 		Groups:             groups,
 		ColumnCount:        cam.ColumnCount,
+		IsHidden:           cam.IsHidden,
 		ActivePresetID:     activePresetIDLocked(cam),
 		Generating:         cam.Generating,
 		Error:              cam.PollError,

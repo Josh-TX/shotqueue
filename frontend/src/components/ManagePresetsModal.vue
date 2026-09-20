@@ -25,7 +25,6 @@
 
           <div class="general-actions">
             <button @click="openAddPreset">+ Add Preset</button>
-            <button class="danger" @click="hideCamera">Hide Camera</button>
           </div>
 
           <div class="manage-preset-grid" :style="gridStyle">
@@ -179,14 +178,6 @@ function openAddPreset() {
 function openSettings() {
   emit('close');
   emit('open-settings');
-}
-
-function hideCamera() {
-  if (!confirm(`Hide ${cameraLabel.value}? Presets will be lost. You can unhide it from the Settings page.`)) return;
-  api
-    .setCameraHidden(props.camera.cameraNum, true)
-    .then(() => emit('close'))
-    .catch((e) => alert(e.message));
 }
 
 function setGroupCount(value) {

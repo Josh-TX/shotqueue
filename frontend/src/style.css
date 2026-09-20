@@ -256,11 +256,53 @@ h3 {
   margin-right: 8px;
 }
 /* ---- camera columns ---- */
+.camera-area {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
 .camera-row {
   flex: 1 1 auto;
   display: flex;
   overflow-x: auto;
+  min-width: 0;
   min-height: 0;
+}
+.camera-sidebar {
+  flex: 0 0 24px;
+  width: 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  padding: 8px 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+}
+.camera-sidebar-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 14px;
+  white-space: nowrap;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.camera-sidebar-item:hover {
+  color: var(--text);
+}
+.camera-sidebar-item input {
+  margin: 0;
+  cursor: pointer;
+}
+.camera-sidebar-label {
+  writing-mode: vertical-rl;
+  line-height: 23px;
 }
 .camera-column {
   flex: 0 0 auto;
@@ -671,6 +713,11 @@ h3 {
 }
 .cameras-table td input {
   width: 100%;
+}
+.cameras-table th.cameras-table-num,
+.cameras-table td.cameras-table-num {
+  text-align: right;
+  padding-right: 12px;
 }
 .cameras-table-actions {
   display: flex;

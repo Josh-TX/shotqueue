@@ -1,6 +1,6 @@
 <template>
   <div class="config-preview-row" ref="rowEl">
-    <div v-for="(c, i) in cameras" :key="i" class="config-preview-column">
+    <div v-for="(c, i) in shownCameras" :key="i" class="config-preview-column">
       <div class="config-preview-name" :title="cameraName(c)">{{ cameraName(c) }}</div>
       <div
         class="config-preview-grid"
@@ -29,6 +29,9 @@ import { cameraName } from '../store.js';
 
 const props = defineProps({ cameras: { type: Array, default: () => [] } });
 
+// hidden cameras keep their presets in the config but aren't part of what's shown on load
+const shownCameras = computed(() => props.cameras.filter((c) => !c.isHidden));
+
 const GAP = 4;
 const MIN_UNIT_WIDTH = 16;
 // must match .config-preview-column + .config-preview-column border-left + padding-left in style.css
@@ -40,8 +43,8 @@ onMounted(() => {
   containerWidth.value = rowEl.value?.clientWidth ?? 0;
 });
 
-const totalColumns = computed(() => Math.max(1, props.cameras.reduce((sum, c) => sum + c.columnCount, 0)));
-const cameraCount = computed(() => Math.max(1, props.cameras.length));
+const totalColumns = computed(() => Math.max(1, shownCameras.value.reduce((sum, c) => sum + c.columnCount, 0)));
+const cameraCount = computed(() => Math.max(1, shownCameras.value.length));
 
 const unitWidth = computed(() => {
   const raw =
