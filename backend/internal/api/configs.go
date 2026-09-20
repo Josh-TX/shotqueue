@@ -92,7 +92,7 @@ func (s *Server) handleLoadConfig(w http.ResponseWriter, r *http.Request, id str
 		return
 	}
 	if body.GenerateThumbnails {
-		s.store.StartGenThumbnails(false, true)
+		s.store.StartGenThumbnails(false, false)
 	}
 	writeJSON(w, 200, s.store.PublicCameras())
 }

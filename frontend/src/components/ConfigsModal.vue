@@ -82,7 +82,7 @@
               <button v-if="selected.type === 'named'" class="delete-config-btn" @click="deleting = selected">Delete</button>
               <label class="gen-checkbox">
                 <input type="checkbox" v-model="generateThumbnails" />
-                Generate thumbnails
+                Generate missing thumbnails
               </label>
               <button class="primary" :disabled="loading" @click="doLoad">
                 {{ loading ? 'Loading…' : 'Load Config' }}

@@ -111,15 +111,37 @@ func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (
 	return seeds, dropped
 }
 
+// nearestThumbnail returns the thumbnail of the preset whose target is closest to target (by
+// largest per-axis delta) among those within positionTolerance, or nil if none has one.
+func nearestThumbnail(presets []*Preset, target ptz.Position) []byte {
+	var best []byte
+	bestDist := positionTolerance + 1
+	for _, p := range presets {
+		if len(p.Thumbnail) == 0 || !closeEnough(p.Target, target) {
+			continue
+		}
+		d := max(abs(p.Target.Pan-target.Pan), abs(p.Target.Tilt-target.Tilt), abs(p.Target.Zoom-target.Zoom))
+		if d < bestDist {
+			best, bestDist = p.Thumbnail, d
+		}
+	}
+	return best
+}
+
 // LoadConfig fully replaces the camera roster and every camera's presets and groups (all in
 // memory only) with the given seeds. Presets/groups all get fresh IDs; any in-flight thumbnail
-// generation is implicitly cancelled since it tracks presets by the old IDs.
+// generation is implicitly cancelled since it tracks presets by the old IDs. A new preset inherits
+// the thumbnail of the nearest current preset on the same camera within positionTolerance.
 func (s *Store) LoadConfig(seeds []LoadSeed) error {
 	s.genMu.Lock()
 	s.genToken++
 	s.genMu.Unlock()
 
 	s.mu.Lock()
+	oldPresets := make(map[int][]*Preset, len(s.cameras))
+	for _, cam := range s.cameras {
+		oldPresets[cam.CameraNum] = cam.Presets
+	}
 	newCameras := make([]*Camera, len(seeds))
 	presetsByID := make(map[string]*Preset)
 	for i, seed := range seeds {
@@ -134,6 +156,7 @@ func (s *Store) LoadConfig(seeds []LoadSeed) error {
 		presetIDByIndex := make([]string, len(seed.Presets))
 		for j, vp := range seed.Presets {
 			p := &Preset{ID: genID(), Name: vp.Name, Target: vp.Target, ThumbnailVersion: 1}
+			p.Thumbnail = nearestThumbnail(oldPresets[seed.CameraNum], vp.Target)
 			cam.Presets = append(cam.Presets, p)
 			presetsByID[p.ID] = p
 			presetIDByIndex[j] = p.ID
