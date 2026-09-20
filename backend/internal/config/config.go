@@ -112,6 +112,11 @@ func Load() (*Store, error) {
 	return s, nil
 }
 
+// Path returns the absolute path of the configs file on disk.
+func (s *Store) Path() string {
+	return s.path
+}
+
 func (s *Store) saveLocked() error {
 	data, err := json.MarshalIndent(fileFormat{Configs: s.configs}, "", "  ")
 	if err != nil {

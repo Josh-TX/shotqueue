@@ -41,26 +41,35 @@
     <p class="help-desc help-intro">
       The camera visibility, preset settings, and group settings are all part of the config (the camera connection
       settings and ATEM settings are not). Changing any of these will immediately update the latest auto-saved config (or create a new one if it's been 10 minutes since the last auto-save). Only the latest 50 autosaved configs are preserved. When the ShotQueue server
-      starts up, it'll always load the latest config. You can also save a named config for both presistence and easier reference. Loading a named config doesn't cause the named config to be auto-saved... you have to manually save the named config to change it. 
+      starts up, it'll always load the latest config. You can also save a named config for both presistence and easier reference. Loading a named config doesn't cause the named config to be auto-saved... you have to manually save the named config to change it.
     </p>
+    <p v-if="configPath" class="help-desc help-intro">Configs are stored at <code>{{ configPath }}</code></p>
 
     <h3 class="help-section">Thumbnails</h3>
     <p class="help-desc help-intro">
       Whenever a preset becomes active, the preset's thumbnail is updated. Thumbnails don't persist across server
-      restarts, and they don't persist when loading a config, so you may see missing thumbnails. You can fix this by manually triggering each preset, or you can utilize the "Gen Thumbnails" feature for convenience.
+      restarts, and loaded configs might contain new presets, so you may see missing thumbnails. You can fix this by manually triggering each preset, or you can utilize the "Gen Thumbnails" feature for convenience.
     </p>
   </Modal>
 </template>
 
 <script setup>
+import { ref } from 'vue';
+import { api } from '../api.js';
 import Modal from './Modal.vue';
 
 defineEmits(['close']);
 
+const configPath = ref('');
+api
+  .getSettings()
+  .then((s) => (configPath.value = s.configPath ?? ''))
+  .catch(() => {});
+
 const controlRows = [
   { label: 'Click', desc: "Triggers the preset, unless the camera is live, in which case it'll queue the preset." },
-  { label: 'Right-Click', desc: 'Opens a context menu, where you can queue, manage group membership, reposition, rename, or delete the preset.' },
-  { label: 'Ctrl-Click', desc: 'Queues the preset. Any combination of Ctrl/Alt/Shift will queue instead of trigger.' },
+  { label: 'RightClick', desc: 'Opens a context menu, where you can queue, manage group membership, reposition, rename, or delete the preset. On Mac, Ctrl-Click and a two-finger tap also open it.' },
+  { label: 'Ctrl+Click', desc: 'Queues the preset. Any combination of Shift/Alt/Ctrl/Cmd will queue instead of trigger.' },
 ];
 
 const rows = [

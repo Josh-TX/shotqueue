@@ -33,6 +33,8 @@ func (s *Server) handleSettings(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, 200, map[string]any{
 			"atemHost": cfg.Atem.Host,
 			"cameras":  publicCamerasSettings(cfg.Cameras),
+			// Read-only; only here so the help modal can tell the user where configs live.
+			"configPath": s.config.Path(),
 		})
 
 	case http.MethodPut:

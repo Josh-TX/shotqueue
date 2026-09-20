@@ -92,7 +92,7 @@ function toggleQueue() {
 }
 
 function onClick(e) {
-  if (e.ctrlKey || e.shiftKey) {
+  if (e.ctrlKey || e.shiftKey || e.altKey || e.metaKey) {
     toggleQueue();
     return;
   }
