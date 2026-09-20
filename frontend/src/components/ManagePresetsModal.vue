@@ -145,10 +145,10 @@ import { api } from '../api.js';
 import { cameraName } from '../store.js';
 import { groupColor } from '../colors.js';
 
-const props = defineProps({ camera: Object, unitWidth: Number });
+const props = defineProps({ camera: Object, unitWidth: Number, initialTab: { type: String, default: 'general' } });
 const emit = defineEmits(['close', 'add-preset', 'reposition', 'open-settings']);
 
-const tab = ref('general');
+const tab = ref(props.initialTab);
 
 const MIN_TILE_WIDTH = 160;
 const tileWidth = computed(() => Math.max(MIN_TILE_WIDTH, props.unitWidth));

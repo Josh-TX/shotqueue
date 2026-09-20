@@ -3,7 +3,7 @@
     class="preset-thumb"
     :class="borderClass"
     @click="onClick"
-    @contextmenu.prevent="openMenu"
+    @contextmenu.prevent.stop="openMenu"
   >
     <img v-if="preset.thumbnailVersion != null && !imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
     <div v-else class="preset-thumb-placeholder">No thumbnail</div>

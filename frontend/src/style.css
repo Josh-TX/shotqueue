@@ -640,6 +640,31 @@ h3 {
   background: var(--panel3);
 }
 
+.ctx-columns {
+  padding: 6px 6px 4px;
+}
+.ctx-columns-label {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+.ctx-columns-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+}
+.ctx-column-btn {
+  padding: 8px 0;
+  text-align: center;
+}
+.ctx-column-btn.active,
+.ctx-column-btn.active:hover:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  cursor: default;
+}
+
 /* ---- modal ---- */
 .modal-backdrop {
   position: fixed;

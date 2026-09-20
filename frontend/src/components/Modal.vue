@@ -1,5 +1,5 @@
 <template>
-  <div class="modal-backdrop" @mousedown.self="onBackdropMousedown" @click.self="onBackdropClick">
+  <div class="modal-backdrop" @contextmenu.stop @mousedown.self="onBackdropMousedown" @click.self="onBackdropClick">
     <div class="modal" :class="{ wide, tall }" :style="minWidth ? { width: minWidth + 'px' } : undefined">
       <div class="modal-header">
         <h2>{{ title }}</h2>
