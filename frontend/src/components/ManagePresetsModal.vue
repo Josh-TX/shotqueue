@@ -126,7 +126,7 @@
               :class="{ dragging: dragIndex === i }"
               @dragstart="onDragStart(i, $event)"
               @dragenter="onDragEnter(i)"
-              @dragover.prevent
+              @dragover.prevent="onTileDragOver"
               @dragend="onDragEnd"
             />
             <div v-if="camera.presets.length === 0" class="no-presets">No presets yet</div>
@@ -150,13 +150,16 @@ const emit = defineEmits(['close', 'add-preset', 'reposition', 'open-settings'])
 
 const tab = ref('general');
 
+const MIN_TILE_WIDTH = 160;
+const tileWidth = computed(() => Math.max(MIN_TILE_WIDTH, props.unitWidth));
+
 const gridStyle = computed(() => ({
-  gridTemplateColumns: `repeat(${props.camera.columnCount}, ${props.unitWidth}px)`,
+  gridTemplateColumns: `repeat(${props.camera.columnCount}, ${tileWidth.value}px)`,
 }));
 
 const manageShellOverhead = 230; // sidebar + gaps + modal padding + scrollbar
 const modalWidth = computed(() => {
-  const gridWidth = props.camera.columnCount * props.unitWidth + (props.camera.columnCount - 1) * 10;
+  const gridWidth = props.camera.columnCount * tileWidth.value + (props.camera.columnCount - 1) * 10;
   return Math.max(620, gridWidth + manageShellOverhead);
 });
 
@@ -231,6 +234,9 @@ function onContentDragOver(event) {
 function onDragStart(i, event) {
   dragIndex.value = i;
   event.dataTransfer.effectAllowed = 'move';
+}
+function onTileDragOver(event) {
+  event.dataTransfer.dropEffect = 'move';
 }
 function onDragEnter(i) {
   if (dragIndex.value === null || dragIndex.value === i) return;

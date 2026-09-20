@@ -1036,11 +1036,11 @@ h3 {
 .preset-thumb.static {
   cursor: default;
 }
-.draggable-tile {
+.preset-thumb.static.draggable-tile {
   cursor: grab;
   transition: opacity 100ms ease;
 }
-.draggable-tile.dragging {
+.preset-thumb.static.draggable-tile.dragging {
   opacity: 0.35;
   cursor: grabbing;
 }
