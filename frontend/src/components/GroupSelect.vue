@@ -1,5 +1,5 @@
 <template>
-  <div class="group-select" :class="{ open }">
+  <div class="group-select" :class="{ open, selected: !!selectedColor }" :style="selectedColor ? { '--group-color': selectedColor } : {}">
     <button ref="triggerEl" type="button" class="group-select-trigger" @click="toggle">
       <span class="group-select-tiny-label">Auto Queue</span>
       <span v-if="selectedMode" class="group-select-mode-label">{{ selectedMode }}</span>

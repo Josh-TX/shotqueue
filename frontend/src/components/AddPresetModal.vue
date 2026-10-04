@@ -8,7 +8,7 @@
 
     <div class="field">
       <label>Preset name</label>
-      <input type="text" v-model="name" autofocus />
+      <input ref="nameEl" type="text" v-model="name" />
     </div>
 
     <div class="field" v-if="camera.groups.length">
@@ -51,12 +51,15 @@ const name = ref(`Preset ${props.camera.presets.length + 1}`);
 const groupIds = ref([]);
 const error = ref('');
 const refreshTs = ref(Date.now());
+const nameEl = ref(null);
 
 const canCapture = computed(() => !props.camera.triggeringPresetId);
 const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.cameraNum}/snapshot?t=${refreshTs.value}`);
 
 let interval;
 onMounted(() => {
+  nameEl.value?.focus();
+  nameEl.value?.select();
   interval = setInterval(() => (refreshTs.value = Date.now()), 500);
 });
 onUnmounted(() => clearInterval(interval));

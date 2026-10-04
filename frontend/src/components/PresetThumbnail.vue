@@ -11,7 +11,7 @@
     <div class="preset-thumb-name">{{ preset.name }}</div>
     <span v-if="selectedGroupMember" class="group-swatch" :style="{ background: groupColor(selectedGroupMember.index) }" />
     <!-- temporary debug indicator for wasTaken, remove once the auto-queue logic is verified -->
-    <div class="preset-thumb-debug" title="wasTaken">{{ preset.wasTaken ? '●' : '' }}</div>
+    <svg v-if="preset.wasTaken" class="preset-thumb-debug" title="wasTaken" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" /></svg>
   </div>
 
   <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />
@@ -77,8 +77,13 @@ const imgSrc = computed(() => `/api/presets/${props.preset.id}/thumbnail?v=${pro
 const imgError = ref(false);
 watch(() => props.preset.thumbnailVersion, () => (imgError.value = false));
 
+let triggerPending = false;
 function trigger() {
-  api.triggerPreset(props.camera.cameraNum, props.preset.id).catch((e) => alert(e.message));
+  if (triggerPending) return;
+  triggerPending = true;
+  api.triggerPreset(props.camera.cameraNum, props.preset.id)
+    .catch((e) => alert(e.message))
+    .finally(() => (triggerPending = false));
 }
 function queue() {
   api.queuePreset(props.camera.cameraNum, props.preset.id).catch((e) => alert(e.message));
@@ -96,7 +101,7 @@ function onClick(e) {
     toggleQueue();
     return;
   }
-  if (isActive.value) return;
+  if (isActive.value || isTriggering.value) return;
   if (!isLive.value) {
     trigger();
   } else if (!isQueued.value) {

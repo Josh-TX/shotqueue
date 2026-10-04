@@ -130,6 +130,15 @@ select {
 .group-select-trigger:hover {
   border-color: var(--accent);
 }
+.group-select.selected .group-select-trigger {
+  border-color: var(--group-color);
+  background: color-mix(in srgb, var(--group-color) 18%, var(--panel2));
+  box-shadow: 0 0 0 1px var(--group-color), 0 0 8px color-mix(in srgb, var(--group-color) 45%, transparent);
+}
+.group-select.selected .group-select-tiny-label,
+.group-select.selected .group-select-mode-label {
+  color: var(--text);
+}
 .group-select-tiny-label {
   font-size: 10px;
   line-height: 1;
@@ -312,7 +321,7 @@ h3 {
   min-height: 0;
 }
 .camera-column.live {
-  background: linear-gradient(to right, rgba(239, 68, 68, 0.03), var(--bg) 75px, var(--bg) calc(100% - 75px), rgba(239, 68, 68, 0.03));
+  background: linear-gradient(to right, rgba(239, 68, 68, 0.08), #141316 100px, #141316 calc(100% - 100px), rgba(239, 68, 68, 0.08));
 }
 .camera-column-header {
   display: flex;
@@ -490,8 +499,8 @@ h3 {
   box-shadow: 0 0 10px 1px rgba(239, 68, 68, 0.5);
 }
 .preset-thumb.border-active {
-  border-color: #e0428a;
-  box-shadow: 0 0 10px 1px rgba(224, 66, 138, 0.5);
+  border-color: #ea6ca5;
+  box-shadow: 0 0 10px 1px rgba(234, 108, 165, 0.5);
 }
 .preset-thumb.border-triggering {
   border-color: #a855f7;
@@ -575,11 +584,11 @@ h3 {
 .preset-thumb-debug {
   position: absolute;
   right: 6px;
-  bottom: 4px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  bottom: 6px;
+  width: 6px;
+  height: 6px;
+  fill: #fff;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.8));
 }
 .group-swatch {
   position: absolute;

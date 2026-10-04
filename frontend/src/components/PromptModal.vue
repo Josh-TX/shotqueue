@@ -2,7 +2,7 @@
   <Modal :title="title" @close="$emit('close')">
     <div class="field">
       <label>{{ label }}</label>
-      <input type="text" v-model="value" @keyup.enter="submit" autofocus />
+      <input ref="inputEl" type="text" v-model="value" @keyup.enter="submit" />
     </div>
     <p v-if="error" class="error-text">{{ error }}</p>
     <div class="modal-actions">
@@ -13,7 +13,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import Modal from './Modal.vue';
 
 const props = defineProps({
@@ -27,6 +27,11 @@ const emit = defineEmits(['close']);
 
 const value = ref(props.initialValue);
 const error = ref('');
+const inputEl = ref(null);
+onMounted(() => {
+  inputEl.value?.focus();
+  inputEl.value?.select();
+});
 
 async function submit() {
   if (!value.value.trim()) return;
