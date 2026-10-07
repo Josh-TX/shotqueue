@@ -1,7 +1,7 @@
 <template>
   <div
     class="preset-thumb"
-    :class="[borderClass, { dragging }]"
+    :class="[borderClass, { dragging, 'hover-queue': isLive, 'no-hover': isActive || isTriggering }]"
     draggable="true"
     @click="onClick"
     @dragstart="$emit('drag-start', $event)"

@@ -1142,7 +1142,7 @@ input.preset-thumb-name-input {
   white-space: nowrap;
 }
 .thumb-overlay-btn:hover {
-  background: rgba(0, 0, 0, 0.7);
+  background: rgba(0, 0, 0, 0.55);
 }
 .g-checkbox {
   appearance: none;
@@ -1215,3 +1215,26 @@ input.preset-thumb-name-input {
   margin: -4px 0;
 }
 
+
+/* hover tint: purple = normal click, cyan = modifier held (queue/unqueue) */
+.preset-thumb:not(.static)::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 80ms ease;
+  box-shadow: inset 0 0 12px 1px rgba(168, 85, 247, 0.55);
+}
+body:not(.is-dragging) .preset-thumb:not(.static):not(.no-hover):hover::after {
+  opacity: 1;
+}
+.preset-thumb.hover-queue:not(.static)::after,
+body.mod-held .preset-thumb:not(.static)::after {
+  box-shadow: inset 0 0 12px 1px rgba(34, 211, 238, 0.49);
+}
+/* no fade-out while dragging, so the drag ghost image doesn't capture the glow */
+body.is-dragging .preset-thumb::after {
+  opacity: 0;
+  transition: none;
+}

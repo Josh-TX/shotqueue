@@ -3,8 +3,9 @@
   - active state is a lighter pink
   - auto-queue on is more obvious
   - live camera is more obvious
+  - added preset hover effect
   - fixed safari visual differences
-- manually triggering the queued preset now auto-queues a preset (if enabled)
+- manually triggering the queued preset now auto-queues a preset (if autoqueue enabled)
 - config preview now show thumbnails if any are available
-- when there's duplicate presets, the triggered one will be visually active
-- The new preset modal and rename preset modal now auto-focuses and selects the name
+- when there's duplicate presets, the triggered one will be pink
+- The new preset modal and rename preset modal now auto-focuses the input
