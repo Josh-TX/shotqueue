@@ -87,6 +87,7 @@ type Camera struct {
 	TriggerGen         int
 	CurrentPosition    *ptz.Position
 	ActivePresetID     *string
+	LastTriggeredID    string // tie-breaker when several presets match the current position
 	Presets            []*Preset
 	Groups             []*Group
 	ColumnCount        int
@@ -408,9 +409,15 @@ func recomputeActivePresetLocked(cam *Camera) {
 		return
 	}
 	for _, p := range cam.Presets {
-		if closeEnough(*cam.CurrentPosition, p.Target) {
+		if !closeEnough(*cam.CurrentPosition, p.Target) {
+			continue
+		}
+		// With duplicate presets, prefer the most recently triggered one; else the first match.
+		if cam.ActivePresetID == nil || p.ID == cam.LastTriggeredID {
 			id := p.ID
 			cam.ActivePresetID = &id
+		}
+		if p.ID == cam.LastTriggeredID {
 			return
 		}
 	}

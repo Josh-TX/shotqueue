@@ -4,3 +4,4 @@
   - live camera is more obvious
 - manually triggering the queued preset now auto-queues a preset (if enabled)
 - config preview now show thumbnails if any are available
+- when there's duplicate presets, the triggered one will be visually active

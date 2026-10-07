@@ -320,6 +320,7 @@ func (s *Store) triggerPreset(cameraNum int, presetID string, allowLive bool) (i
 	}
 	pid := preset.ID
 	cam.TriggeringPresetID = &pid
+	cam.LastTriggeredID = pid
 	cam.ActivePresetID = nil
 	if wasQueued {
 		s.autoQueueFillLocked(cam)
