@@ -417,7 +417,6 @@ h3 {
   flex: 1 1 auto;
   overflow-y: scroll;
   padding: 12px;
-  padding-right: 2px;
   scrollbar-width: thin;
 }
 .preset-scroll::-webkit-scrollbar {

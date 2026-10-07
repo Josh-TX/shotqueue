@@ -2,6 +2,7 @@
   - active state is a lighter pink
   - auto-queue on is more obvious
   - live camera is more obvious
+  - fixed safari visual differences
 - manually triggering the queued preset now auto-queues a preset (if enabled)
 - config preview now show thumbnails if any are available
 - when there's duplicate presets, the triggered one will be visually active

@@ -22,7 +22,7 @@
       </div>
     </div>
 
-    <div class="preset-scroll" :class="{ 'no-overflow': !hasOverflow }" ref="scrollEl">
+    <div class="preset-scroll" :class="{ 'no-overflow': !hasOverflow }" ref="scrollEl" :style="{ paddingRight: scrollPadRight + 'px' }">
       <div class="preset-grid" :style="{ gridTemplateColumns: `repeat(${camera.columnCount}, 1fr)` }">
         <PresetThumbnail v-for="p in camera.presets" :key="p.id" :camera="camera" :preset="p" />
         <button class="add-preset-tile" @click="showAddPreset = true">+</button>
@@ -119,11 +119,15 @@ function onRepositionFromManage(preset) {
 
 const scrollEl = ref(null);
 const hasOverflow = ref(false);
+// right padding = 12px minus the scrollbar gutter the browser reserves (0 for overlay scrollbars, e.g. Safari)
+const scrollPadRight = ref(2);
 let resizeObserver = null;
 
 function checkOverflow() {
   if (scrollEl.value) {
-    hasOverflow.value = scrollEl.value.scrollHeight > scrollEl.value.clientHeight;
+    const el = scrollEl.value;
+    hasOverflow.value = el.scrollHeight > el.clientHeight;
+    scrollPadRight.value = Math.max(0, 12 - (el.offsetWidth - el.clientWidth));
   }
 }
 
