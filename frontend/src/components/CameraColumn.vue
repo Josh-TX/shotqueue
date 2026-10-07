@@ -22,9 +22,18 @@
       </div>
     </div>
 
-    <div class="preset-scroll" :class="{ 'no-overflow': !hasOverflow }" ref="scrollEl" :style="{ paddingRight: scrollPadRight + 'px' }">
+    <div class="preset-scroll" :class="{ 'no-overflow': !hasOverflow }" ref="scrollEl" :style="{ paddingRight: scrollPadRight + 'px' }" @dragover="onScrollDragOver">
       <div class="preset-grid" :style="{ gridTemplateColumns: `repeat(${camera.columnCount}, 1fr)` }">
-        <PresetThumbnail v-for="p in camera.presets" :key="p.id" :camera="camera" :preset="p" />
+        <PresetThumbnail
+          v-for="p in displayPresets"
+          :key="p.id"
+          :camera="camera"
+          :preset="p"
+          :dragging="dragId === p.id"
+          @drag-start="onDragStart(p, $event)"
+          @drag-enter="onDragEnter(p)"
+          @drag-end="onDragEnd"
+        />
         <button class="add-preset-tile" @click="showAddPreset = true">+</button>
       </div>
     </div>
@@ -95,7 +104,6 @@ const menuItems = computed(() => [
   { label: 'New Preset', action: () => (showAddPreset.value = true) },
   { label: 'General Settings', action: () => openManage('general') },
   { label: 'Manage Groups', action: () => openManage('groups') },
-  { label: 'Reorder Presets', action: () => openManage('layout') },
   { divider: true },
   {
     columns: true,
@@ -117,6 +125,67 @@ function onRepositionFromManage(preset) {
   repositioningPreset.value = preset;
 }
 
+// drag-to-reorder: local order while dragging so server pushes don't clobber it
+const dragId = ref(null);
+const dragOrder = ref(null);
+const displayPresets = computed(() => dragOrder.value ?? props.camera.presets);
+
+const AUTOSCROLL_MARGIN = 50;
+const AUTOSCROLL_MAX_SPEED = 14;
+let autoScrollSpeed = 0;
+let autoScrollRAF = null;
+
+function autoScrollStep() {
+  if (scrollEl.value) scrollEl.value.scrollTop += autoScrollSpeed;
+  autoScrollRAF = requestAnimationFrame(autoScrollStep);
+}
+function stopAutoScroll() {
+  autoScrollSpeed = 0;
+  if (autoScrollRAF !== null) cancelAnimationFrame(autoScrollRAF);
+  autoScrollRAF = null;
+}
+function onScrollDragOver(e) {
+  if (dragId.value === null || !scrollEl.value) return;
+  const rect = scrollEl.value.getBoundingClientRect();
+  let speed = 0;
+  if (e.clientY < rect.top + AUTOSCROLL_MARGIN) {
+    speed = -Math.ceil(((rect.top + AUTOSCROLL_MARGIN - e.clientY) / AUTOSCROLL_MARGIN) * AUTOSCROLL_MAX_SPEED);
+  } else if (e.clientY > rect.bottom - AUTOSCROLL_MARGIN) {
+    speed = Math.ceil(((e.clientY - (rect.bottom - AUTOSCROLL_MARGIN)) / AUTOSCROLL_MARGIN) * AUTOSCROLL_MAX_SPEED);
+  }
+  autoScrollSpeed = speed;
+  if (speed !== 0 && autoScrollRAF === null) autoScrollRAF = requestAnimationFrame(autoScrollStep);
+  else if (speed === 0) stopAutoScroll();
+}
+
+function onDragStart(p, e) {
+  dragId.value = p.id;
+  dragOrder.value = [...props.camera.presets];
+  e.dataTransfer.effectAllowed = 'move';
+}
+function onDragEnter(p) {
+  if (dragId.value === null || dragId.value === p.id) return;
+  const order = [...dragOrder.value];
+  const from = order.findIndex((x) => x.id === dragId.value);
+  const to = order.findIndex((x) => x.id === p.id);
+  order.splice(to, 0, order.splice(from, 1)[0]);
+  dragOrder.value = order;
+}
+function onDragEnd() {
+  const order = dragOrder.value;
+  dragId.value = null;
+  stopAutoScroll();
+  if (!order) return;
+  const ids = order.map((x) => x.id);
+  if (ids.every((id, i) => id === props.camera.presets[i]?.id)) {
+    dragOrder.value = null;
+    return;
+  }
+  api.reorderPresets(props.camera.cameraNum, ids)
+    .catch((e) => alert(e.message))
+    .finally(() => (dragOrder.value = null));
+}
+
 const scrollEl = ref(null);
 const hasOverflow = ref(false);
 // right padding = 12px minus the scrollbar gutter the browser reserves (0 for overlay scrollbars, e.g. Safari)
@@ -136,5 +205,8 @@ onMounted(() => {
   resizeObserver.observe(scrollEl.value);
   resizeObserver.observe(scrollEl.value.firstElementChild);
 });
-onBeforeUnmount(() => resizeObserver?.disconnect());
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect();
+  stopAutoScroll();
+});
 </script>

@@ -1,8 +1,13 @@
 <template>
   <div
     class="preset-thumb"
-    :class="borderClass"
+    :class="[borderClass, { dragging }]"
+    draggable="true"
     @click="onClick"
+    @dragstart="$emit('drag-start', $event)"
+    @dragenter="$emit('drag-enter')"
+    @dragover.prevent="$event.dataTransfer.dropEffect = 'move'"
+    @dragend="$emit('drag-end')"
     @contextmenu.prevent.stop="openMenu"
   >
     <img v-if="preset.thumbnailVersion != null && !imgError" :src="imgSrc" :alt="preset.name" draggable="false" @error="imgError = true" />
@@ -51,7 +56,8 @@ import PromptModal from './PromptModal.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
 import UpdatePresetModal from './UpdatePresetModal.vue';
 
-const props = defineProps({ camera: Object, preset: Object });
+const props = defineProps({ camera: Object, preset: Object, dragging: Boolean });
+defineEmits(['drag-start', 'drag-enter', 'drag-end']);
 
 const isActive = computed(() => props.camera.activePresetId === props.preset.id);
 const isLive = computed(() => props.camera.status === 'live');

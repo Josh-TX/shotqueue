@@ -1079,13 +1079,11 @@ h3 {
 .preset-thumb.static {
   cursor: default;
 }
-.preset-thumb.static.draggable-tile {
-  cursor: grab;
+.preset-thumb {
   transition: opacity 100ms ease;
 }
-.preset-thumb.static.draggable-tile.dragging {
+.preset-thumb.dragging {
   opacity: 0.35;
-  cursor: grabbing;
 }
 input.preset-thumb-name-input {
   position: absolute;

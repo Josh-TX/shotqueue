@@ -4,10 +4,9 @@
       <div class="manage-sidebar">
         <button class="manage-tab" :class="{ active: tab === 'general' }" @click="tab = 'general'">General</button>
         <button class="manage-tab" :class="{ active: tab === 'groups' }" @click="tab = 'groups'">Groups</button>
-        <button class="manage-tab" :class="{ active: tab === 'layout' }" @click="tab = 'layout'">Layout &amp; Order</button>
       </div>
 
-      <div class="manage-content" ref="contentEl" @dragover.prevent="onContentDragOver">
+      <div class="manage-content">
         <template v-if="tab === 'general'">
           <p class="help-text">Connection info is managed on the <a href="#" class="settings-link" @click.prevent="openSettings">Settings page</a>.</p>
           <div class="manage-info-row">
@@ -107,38 +106,13 @@
             <div v-if="camera.presets.length === 0" class="no-presets">No presets yet</div>
           </div>
         </template>
-
-        <template v-else-if="tab === 'layout'">
-          <div class="manage-info-row">
-            <span>Thumbnail Columns</span>
-            <select :value="camera.columnCount" @change="setColumnCount($event.target.value)">
-              <option v-for="n in 6" :key="n" :value="n">{{ n }}</option>
-            </select>
-          </div>
-          <p class="detail-title">Drag a tile to reorder</p>
-          <div class="manage-preset-grid" :style="gridStyle">
-            <ManagePresetTile
-              v-for="(p, i) in camera.presets"
-              :key="p.id"
-              :preset="p"
-              draggable="true"
-              class="draggable-tile"
-              :class="{ dragging: dragIndex === i }"
-              @dragstart="onDragStart(i, $event)"
-              @dragenter="onDragEnter(i)"
-              @dragover.prevent="onTileDragOver"
-              @dragend="onDragEnd"
-            />
-            <div v-if="camera.presets.length === 0" class="no-presets">No presets yet</div>
-          </div>
-        </template>
       </div>
     </div>
   </Modal>
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, ref } from 'vue';
+import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import ManagePresetTile from './ManagePresetTile.vue';
 import { api } from '../api.js';
@@ -200,56 +174,4 @@ function toggleMember(g, p, checked) {
 function setColumnCount(value) {
   api.setColumnCount(props.camera.cameraNum, Number(value)).catch((e) => alert(e.message));
 }
-
-const dragIndex = ref(null);
-const contentEl = ref(null);
-const autoScrollMargin = 50;
-const autoScrollMaxSpeed = 14;
-let autoScrollSpeed = 0;
-let autoScrollRAF = null;
-
-function autoScrollStep() {
-  if (contentEl.value) contentEl.value.scrollTop += autoScrollSpeed;
-  autoScrollRAF = requestAnimationFrame(autoScrollStep);
-}
-function stopAutoScroll() {
-  autoScrollSpeed = 0;
-  if (autoScrollRAF !== null) cancelAnimationFrame(autoScrollRAF);
-  autoScrollRAF = null;
-}
-function onContentDragOver(event) {
-  if (dragIndex.value === null || !contentEl.value) return;
-  const rect = contentEl.value.getBoundingClientRect();
-  let speed = 0;
-  if (event.clientY < rect.top + autoScrollMargin) {
-    speed = -Math.ceil(((rect.top + autoScrollMargin - event.clientY) / autoScrollMargin) * autoScrollMaxSpeed);
-  } else if (event.clientY > rect.bottom - autoScrollMargin) {
-    speed = Math.ceil(((event.clientY - (rect.bottom - autoScrollMargin)) / autoScrollMargin) * autoScrollMaxSpeed);
-  }
-  autoScrollSpeed = speed;
-  if (speed !== 0 && autoScrollRAF === null) autoScrollRAF = requestAnimationFrame(autoScrollStep);
-  else if (speed === 0) stopAutoScroll();
-}
-
-function onDragStart(i, event) {
-  dragIndex.value = i;
-  event.dataTransfer.effectAllowed = 'move';
-}
-function onTileDragOver(event) {
-  event.dataTransfer.dropEffect = 'move';
-}
-function onDragEnter(i) {
-  if (dragIndex.value === null || dragIndex.value === i) return;
-  const presets = props.camera.presets;
-  const [moved] = presets.splice(dragIndex.value, 1);
-  presets.splice(i, 0, moved);
-  dragIndex.value = i;
-}
-function onDragEnd() {
-  dragIndex.value = null;
-  stopAutoScroll();
-  api.reorderPresets(props.camera.cameraNum, props.camera.presets.map((p) => p.id)).catch((e) => alert(e.message));
-}
-
-onBeforeUnmount(stopAutoScroll);
 </script>

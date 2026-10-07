@@ -1,3 +1,4 @@
+- presets can now be dragged to reorder on the main page
 - minor visual improvements
   - active state is a lighter pink
   - auto-queue on is more obvious
@@ -6,3 +7,4 @@
 - manually triggering the queued preset now auto-queues a preset (if enabled)
 - config preview now show thumbnails if any are available
 - when there's duplicate presets, the triggered one will be visually active
+- The new preset modal and rename preset modal now auto-focuses and selects the name
