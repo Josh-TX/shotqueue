@@ -314,12 +314,16 @@ func (s *Store) triggerPreset(cameraNum int, presetID string, allowLive bool) (i
 		s.mu.Unlock()
 		return 0, err
 	}
-	if cam.Queued != nil && cam.Queued.PresetID == preset.ID {
+	wasQueued := cam.Queued != nil && cam.Queued.PresetID == preset.ID
+	if wasQueued {
 		cam.Queued = nil
 	}
 	pid := preset.ID
 	cam.TriggeringPresetID = &pid
 	cam.ActivePresetID = nil
+	if wasQueued {
+		s.autoQueueFillLocked(cam)
+	}
 	cam.TriggerGen++
 	gen := cam.TriggerGen
 	client := cam.Client

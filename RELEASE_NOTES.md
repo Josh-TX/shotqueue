@@ -1,7 +1,5 @@
-- Added right sidebar for toggling camera visibility
-- Presets are preserved when a camera is hidden
-- Loading a config will re-use thumbnails
-- Fixed cmd-click on mac
-- Autosave configs are now preserved more frequently
-- Added context menu for camera section
-- Added favicon
+- minor visual improvements
+  - active state is a lighter pink
+  - auto-queue on is more obvious
+  - live camera is more obvious
+- manually triggering the queued preset now auto-queues a preset (if enabled)
