@@ -957,7 +957,15 @@ h3 {
   border-radius: 3px;
   overflow: hidden;
 }
+.config-preview-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
 .config-preview-swatches {
+  z-index: 1;
   position: absolute;
   top: 2px;
   left: 2px;
@@ -970,6 +978,8 @@ h3 {
   border-radius: 2px;
 }
 .config-preview-rect-name {
+  z-index: 1;
+  text-shadow: 0 0 3px #000;
   position: absolute;
   left: 2px;
   right: 2px;

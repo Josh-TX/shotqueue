@@ -15,6 +15,13 @@
               :style="{ background: groupColor(gi) }"
             />
           </div>
+          <img
+            v-if="p.target && !failed.has(thumbUrl(c, p))"
+            class="config-preview-img"
+            :src="thumbUrl(c, p)"
+            draggable="false"
+            @error="failed.add(thumbUrl(c, p))"
+          />
           <div class="config-preview-rect-name">{{ p.name }}</div>
         </div>
       </div>
@@ -23,7 +30,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { groupColor } from '../colors.js';
 import { cameraName } from '../store.js';
 
@@ -55,6 +62,12 @@ const unitWidth = computed(() => {
 
 function columnWidth(c) {
   return unitWidth.value * c.columnCount + GAP * (c.columnCount - 1);
+}
+
+const failed = reactive(new Set());
+function thumbUrl(c, p) {
+  const t = p.target;
+  return `/api/thumbnail-match?camera=${c.cameraNum}&pan=${t.pan}&tilt=${t.tilt}&zoom=${t.zoom}`;
 }
 
 function groupIndexesFor(c, presetIdx) {

@@ -14,6 +14,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"shotqueue-backend/internal/config"
+	"shotqueue-backend/internal/ptz"
 	"shotqueue-backend/internal/settings"
 	"shotqueue-backend/internal/state"
 )
@@ -53,6 +54,7 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/cameras", s.handleCameras)
 	mux.HandleFunc("/api/cameras/", s.handleCameraSubroutes)
 	mux.HandleFunc("/api/presets/", s.handlePresetThumbnail)
+	mux.HandleFunc("/api/thumbnail-match", s.handleThumbnailMatch)
 	mux.HandleFunc("/api/settings", s.handleSettings)
 	mux.HandleFunc("/api/settings/cameras", s.handleSettingsCameras)
 	mux.HandleFunc("/api/settings/cameras/", s.handleSettingsCameraSubroutes)
@@ -176,6 +178,27 @@ func (s *Server) handlePresetThumbnail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "image/jpeg")
+	w.Write(thumb)
+}
+
+// GET /api/thumbnail-match?camera=&pan=&tilt=&zoom= -> thumbnail of the nearest current preset, 204 if none
+func (s *Server) handleThumbnailMatch(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	cam, ok1 := atoi(q.Get("camera"))
+	pan, ok2 := atoi(q.Get("pan"))
+	tilt, ok3 := atoi(q.Get("tilt"))
+	zoom, ok4 := atoi(q.Get("zoom"))
+	if !ok1 || !ok2 || !ok3 || !ok4 {
+		http.NotFound(w, r)
+		return
+	}
+	thumb := s.store.MatchThumbnail(cam, ptz.Position{Pan: pan, Tilt: tilt, Zoom: zoom})
+	if thumb == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	w.Header().Set("Content-Type", "image/jpeg")
+	w.Header().Set("Cache-Control", "no-cache")
 	w.Write(thumb)
 }
 

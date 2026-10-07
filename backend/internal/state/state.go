@@ -437,4 +437,16 @@ func (s *Store) PresetThumbnail(presetID string) ([]byte, bool) {
 	return p.Thumbnail, true
 }
 
+// MatchThumbnail returns the thumbnail of the current preset on cameraNum nearest to target
+// (within positionTolerance), if any.
+func (s *Store) MatchThumbnail(cameraNum int, target ptz.Position) []byte {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cam := s.findCameraLocked(cameraNum)
+	if cam == nil {
+		return nil
+	}
+	return nearestThumbnail(cam.Presets, target)
+}
+
 var ErrNotFound = errors.New("not found")

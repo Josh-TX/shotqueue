@@ -3,3 +3,4 @@
   - auto-queue on is more obvious
   - live camera is more obvious
 - manually triggering the queued preset now auto-queues a preset (if enabled)
+- config preview now show thumbnails if any are available
