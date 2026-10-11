@@ -3,6 +3,8 @@
 - improved focus behavior
   - now performes a one-touch focus when a preset becomes active
   - added the ability to "lock focus", where the current focus setting becomes part of the preset and no one-touch focus happens. 
+- live camera is even more obvious
+- atem connection more eager to reconnect (5s instead of 10s)
 
 # 0.6.0
 

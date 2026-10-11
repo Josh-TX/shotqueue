@@ -23,7 +23,7 @@ const (
 	maxPacketID = 1 << 15
 
 	handshakeRetryInterval = 2 * time.Second
-	establishedTimeout     = 10 * time.Second // no packets received for this long => connection considered dead
+	establishedTimeout     = 5 * time.Second // no packets received for this long => connection considered dead
 )
 
 const (

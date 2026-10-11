@@ -23,7 +23,7 @@ import (
 
 const (
 	handshakeRetryInterval = 2 * time.Second
-	establishedTimeout     = 10 * time.Second // no packets received for this long => connection considered dead
+	establishedTimeout     = 5 * time.Second // no packets received for this long => connection considered dead
 )
 
 // Listener connects to one ATEM's tally feed and invokes OnChange whenever live/preview changes.
@@ -46,9 +46,12 @@ type Listener struct {
 func (l *Listener) Run(ctx context.Context) {
 	backoff := time.Second
 	for {
-		err := l.connectAndRun(ctx)
+		connected, err := l.connectAndRun(ctx)
 		if ctx.Err() != nil {
 			return
+		}
+		if connected {
+			backoff = time.Second
 		}
 		if err != nil {
 			log.Printf("[atem] disconnected from %s: %v", l.Host, err)
@@ -64,14 +67,14 @@ func (l *Listener) Run(ctx context.Context) {
 	}
 }
 
-func (l *Listener) connectAndRun(ctx context.Context) (err error) {
+func (l *Listener) connectAndRun(ctx context.Context) (connected bool, err error) {
 	addr, err := net.ResolveUDPAddr("udp4", fmt.Sprintf("%s:%d", l.Host, atemPort))
 	if err != nil {
-		return fmt.Errorf("invalid ATEM host %q: %w", l.Host, err)
+		return false, fmt.Errorf("invalid ATEM host %q: %w", l.Host, err)
 	}
 	conn, err := net.DialUDP("udp4", nil, addr)
 	if err != nil {
-		return fmt.Errorf("dial: %w", err)
+		return false, fmt.Errorf("dial: %w", err)
 	}
 	defer conn.Close()
 
@@ -86,7 +89,6 @@ func (l *Listener) connectAndRun(ctx context.Context) (err error) {
 	l.state = newSwitcherState()
 	l.mu.Unlock()
 
-	connected := false
 	defer func() {
 		if connected && l.OnDisconnect != nil {
 			l.OnDisconnect()
@@ -110,10 +112,10 @@ func (l *Listener) connectAndRun(ctx context.Context) (err error) {
 		n, err := conn.Read(buf)
 		if err != nil {
 			if established {
-				return fmt.Errorf("no data from switcher for %s", establishedTimeout)
+				return connected, fmt.Errorf("no data from switcher for %s", establishedTimeout)
 			}
 			if ctx.Err() != nil {
-				return ctx.Err()
+				return connected, ctx.Err()
 			}
 			l.send(commandConnectHello)
 			continue
