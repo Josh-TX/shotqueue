@@ -321,7 +321,18 @@ h3 {
   min-height: 0;
 }
 .camera-column.live {
-  background: linear-gradient(to right, rgba(239, 68, 68, 0.08), #141316 100px, #141316 calc(100% - 100px), rgba(239, 68, 68, 0.08));
+  position: relative;
+  background: #23171c;
+}
+.camera-column.live::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 80px;
+  background: linear-gradient(to top, rgba(239, 68, 68, 0.5) 0%, rgba(239, 68, 68, 0.18) 5%, rgba(239, 68, 68, 0.07) 30%, rgba(239, 68, 68, 0) 100%);
+  pointer-events: none;
 }
 .camera-column-header {
   display: flex;
