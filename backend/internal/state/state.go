@@ -38,6 +38,14 @@ const idlePollInterval = 1 * time.Second
 // own convergence and repeated reads aren't bit-exact.
 const positionTolerance = 6
 
+// focusModePollInterval is how often the poll loop re-checks each camera's focus mode (Manual vs
+// Auto), to flag cameras that have drifted into continuous auto focus.
+const focusModePollInterval = 8 * time.Second
+
+// postMoveAFDelay is how long after a preset settles (and goes active) before one-touch AF fires
+// for presets without a locked focus.
+const postMoveAFDelay = 250 * time.Millisecond
+
 type LogicError struct {
 	Message string
 	Status  int
@@ -72,6 +80,7 @@ type Preset struct {
 	Thumbnail        []byte
 	ThumbnailVersion int
 	WasTaken         bool
+	LockedFocus      *int // nil = not locked; the camera one-touch auto-focuses after arriving instead
 }
 
 type Queued struct {
@@ -97,6 +106,8 @@ type Camera struct {
 	nextGroupID        int
 	Generating         bool
 	PollError          string // "" or "401", set when polling the camera fails
+	AutoFocus          bool   // camera reported continuous auto focus mode on the last check
+	lastModeCheck      time.Time
 }
 
 type Store struct {
@@ -195,6 +206,9 @@ func (s *Store) pollTick() {
 			}
 		}
 		if s.PollError(cam) != beforeErr {
+			changed = true
+		}
+		if s.refreshFocusModeIfDue(cam.CameraNum) {
 			changed = true
 		}
 	}

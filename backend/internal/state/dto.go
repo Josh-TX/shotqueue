@@ -5,6 +5,7 @@ type PresetDTO struct {
 	Name             string `json:"name"`
 	ThumbnailVersion *int   `json:"thumbnailVersion"`
 	WasTaken         bool   `json:"wasTaken"`
+	FocusLocked      bool   `json:"focusLocked"`
 }
 
 type CameraDTO struct {
@@ -20,6 +21,7 @@ type CameraDTO struct {
 	ActivePresetID     *string     `json:"activePresetId"`
 	Generating         bool        `json:"generating"`
 	Error              string      `json:"error"`
+	AutoFocus          bool        `json:"autoFocus"`
 }
 
 func presetDTO(p *Preset) PresetDTO {
@@ -33,6 +35,7 @@ func presetDTO(p *Preset) PresetDTO {
 		Name:             p.Name,
 		ThumbnailVersion: version,
 		WasTaken:         p.WasTaken,
+		FocusLocked:      p.LockedFocus != nil,
 	}
 }
 
@@ -61,6 +64,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		ActivePresetID:     activePresetIDLocked(cam),
 		Generating:         cam.Generating,
 		Error:              cam.PollError,
+		AutoFocus:          cam.AutoFocus,
 	}
 }
 

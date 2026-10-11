@@ -30,14 +30,20 @@ plain-text body — errors are also `200`, encoded as `eR1:<cmd>` in the body, n
 
 | cmd | meaning | reply |
 |---|---|---|
-| `#PTV` | get pan+tilt+zoom (+dummy focus/iris) | `pTV` + pan(4hex) + tilt(4hex) + zoom(3hex) + `555555` |
+| `#PTV` | get pan+tilt+zoom+focus (+dummy iris) | `pTV` + pan(4hex) + tilt(4hex) + zoom(3hex) + focus(3hex) + `555` |
+| `#AXF` / `#AXF<3hex>` | get / set focus position (ignored in auto mode) | `axf` + focus(3hex) |
+| `#D1` / `#D1<0\|1>` | get / set focus mode (0 manual, 1 auto) | `d1` + mode |
 | `#APC` | get pan+tilt | `aPC` + pan(4hex) + tilt(4hex) |
 | `#APC<pan4hex><tilt4hex>` | set pan+tilt | echoes the target immediately |
 | `#GZ` | get zoom | `gz` + zoom(3hex) |
 | `#AXZ<zoom3hex>` | set zoom | echoes the target immediately |
 | anything else | unsupported | `eR1:<cmd>` |
 
-Focus/iris aren't modeled — `#PTV` always reports a fixed `555`/`555` for them.
+Iris isn't modeled — `#PTV` always reports a fixed `555` for it. Start with `--auto-focus` to begin in auto focus mode.
+
+### `GET /cgi-bin/aw_cam?cmd=<cmd>&res=1`
+
+`OSE:69:1` (push auto focus) jumps focus to a random position when in manual mode; replies `OSE:69:1`.
 
 ### Gradual moves
 
@@ -102,7 +108,7 @@ support — the real camera can do Basic too, and that's enough to exercise auth
 
 - Digest auth
 - Resolution selection (`#RZL`) — output is always 640×360
-- Focus/iris control
+- Iris control
 - Presets, speed-based PTZ moves, any command outside the table above
 - Real error codes (`eR2`, `eR3`) — out-of-range PTZ values are clamped visually rather than
   rejected

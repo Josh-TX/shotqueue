@@ -14,6 +14,7 @@
     <div v-else class="preset-thumb-placeholder">No thumbnail</div>
     <div class="preset-thumb-gradient" />
     <div class="preset-thumb-name">{{ preset.name }}</div>
+    <span v-if="preset.focusLocked" class="focus-lock-badge" title="Focus locked">F</span>
     <span v-if="selectedGroupMember" class="group-swatch" :style="{ background: groupColor(selectedGroupMember.index) }" />
     <!-- temporary debug indicator for wasTaken, remove once the auto-queue logic is verified -->
     <svg v-if="preset.wasTaken" class="preset-thumb-debug" title="wasTaken" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" /></svg>
@@ -121,12 +122,25 @@ const menu = ref(null);
 function openMenu(e) {
   menu.value = { x: e.clientX, y: e.clientY };
 }
+function setFocusLock(locked) {
+  const call = locked ? api.lockFocus : api.unlockFocus;
+  call(props.camera.cameraNum, props.preset.id).catch((e) => alert(e.message));
+}
 const menuItems = computed(() => [
-  {
-    label: isQueued.value ? 'Unqueue Preset' : 'Queue Preset',
-    disabled: isActive.value || isTriggering.value,
-    action: toggleQueue,
-  },
+  // Locked presets can always be unlocked; on the active preset the focus item takes the place of
+  // the (then pointless) disabled queue item.
+  ...(props.preset.focusLocked ? [{ label: 'Unlock Focus', action: () => setFocusLock(false) }] : []),
+  ...(isActive.value
+    ? props.preset.focusLocked
+      ? []
+      : [{ label: 'Lock Focus', action: () => setFocusLock(true) }]
+    : [
+        {
+          label: isQueued.value ? 'Unqueue Preset' : 'Queue Preset',
+          disabled: isTriggering.value,
+          action: toggleQueue,
+        },
+      ]),
   { divider: true },
   ...props.camera.groups.map((g, i) => ({
     checkbox: true,

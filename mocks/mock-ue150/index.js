@@ -49,9 +49,12 @@ function parseArgs(argv) {
 	let imagePath
 	let auth = 'off'
 	let port = 8080
+	let autoFocus = false
 	for (const arg of argv) {
 		if (arg.startsWith('--auth=')) {
 			auth = arg.slice('--auth='.length)
+		} else if (arg === '--auto-focus') {
+			autoFocus = true
 		} else if (arg.startsWith('--port=')) {
 			port = parseInt(arg.slice('--port='.length), 10)
 		} else if (!arg.startsWith('--')) {
@@ -59,13 +62,13 @@ function parseArgs(argv) {
 		}
 	}
 	const authMode = auth === 'basic' || auth === 'digest' ? auth : 'off'
-	return { imagePath, authMode, port }
+	return { imagePath, authMode, port, autoFocus }
 }
 
-const { imagePath, authMode, port } = parseArgs(process.argv.slice(2))
+const { imagePath, authMode, port, autoFocus: startAutoFocus } = parseArgs(process.argv.slice(2))
 
 if (!imagePath) {
-	console.error('Usage: node index.js <imagePath> [--auth=basic|digest] [--port=8080]')
+	console.error('Usage: node index.js <imagePath> [--auth=basic|digest] [--port=8080] [--auto-focus]')
 	process.exit(1)
 }
 
@@ -81,6 +84,8 @@ let zoomMove = null
 let pan = 0x8000
 let tilt = 0x8000
 let zoom = ZOOM_MIN
+let focus = 0x800
+let autoFocusMode = startAutoFocus // --auto-focus starts the mock in continuous AF (#D1 = 1)
 
 function toHex(value, width) {
 	return value.toString(16).toUpperCase().padStart(width, '0')
@@ -176,7 +181,7 @@ function handlePtz(url, res) {
 
 	if (body === 'PTV') {
 		const { pan: livePan, tilt: liveTilt } = livePanTilt()
-		res.end('pTV' + toHex(livePan, 4) + toHex(liveTilt, 4) + toHex(liveZoom(), 3) + '555555')
+		res.end('pTV' + toHex(livePan, 4) + toHex(liveTilt, 4) + toHex(liveZoom(), 3) + toHex(focus, 3) + '555')
 		return
 	}
 	if (body === 'APC') {
@@ -203,7 +208,40 @@ function handlePtz(url, res) {
 		res.end('axz' + toHex(toZoom, 3))
 		return
 	}
+	if (body === 'AXF') {
+		res.end('axf' + toHex(focus, 3))
+		return
+	}
+	const setFocus = /^AXF([0-9A-Fa-f]{3})$/.exec(body)
+	if (setFocus) {
+		// real cameras ignore focus position changes in auto mode
+		if (!autoFocusMode) focus = clamp(parseInt(setFocus[1], 16), 0x555, 0xfff)
+		res.end('axf' + toHex(focus, 3))
+		return
+	}
+	if (body === 'D1') {
+		res.end('d1' + (autoFocusMode ? '1' : '0'))
+		return
+	}
+	const setMode = /^D1([01])$/.exec(body)
+	if (setMode) {
+		autoFocusMode = setMode[1] === '1'
+		res.end('d1' + setMode[1])
+		return
+	}
 	res.end('eR1:' + body)
+}
+
+function handleCam(url, res) {
+	const cmd = url.searchParams.get('cmd') || ''
+	res.writeHead(200, { 'Content-Type': 'text/plain' })
+	if (cmd === 'OSE:69:1') {
+		// push auto focus: pretend it lands somewhere new (manual mode only)
+		if (!autoFocusMode) focus = 0x555 + Math.floor(Math.random() * (0xfff - 0x555))
+		res.end('OSE:69:1')
+		return
+	}
+	res.end('ER1:' + cmd)
 }
 
 async function handleView(url, res) {
@@ -232,6 +270,8 @@ const server = http.createServer(async (req, res) => {
 	try {
 		if (url.pathname === '/cgi-bin/aw_ptz') {
 			handlePtz(url, res)
+		} else if (url.pathname === '/cgi-bin/aw_cam') {
+			handleCam(url, res)
 		} else if (url.pathname === '/cgi-bin/view.cgi') {
 			await handleView(url, res)
 		} else {

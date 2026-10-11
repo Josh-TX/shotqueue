@@ -64,6 +64,8 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 		s.handleQueuePreset(w, r, camNum, rest[1])
 	case len(rest) == 3 && rest[0] == "presets" && rest[2] == "position":
 		s.handleUpdatePresetPosition(w, r, camNum, rest[1])
+	case len(rest) == 3 && rest[0] == "presets" && rest[2] == "focus-lock":
+		s.handleFocusLock(w, r, camNum, rest[1])
 	case len(rest) == 1 && rest[0] == "queue":
 		s.handleUnqueue(w, r, camNum)
 	case len(rest) == 1 && rest[0] == "selected-group":

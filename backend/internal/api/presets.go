@@ -145,3 +145,23 @@ func (s *Server) handleSelectedGroup(w http.ResponseWriter, r *http.Request, cam
 	dto, _ := s.store.PublicCamera(camNum)
 	writeJSON(w, 200, dto)
 }
+
+// handleFocusLock: POST locks the preset's focus to the camera's current focus, DELETE unlocks it.
+func (s *Server) handleFocusLock(w http.ResponseWriter, r *http.Request, camNum int, presetID string) {
+	var err error
+	switch r.Method {
+	case http.MethodPost:
+		err = s.store.LockFocus(camNum, presetID)
+	case http.MethodDelete:
+		err = s.store.UnlockFocus(camNum, presetID)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err != nil {
+		writeLogicError(w, err)
+		return
+	}
+	dto, _ := s.store.PublicCamera(camNum)
+	writeJSON(w, 200, dto)
+}

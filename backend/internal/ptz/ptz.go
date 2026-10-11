@@ -23,6 +23,9 @@ const (
 	tiltMax = panMax
 	zoomMin = 0x555
 	zoomMax = 0xfff
+
+	focusMin = 0x555
+	focusMax = 0xfff
 )
 
 type Position struct {
@@ -94,7 +97,15 @@ func clamp(value, min, max int) int {
 }
 
 func (c *Client) camGet(cmd string) (string, error) {
-	uri := fmt.Sprintf("/cgi-bin/aw_ptz?cmd=%%23%s&res=1", cmd)
+	return c.cgiGet(fmt.Sprintf("/cgi-bin/aw_ptz?cmd=%%23%s&res=1", cmd))
+}
+
+// awCamGet sends a command on the aw_cam endpoint, which (unlike aw_ptz) takes no '#' prefix.
+func (c *Client) awCamGet(cmd string) (string, error) {
+	return c.cgiGet(fmt.Sprintf("/cgi-bin/aw_cam?cmd=%s&res=1", cmd))
+}
+
+func (c *Client) cgiGet(uri string) (string, error) {
 	url := fmt.Sprintf("http://%s:%s%s", c.Host, c.Port, uri)
 	resp, err := c.authedGet(url, uri)
 	if err != nil {
@@ -158,6 +169,46 @@ func (c *Client) SetPositionRaw(pos Position) error {
 		return err
 	}
 	return nil
+}
+
+// GetFocus reads the lens focus position (focusMin near .. focusMax far) from #PTV's focus field.
+func (c *Client) GetFocus() (int, error) {
+	body, err := c.camGet("PTV")
+	if err != nil {
+		return 0, err
+	}
+	if len(body) < 17 {
+		return 0, fmt.Errorf("unexpected response: %s", body)
+	}
+	focus, err := strconv.ParseInt(body[14:17], 16, 32)
+	if err != nil {
+		return 0, err
+	}
+	return int(focus), nil
+}
+
+// SetFocus moves the lens to an exact focus position. Only takes effect in Manual focus mode.
+func (c *Client) SetFocus(focus int) error {
+	_, err := c.camGet(fmt.Sprintf("AXF%s", toHex(clamp(focus, focusMin, focusMax), 3)))
+	return err
+}
+
+// OneTouchFocus runs a single auto-focus pass (Push Auto Focus). Only works in Manual focus mode.
+func (c *Client) OneTouchFocus() error {
+	_, err := c.awCamGet("OSE:69:1")
+	return err
+}
+
+// IsAutoFocus reports whether the camera is in continuous auto focus mode (as opposed to Manual).
+func (c *Client) IsAutoFocus() (bool, error) {
+	body, err := c.camGet("D1")
+	if err != nil {
+		return false, err
+	}
+	if len(body) < 3 || !strings.HasPrefix(body, "d1") {
+		return false, fmt.Errorf("unexpected response: %s", body)
+	}
+	return body[2] == '1', nil
 }
 
 // Snapshot fetches one JPEG frame from the camera.
