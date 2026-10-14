@@ -6,6 +6,25 @@ A web server to assist in automated PTZ-camera preset triggering. For live-produ
 
 
 
+## Usage
+
+```
+shotqueue [-p|--port <port>]
+```
+
+| Flag | Env var | Default | Description |
+|---|---|---|---|
+| `-p`, `--port` | `SHOTQUEUE_PORT` | `8080` | port to serve the API and web UI on |
+
+
+## Building
+
+```
+make build      # builds the frontend, then ./shotqueue with the frontend embedded
+```
+
+The frontend is only embedded when built with `-tags embed_frontend` (`make backend` does this). A plain `go build` in `backend/` works without Node, but serves no UI. For development, run `go run .` in `backend/` and `npm run dev` in `frontend/`.
+
 ## Testing / debugging with mocks
 
 VSCode compound **"shotqueue+mocks"** (`.vscode/launch.json`) launches everything at once:

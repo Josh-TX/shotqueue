@@ -21,10 +21,8 @@ jobs:
         run: npm ci && npm run build
         working-directory: frontend
 
-      - name: Embed frontend into backend
-        run: |
-          find backend/webdist -mindepth 1 ! -name placeholder -delete
-          cp -r frontend/dist/. backend/webdist/
+      - name: Verify frontend built
+        run: test -f backend/internal/webui/dist/index.html
 
       - uses: actions/setup-go@v5
         with:
@@ -32,7 +30,7 @@ jobs:
 
       - name: Build binaries
         run: |
-          LDFLAGS="-s -w"
+          LDFLAGS="-s -w -X main.version=${GITHUB_REF_NAME}"
           mkdir -p ../dist
           declare -A targets=(
             ["linux-amd64"]="linux/amd64"
@@ -47,6 +45,7 @@ jobs:
             [ "$OS" = "windows" ] && OUT="${OUT}.exe"
             CGO_ENABLED=0 GOOS=$OS GOARCH=$ARCH go build \
               -trimpath \
+              -tags embed_frontend \
               -ldflags="$LDFLAGS" \
               -o "$OUT" .
           done

@@ -3,6 +3,10 @@ import vue from '@vitejs/plugin-vue';
 
 export default defineConfig({
   plugins: [vue()],
+  build: {
+    outDir: '../backend/internal/webui/dist',
+    emptyOutDir: true,
+  },
   server: {
     port: 5173,
     proxy: {
