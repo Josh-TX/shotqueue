@@ -70,8 +70,10 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 		s.handleUnqueue(w, r, camNum)
 	case len(rest) == 1 && rest[0] == "selected-group":
 		s.handleSelectedGroup(w, r, camNum)
-	case len(rest) == 1 && rest[0] == "group-count":
-		s.handleGroupCount(w, r, camNum)
+	case len(rest) == 1 && rest[0] == "sequence-mode":
+		s.handleSequenceMode(w, r, camNum)
+	case len(rest) == 1 && rest[0] == "groups":
+		s.handleGroups(w, r, camNum)
 	case len(rest) == 1 && rest[0] == "preset-order":
 		s.handleReorderPresets(w, r, camNum)
 	case len(rest) == 2 && rest[0] == "groups":

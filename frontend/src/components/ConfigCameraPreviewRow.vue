@@ -12,7 +12,7 @@
               v-for="gi in groupIndexesFor(c, pIdx)"
               :key="gi"
               class="config-preview-swatch"
-              :style="{ background: groupColor(gi) }"
+              :style="{ background: groupColor(c.groups[gi], gi) }"
             />
           </div>
           <img

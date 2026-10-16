@@ -19,7 +19,7 @@
           :key="g.id"
           type="checkbox"
           class="g-checkbox"
-          :style="{ '--group-color': groupColor(i) }"
+          :style="{ '--group-color': groupColor(g, i) }"
           :title="g.name"
           :value="g.id"
           v-model="groupIds"

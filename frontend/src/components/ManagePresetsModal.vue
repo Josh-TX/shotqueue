@@ -15,12 +15,6 @@
               <option v-for="n in 6" :key="n" :value="n">{{ n }}</option>
             </select>
           </div>
-          <div class="manage-info-row">
-            <span>Number of Groups</span>
-            <select :value="camera.groups.length" @change="setGroupCount($event.target.value)">
-              <option v-for="n in 4" :key="n" :value="n">{{ n }}</option>
-            </select>
-          </div>
 
           <div class="general-actions">
             <button @click="openAddPreset">+ Add Preset</button>
@@ -61,29 +55,55 @@
 
         <template v-else-if="tab === 'groups'">
           <p class="help-text">Groups allow you to have presets auto-queued when you go off of live.</p>
-          <p class="help-text">In random Mode, presets will be auto-queued at random among presets in the group.</p>
-          <p class="help-text">In sequence Mode, the next preset in the group will be auto-queued.</p>
           <div class="manage-info-row">
-            <span>Number of Groups</span>
-            <select :value="camera.groups.length" @change="setGroupCount($event.target.value)">
-              <option v-for="n in 4" :key="n" :value="n">{{ n }}</option>
-            </select>
+            <span>Selection Mode</span>
+            <div class="manage-radio-group">
+              <label><input type="radio" :checked="!camera.isSequence" @change="setSequenceMode('random')" /> Random</label>
+              <label><input type="radio" :checked="camera.isSequence" @change="setSequenceMode('sequence')" /> Sequence</label>
+            </div>
           </div>
 
           <div class="manage-group-names">
-            <div v-for="(g, i) in camera.groups" :key="g.id" class="manage-group-name-row">
-              <span class="manage-group-swatch" :style="{ background: groupColor(i) }" />
-              <input
-                type="text"
-                :value="g.name"
-                @blur="renameGroup(g, $event.target.value)"
-                @keyup.enter="$event.target.blur()"
-              />
-              <select :value="g.isSequence ? 'sequence' : 'random'" @change="setGroupMode(g, $event.target.value)">
-                <option value="random">Random Mode</option>
-                <option value="sequence">Sequence Mode</option>
-              </select>
-            </div>
+            <template v-for="(g, i) in camera.groups" :key="g.id">
+              <div class="manage-group-name-row">
+                <div class="manage-group-color-wrap">
+                  <button
+                    type="button"
+                    class="manage-group-swatch-btn"
+                    title="Change color"
+                    @click="colorPickerId = colorPickerId === g.id ? null : g.id"
+                  >
+                    <span class="manage-group-swatch" :style="{ background: groupColor(g, i) }" />
+                  </button>
+                  <template v-if="colorPickerId === g.id">
+                    <div class="manage-group-colors-backdrop" @click="colorPickerId = null" />
+                    <div class="manage-group-colors">
+                      <button
+                        v-for="c in GROUP_COLORS"
+                        :key="c"
+                        type="button"
+                        class="manage-group-color-opt"
+                        :class="{ active: groupColor(g, i) === c }"
+                        :style="{ background: c }"
+                        @click="setGroupColor(g, c)"
+                      />
+                    </div>
+                  </template>
+                </div>
+                <input
+                  type="text"
+                  :value="g.name"
+                  @blur="renameGroup(g, $event.target.value)"
+                  @keyup.enter="$event.target.blur()"
+                />
+                <button type="button" class="naked-btn" title="Delete group" @click="deleteGroup(g)">&times;</button>
+              </div>
+            </template>
+          </div>
+
+          <div class="general-actions group-add-row">
+            <button v-if="camera.groups.length < MAX_GROUPS" @click="addGroup">+ Add Group</button>
+            <span v-else class="help-text">(max {{ MAX_GROUPS }} groups)</span>
           </div>
 
           <div class="manage-preset-grid" :style="gridStyle">
@@ -95,7 +115,7 @@
                     :key="g.id"
                     type="checkbox"
                     class="g-checkbox"
-                    :style="{ '--group-color': groupColor(i) }"
+                    :style="{ '--group-color': groupColor(g, i) }"
                     :title="g.name"
                     :checked="g.members.includes(p.id)"
                     @change="toggleMember(g, p, $event.target.checked)"
@@ -117,12 +137,13 @@ import Modal from './Modal.vue';
 import ManagePresetTile from './ManagePresetTile.vue';
 import { api } from '../api.js';
 import { cameraName } from '../store.js';
-import { groupColor } from '../colors.js';
+import { groupColor, GROUP_COLORS, MAX_GROUPS } from '../colors.js';
 
 const props = defineProps({ camera: Object, unitWidth: Number, initialTab: { type: String, default: 'general' } });
 const emit = defineEmits(['close', 'add-preset', 'reposition', 'open-settings']);
 
 const tab = ref(props.initialTab);
+const colorPickerId = ref(null);
 
 const MIN_TILE_WIDTH = 160;
 const tileWidth = computed(() => Math.max(MIN_TILE_WIDTH, props.unitWidth));
@@ -157,15 +178,23 @@ function openSettings() {
   emit('open-settings');
 }
 
-function setGroupCount(value) {
-  api.setGroupCount(props.camera.cameraNum, Number(value)).catch((e) => alert(e.message));
+function addGroup() {
+  api.addGroup(props.camera.cameraNum).catch((e) => alert(e.message));
+}
+function deleteGroup(g) {
+  if (!confirm(`Delete group "${g.name}"?`)) return;
+  api.deleteGroup(props.camera.cameraNum, g.id).catch((e) => alert(e.message));
+}
+function setGroupColor(g, color) {
+  colorPickerId.value = null;
+  api.updateGroup(props.camera.cameraNum, g.id, { color }).catch((e) => alert(e.message));
 }
 function renameGroup(g, name) {
   if (!name.trim()) return;
   api.updateGroup(props.camera.cameraNum, g.id, { name: name.trim() }).catch((e) => alert(e.message));
 }
-function setGroupMode(g, value) {
-  api.updateGroup(props.camera.cameraNum, g.id, { isSequence: value === 'sequence' }).catch((e) => alert(e.message));
+function setSequenceMode(value) {
+  api.setSequenceMode(props.camera.cameraNum, value === 'sequence').catch((e) => alert(e.message));
 }
 function toggleMember(g, p, checked) {
   api.setMember(props.camera.cameraNum, g.id, p.id, { inGroup: checked }).catch((e) => alert(e.message));

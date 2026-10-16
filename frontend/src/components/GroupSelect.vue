@@ -23,7 +23,7 @@
         :class="{ active: modelValue === g.id }"
         @click="choose(g.id)"
       >
-        <span class="group-select-swatch" :style="{ background: groupColor(i) }" />
+        <span class="group-select-swatch" :style="{ background: groupColor(g, i) }" />
         <span class="group-select-option-name">{{ g.name }}</span>
       </button>
     </div>
@@ -34,7 +34,7 @@
 import { computed, nextTick, ref } from 'vue';
 import { groupColor } from '../colors.js';
 
-const props = defineProps({ modelValue: { type: Number, default: null }, groups: { type: Array, default: () => [] } });
+const props = defineProps({ modelValue: { type: Number, default: null }, groups: { type: Array, default: () => [] }, isSequence: Boolean });
 const emit = defineEmits(['update:modelValue']);
 
 const open = ref(false);
@@ -69,6 +69,6 @@ function choose(id) {
 
 const selectedIndex = computed(() => props.groups.findIndex((g) => g.id === props.modelValue));
 const selectedLabel = computed(() => (selectedIndex.value >= 0 ? props.groups[selectedIndex.value].name : 'None'));
-const selectedColor = computed(() => (selectedIndex.value >= 0 ? groupColor(selectedIndex.value) : null));
-const selectedMode = computed(() => (selectedIndex.value >= 0 ? (props.groups[selectedIndex.value].isSequence ? 'SEQ' : 'RAND') : ''));
+const selectedColor = computed(() => (selectedIndex.value >= 0 ? groupColor(props.groups[selectedIndex.value], selectedIndex.value) : null));
+const selectedMode = computed(() => (selectedIndex.value >= 0 ? (props.isSequence ? 'SEQ' : 'RAND') : ''));
 </script>

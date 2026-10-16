@@ -3,6 +3,7 @@ package state
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
 	"shotqueue-backend/internal/config"
@@ -36,13 +37,15 @@ func (s *Store) BuildSnapshot() ([]config.ConfigCamera, []config.ConfigScene) {
 			Presets:     make([]config.ConfigPreset, len(cam.Presets)),
 			Groups:      make([]config.ConfigGroup, len(cam.Groups)),
 		}
+		isSeq := cam.IsSequence
+		vc.SequenceMode = &isSeq
 		for j, p := range cam.Presets {
 			presetIndex[p.ID] = j
 			vc.Presets[j] = config.ConfigPreset{Name: p.Name, Target: p.Target, LockedFocus: p.LockedFocus}
 		}
 		for j, g := range cam.Groups {
 			groupIndex[g.ID] = j
-			vg := config.ConfigGroup{Name: g.Name, Members: make([]int, 0, len(g.Members)), IsSequence: g.IsSequence}
+			vg := config.ConfigGroup{Name: g.Name, Members: make([]int, 0, len(g.Members)), IsSequence: cam.IsSequence, Color: g.Color}
 			for _, presetID := range g.Members {
 				if idx, ok := presetIndex[presetID]; ok {
 					vg.Members = append(vg.Members, idx)
@@ -65,6 +68,7 @@ type LoadSeed struct {
 	Password    string
 	ColumnCount int
 	IsHidden    bool
+	IsSequence  bool
 	Presets     []config.ConfigPreset
 	Groups      []config.ConfigGroup
 }
@@ -90,6 +94,7 @@ func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (
 			Password:    cs.Password,
 			ColumnCount: cc.ColumnCount,
 			IsHidden:    cc.IsHidden,
+			IsSequence:  cc.SequenceMode == nil || *cc.SequenceMode,
 			Presets:     cc.Presets,
 			Groups:      cc.Groups,
 		})
@@ -100,7 +105,7 @@ func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (
 		}
 		groups := make([]config.ConfigGroup, DefaultGroupCount)
 		for i := range groups {
-			groups[i] = config.ConfigGroup{Name: fmt.Sprintf("Group %d", i+1), Members: []int{}}
+			groups[i] = config.ConfigGroup{Name: fmt.Sprintf("Group %d", i+1), Members: []int{}, Color: GroupColors[i%len(GroupColors)]}
 		}
 		seeds = append(seeds, LoadSeed{
 			CameraNum:   cs.CameraNum,
@@ -110,6 +115,7 @@ func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (
 			Password:    cs.Password,
 			ColumnCount: DefaultColumnCount,
 			IsHidden:    true,
+			IsSequence:  true,
 			Groups:      groups,
 		})
 	}
@@ -156,6 +162,7 @@ func (s *Store) LoadConfig(seeds []LoadSeed, scenes []config.ConfigScene) error 
 			CameraNum:   seed.CameraNum,
 			ColumnCount: seed.ColumnCount,
 			IsHidden:    seed.IsHidden,
+			IsSequence:  seed.IsSequence,
 			Client:      ptz.New(seed.Host, seed.Port, seed.Username, seed.Password),
 			Status:      "none",
 			nextGroupID: 1,
@@ -168,8 +175,12 @@ func (s *Store) LoadConfig(seeds []LoadSeed, scenes []config.ConfigScene) error 
 			presetsByID[p.ID] = p
 			presetIDByIndex[j] = p.ID
 		}
-		for _, vg := range seed.Groups {
-			g := &Group{ID: cam.nextGroupID, Name: vg.Name, IsSequence: vg.IsSequence}
+		for gi, vg := range seed.Groups {
+			color := strings.ToLower(vg.Color)
+			if !validColor(color) {
+				color = GroupColors[gi%4] // legacy: the old per-slot colors
+			}
+			g := &Group{ID: cam.nextGroupID, Name: vg.Name, Color: color}
 			cam.nextGroupID++
 			for _, idx := range vg.Members {
 				if idx >= 0 && idx < len(presetIDByIndex) {

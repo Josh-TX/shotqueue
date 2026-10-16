@@ -1093,10 +1093,49 @@ h3 {
   gap: 8px;
 }
 .manage-group-swatch {
-  width: 14px;
-  height: 14px;
+  display: block;
+  width: 22px;
+  height: 22px;
   border-radius: 4px;
+}
+.manage-group-color-wrap {
+  position: relative;
   flex: 0 0 auto;
+}
+.manage-group-swatch-btn {
+  display: block;
+  padding: 3px;
+  line-height: 0;
+}
+.manage-group-colors-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+.manage-group-colors {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 51;
+  display: grid;
+  grid-template-columns: repeat(4, 22px);
+  gap: 6px;
+  padding: 8px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.45);
+}
+.manage-group-color-opt {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  cursor: pointer;
+}
+.manage-group-color-opt.active {
+  border-color: #fff;
 }
 .manage-group-name-row input {
   flex: 1;
@@ -1137,8 +1176,19 @@ input.preset-thumb-name-input {
   position: absolute;
   top: 5px;
   left: 5px;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 27px);
   gap: 5px;
+}
+.manage-group-checks .g-checkbox {
+  width: 27px;
+  height: 27px;
+}
+.manage-group-checks .g-checkbox:checked::after {
+  left: 8px;
+  top: 3px;
+  width: 6px;
+  height: 13px;
 }
 .general-actions {
   display: flex;
@@ -1244,6 +1294,10 @@ input.preset-thumb-name-input {
   width: 110px;
   padding: 2px 6px;
   margin: -4px 0;
+}
+.manage-info-row select {
+  width: auto;
+  min-width: 110px;
 }
 
 
@@ -1523,4 +1577,30 @@ button.naked-btn:hover:not(:disabled) {
   width: 100%;
   min-width: 0;
   flex: 0 0 auto;
+}
+
+
+.group-add-row {
+  justify-content: flex-end;
+  margin-top: -10px;
+}
+.manage-group-name-row button.naked-btn {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.manage-radio-group {
+  display: flex;
+  gap: 14px;
+  margin: -4px 0;
+}
+.manage-radio-group label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+.manage-radio-group input {
+  width: auto;
+  margin: 0;
 }

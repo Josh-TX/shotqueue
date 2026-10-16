@@ -17,6 +17,7 @@ type CameraDTO struct {
 	Presets            []PresetDTO `json:"presets"`
 	Groups             []Group     `json:"groups"`
 	ColumnCount        int         `json:"columnCount"`
+	IsSequence         bool        `json:"isSequence"`
 	IsHidden           bool        `json:"isHidden"`
 	ActivePresetID     *string     `json:"activePresetId"`
 	Generating         bool        `json:"generating"`
@@ -49,7 +50,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 	for i, g := range cam.Groups {
 		members := make([]string, len(g.Members))
 		copy(members, g.Members)
-		groups[i] = Group{ID: g.ID, Name: g.Name, Members: members, IsSequence: g.IsSequence}
+		groups[i] = Group{ID: g.ID, Name: g.Name, Members: members, Color: g.Color}
 	}
 	return CameraDTO{
 		CameraNum:          cam.CameraNum,
@@ -60,6 +61,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		Presets:            presets,
 		Groups:             groups,
 		ColumnCount:        cam.ColumnCount,
+		IsSequence:         cam.IsSequence,
 		IsHidden:           cam.IsHidden,
 		ActivePresetID:     activePresetIDLocked(cam),
 		Generating:         cam.Generating,

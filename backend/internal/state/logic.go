@@ -1,10 +1,10 @@
 package state
 
 import (
-	"fmt"
 	"log"
 	"math/rand"
 	"strconv"
+	"strings"
 	"time"
 
 	"shotqueue-backend/internal/atem"
@@ -611,7 +611,7 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 		reservedID = activePresetIDLocked(cam)
 	}
 
-	if group.IsSequence {
+	if cam.IsSequence {
 		if next := s.sequenceNextLocked(cam, group, reservedID); next != nil {
 			cam.Queued = &Queued{PresetID: *next, Origin: "auto"}
 		}
@@ -714,7 +714,7 @@ func (s *Store) processOfflive(cameraNum int) {
 
 // ---- groups ----
 
-func (s *Store) UpdateGroup(cameraNum int, groupID int, name *string, isSequence *bool) error {
+func (s *Store) UpdateGroup(cameraNum int, groupID int, name *string, color *string) error {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
@@ -735,14 +735,12 @@ func (s *Store) UpdateGroup(cameraNum int, groupID int, name *string, isSequence
 	if name != nil && *name != "" {
 		group.Name = *name
 	}
-	if isSequence != nil && *isSequence != group.IsSequence {
-		group.IsSequence = *isSequence
-		if cam.SelectedGroupID != nil && *cam.SelectedGroupID == groupID {
-			if cam.Queued != nil && cam.Queued.Origin == "auto" {
-				cam.Queued = nil
-			}
-			s.autoQueueFillLocked(cam)
+	if color != nil {
+		if !validColor(*color) {
+			s.mu.Unlock()
+			return newErr(400, "color must be #rrggbb")
 		}
+		group.Color = strings.ToLower(*color)
 	}
 	s.mu.Unlock()
 	go s.broadcast()
@@ -750,38 +748,70 @@ func (s *Store) UpdateGroup(cameraNum int, groupID int, name *string, isSequence
 	return nil
 }
 
-// SetGroupCount resizes a camera's group list to exactly count groups (1..MaxGroupCount).
-// Growing appends newly-named default groups ("Group N"); shrinking discards the trailing
-// groups and their membership data.
-func (s *Store) SetGroupCount(cameraNum int, count int) error {
-	if count < 1 || count > MaxGroupCount {
-		return newErr(400, "group count must be between 1 and %d", MaxGroupCount)
+// SetSequenceMode switches a camera's auto-queue mode (true = sequence, false = random), re-filling
+// an auto-queued preset under the new mode.
+func (s *Store) SetSequenceMode(cameraNum int, isSequence bool) error {
+	s.mu.Lock()
+	cam := s.findCameraLocked(cameraNum)
+	if cam == nil {
+		s.mu.Unlock()
+		return newErr(404, "camera not found")
 	}
+	if cam.IsSequence != isSequence {
+		cam.IsSequence = isSequence
+		if cam.Queued != nil && cam.Queued.Origin == "auto" {
+			cam.Queued = nil
+		}
+		s.autoQueueFillLocked(cam)
+	}
+	s.mu.Unlock()
+	go s.broadcast()
+	go s.onMutate()
+	return nil
+}
+
+// AddGroup appends a new default-named, auto-colored group (up to MaxGroups).
+func (s *Store) AddGroup(cameraNum int) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		return newErr(404, "camera not found")
 	}
-	if count > len(cam.Groups) {
-		for i := len(cam.Groups); i < count; i++ {
-			cam.Groups = append(cam.Groups, &Group{ID: cam.nextGroupID, Name: fmt.Sprintf("Group %d", i+1)})
-			cam.nextGroupID++
+	if len(cam.Groups) >= MaxGroups {
+		return newErr(400, "a camera can have at most %d groups", MaxGroups)
+	}
+	newGroupLocked(cam)
+	go s.broadcast()
+	go s.onMutate()
+	return nil
+}
+
+// DeleteGroup removes a group and its membership. Scenes that auto-queued from it and the
+// camera's selection (plus any auto-queued preset) are cleared.
+func (s *Store) DeleteGroup(cameraNum int, groupID int) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	cam := s.findCameraLocked(cameraNum)
+	if cam == nil {
+		return newErr(404, "camera not found")
+	}
+	idx := -1
+	for i, g := range cam.Groups {
+		if g.ID == groupID {
+			idx = i
+			break
 		}
-	} else if count < len(cam.Groups) {
-		removedIDs := map[int]bool{}
-		for _, g := range cam.Groups[count:] {
-			removedIDs[g.ID] = true
-		}
-		cam.Groups = cam.Groups[:count]
-		for id := range removedIDs {
-			s.scrubSceneGroupLocked(cameraNum, id)
-		}
-		if cam.SelectedGroupID != nil && removedIDs[*cam.SelectedGroupID] {
-			cam.SelectedGroupID = nil
-			if cam.Queued != nil && cam.Queued.Origin == "auto" {
-				cam.Queued = nil
-			}
+	}
+	if idx < 0 {
+		return newErr(404, "group not found")
+	}
+	cam.Groups = append(cam.Groups[:idx], cam.Groups[idx+1:]...)
+	s.scrubSceneGroupLocked(cameraNum, groupID)
+	if cam.SelectedGroupID != nil && *cam.SelectedGroupID == groupID {
+		cam.SelectedGroupID = nil
+		if cam.Queued != nil && cam.Queued.Origin == "auto" {
+			cam.Queued = nil
 		}
 	}
 	go s.broadcast()

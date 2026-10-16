@@ -15,7 +15,7 @@
     <div class="preset-thumb-gradient" />
     <div class="preset-thumb-name">{{ preset.name }}</div>
     <span v-if="preset.focusLocked" class="focus-lock-badge" title="Focus locked">F</span>
-    <span v-if="selectedGroupMember" class="group-swatch" :style="{ background: groupColor(selectedGroupMember.index) }" />
+    <span v-if="selectedGroupMember" class="group-swatch" :style="{ background: groupColor(selectedGroupMember, selectedGroupMember.index) }" />
     <!-- temporary debug indicator for wasTaken, remove once the auto-queue logic is verified -->
     <svg v-if="preset.wasTaken" class="preset-thumb-debug" title="wasTaken" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" /></svg>
   </div>
@@ -145,7 +145,7 @@ const menuItems = computed(() => [
   ...props.camera.groups.map((g, i) => ({
     checkbox: true,
     label: g.name,
-    color: groupColor(i),
+    color: groupColor(g, i),
     checked: g.members.includes(props.preset.id),
     onToggle: (checked) => toggleGroup(g, checked),
   })),

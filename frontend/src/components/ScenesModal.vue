@@ -42,6 +42,7 @@
             <GroupSelect
               :model-value="row.entry.groupId ?? null"
               :groups="row.camera.groups"
+              :is-sequence="row.camera.isSequence"
               @update:model-value="patch(row, { groupId: $event })"
             />
             <div v-for="kind in kinds" :key="kind.key" class="scene-slot">

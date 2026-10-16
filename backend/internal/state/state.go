@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"regexp"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 
@@ -58,17 +60,61 @@ func newErr(status int, format string, args ...any) *LogicError {
 }
 
 type Group struct {
-	ID         int      `json:"id"`
-	Name       string   `json:"name"`
-	Members    []string `json:"members"`
-	IsSequence bool     `json:"isSequence"`
+	ID      int      `json:"id"`
+	Name    string   `json:"name"`
+	Members []string `json:"members"`
+	Color   string   `json:"color"` // "#rrggbb"
 }
 
-// MaxGroupCount is the largest group count selectable per camera (see SetGroupCount).
-const MaxGroupCount = 4
+// MaxGroups is the most groups a camera can have (see AddGroup).
+const MaxGroups = 8
 
 // DefaultGroupCount is how many groups a newly added camera starts with.
-const DefaultGroupCount = 2
+const DefaultGroupCount = 1
+
+// GroupColors is the swatch palette. The first 4 are the legacy per-slot colors, which groups
+// without a stored color get by index. Keep in sync with frontend/src/colors.js.
+var GroupColors = []string{"#2f7d4f", "#2f5f9e", "#b0611e", "#a68a1b", "#7a4fa3", "#2a8a8a", "#8a5a3c", "#a8467e"}
+
+var colorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
+
+func validColor(c string) bool { return colorRe.MatchString(c) }
+
+// nextGroupColor returns the first palette color unused by groups, else the least-used one.
+func nextGroupColor(groups []*Group) string {
+	counts := make(map[string]int, len(GroupColors))
+	for _, g := range groups {
+		counts[strings.ToLower(g.Color)]++
+	}
+	best := GroupColors[0]
+	for _, c := range GroupColors {
+		if counts[c] < counts[best] {
+			best = c
+		}
+	}
+	return best
+}
+
+// nextGroupName returns the lowest unused "Group N".
+func nextGroupName(groups []*Group) string {
+	used := make(map[string]bool, len(groups))
+	for _, g := range groups {
+		used[g.Name] = true
+	}
+	for n := 1; ; n++ {
+		if name := fmt.Sprintf("Group %d", n); !used[name] {
+			return name
+		}
+	}
+}
+
+// newGroupLocked appends a default-named, auto-colored group to cam; caller must hold s.mu.
+func newGroupLocked(cam *Camera) *Group {
+	g := &Group{ID: cam.nextGroupID, Name: nextGroupName(cam.Groups), Color: nextGroupColor(cam.Groups), Members: []string{}}
+	cam.nextGroupID++
+	cam.Groups = append(cam.Groups, g)
+	return g
+}
 
 // DefaultColumnCount is the thumbnail-grid column count a newly added camera starts with.
 const DefaultColumnCount = 2
@@ -100,6 +146,7 @@ type Camera struct {
 	Presets            []*Preset
 	Groups             []*Group
 	ColumnCount        int
+	IsSequence         bool // auto-queue mode: next preset in the group (true) or random (false)
 	IsHidden           bool // hidden cameras keep their presets/groups but sit out polling, tally and thumbnail generation
 	SelectedGroupID    *int
 	Queued             *Queued
@@ -285,11 +332,11 @@ func (s *Store) UpsertCamera(seed CameraSeed) *Camera {
 				Client:      ptz.New(seed.Host, seed.Port, seed.Username, seed.Password),
 				Status:      "none",
 				ColumnCount: DefaultColumnCount,
+				IsSequence:  true,
 				nextGroupID: 1,
 			}
 			for i := 0; i < DefaultGroupCount; i++ {
-				cam.Groups = append(cam.Groups, &Group{ID: cam.nextGroupID, Name: fmt.Sprintf("Group %d", i+1)})
-				cam.nextGroupID++
+				newGroupLocked(cam)
 			}
 			s.cameras = append(s.cameras, cam)
 			sortCameras(s.cameras)

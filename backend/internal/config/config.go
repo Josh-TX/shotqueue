@@ -47,9 +47,13 @@ type ConfigPreset struct {
 }
 
 type ConfigGroup struct {
-	Name       string `json:"name"`
-	Members    []int  `json:"members"` // preset indices within the camera's Presets slice
-	IsSequence bool   `json:"isSequence"`
+	Name    string `json:"name"`
+	Members []int  `json:"members"` // preset indices within the camera's Presets slice
+	// Deprecated: the mode is per camera now (ConfigCamera.SequenceMode). Still written, mirroring the
+	// camera, so older builds keep working; ignored on load.
+	IsSequence bool `json:"isSequence"`
+	// "#rrggbb"; omitted/invalid in configs that predate it, in which case load assigns one
+	Color string `json:"color,omitempty"`
 }
 
 type ConfigCamera struct {
@@ -58,6 +62,8 @@ type ConfigCamera struct {
 	IsHidden    bool           `json:"isHidden"`
 	Presets     []ConfigPreset `json:"presets"`
 	Groups      []ConfigGroup  `json:"groups"`
+	// auto-queue mode: true = sequence, false = random. nil (configs that predate it) = sequence.
+	SequenceMode *bool `json:"sequenceMode"`
 }
 
 // ConfigSceneCamera is one camera's slice of a scene. GroupIndex (the auto-queue group) and
