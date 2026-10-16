@@ -275,6 +275,7 @@ func (s *Store) DeletePreset(cameraNum int, presetID string) error {
 	if cam.Queued != nil && cam.Queued.PresetID == presetID {
 		cam.Queued = nil
 	}
+	s.scrubScenePresetLocked(cameraNum, presetID)
 	if cam.ActivePresetID != nil && *cam.ActivePresetID == presetID {
 		cam.ActivePresetID = nil
 	}
@@ -773,6 +774,9 @@ func (s *Store) SetGroupCount(cameraNum int, count int) error {
 			removedIDs[g.ID] = true
 		}
 		cam.Groups = cam.Groups[:count]
+		for id := range removedIDs {
+			s.scrubSceneGroupLocked(cameraNum, id)
+		}
 		if cam.SelectedGroupID != nil && removedIDs[*cam.SelectedGroupID] {
 			cam.SelectedGroupID = nil
 			if cam.Queued != nil && cam.Queued.Origin == "auto" {

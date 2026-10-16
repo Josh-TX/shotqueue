@@ -113,6 +113,7 @@ type Camera struct {
 type Store struct {
 	mu            sync.Mutex
 	cameras       []*Camera
+	scenes        []*Scene
 	presetsByID   map[string]*Preset
 	broadcast     func()
 	onMutate      func()
@@ -292,6 +293,7 @@ func (s *Store) UpsertCamera(seed CameraSeed) *Camera {
 			}
 			s.cameras = append(s.cameras, cam)
 			sortCameras(s.cameras)
+			s.ensureSceneEntriesLocked()
 		} else {
 			cam.Client = ptz.New(seed.Host, seed.Port, seed.Username, seed.Password)
 		}
@@ -371,6 +373,7 @@ func (s *Store) RemoveCamera(cameraNum int) error {
 					delete(s.presetsByID, p.ID)
 				}
 				s.cameras = append(s.cameras[:i], s.cameras[i+1:]...)
+				s.ensureSceneEntriesLocked()
 				return
 			}
 		}

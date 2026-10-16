@@ -60,6 +60,9 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/settings/cameras/", s.handleSettingsCameraSubroutes)
 	mux.HandleFunc("/api/configs", s.handleConfigs)
 	mux.HandleFunc("/api/configs/", s.handleConfigSubroutes)
+	mux.HandleFunc("/api/scenes", s.handleScenes)
+	mux.HandleFunc("/api/scenes/", s.handleSceneSubroutes)
+	mux.HandleFunc("/api/scene-order", s.handleSceneOrder)
 	mux.HandleFunc("/api/thumbnails/generate", s.handleGenThumbnails)
 }
 
@@ -68,11 +71,12 @@ func (s *Server) RegisterRoutes(mux *http.ServeMux) {
 type stateMessage struct {
 	Type          string            `json:"type"`
 	Cameras       []state.CameraDTO `json:"cameras"`
+	Scenes        []state.SceneDTO  `json:"scenes"`
 	AtemConnected bool              `json:"atemConnected"`
 }
 
 func (s *Server) currentStateMessage() stateMessage {
-	return stateMessage{Type: "state", Cameras: s.store.PublicCameras(), AtemConnected: s.store.AtemConnected()}
+	return stateMessage{Type: "state", Cameras: s.store.PublicCameras(), Scenes: s.store.PublicScenes(), AtemConnected: s.store.AtemConnected()}
 }
 
 func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {

@@ -186,6 +186,7 @@ select {
   padding: 4px;
   display: flex;
   flex-direction: column;
+  overflow-y: auto;
 }
 .group-select-option {
   display: flex;
@@ -1267,4 +1268,259 @@ body.mod-held .preset-thumb:not(.static)::after {
 body.is-dragging .preset-thumb::after {
   opacity: 0;
   transition: none;
+}
+
+/* ---- scenes ---- */
+button.naked-btn {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 6px 8px;
+}
+.scenes-menu > button.naked-btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 0 14px;
+  border-radius: 0;
+  font-size: 14px;
+}
+button.naked-btn:hover:not(:disabled) {
+  background: var(--panel3);
+}
+.scenes-menu {
+  position: relative;
+  margin: -8px 0 -8px 12px;
+  align-self: stretch;
+  display: flex;
+}
+.scenes-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+}
+.scenes-menu-list {
+  position: absolute;
+  top: calc(100% + 1px);
+  left: 0;
+  z-index: 91;
+  min-width: 200px;
+  max-height: 70vh;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.7);
+}
+.scenes-menu-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 7px 10px;
+}
+.scenes-menu-item:hover:not(:disabled) {
+  background: var(--panel3);
+}
+.scenes-menu-item.manage {
+  font-weight: 600;
+}
+.scenes-menu-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 0;
+}
+
+.scenes-modal {
+  display: flex;
+  gap: 16px;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+.scenes-sidebar {
+  flex: 0 0 180px;
+  width: 180px;
+  min-width: 0;
+  box-sizing: content-box;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+}
+.scenes-sidebar-list {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.scene-tab {
+  text-align: left;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.scene-tab.active {
+  background: var(--panel3);
+  font-weight: 600;
+}
+.scene-tab.dragging {
+  opacity: 0.4;
+}
+.scenes-content {
+  flex: 0 0 auto;
+  width: max-content;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-right: 16px;
+}
+.modal:has(.scenes-modal) {
+  width: max-content;
+}
+.modal:has(.scenes-modal) .modal-body {
+  padding-left: 12px;
+  padding-right: 0;
+}
+/* the header stretches to the camera rows' width instead of widening the content */
+.scene-header {
+  width: 0;
+  min-width: 100%;
+}
+.scene-header {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+.scene-header input {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 600;
+}
+.scene-camera-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 4px 0;
+  border-bottom: 1px solid var(--border);
+}
+.scene-camera-info {
+  cursor: pointer;
+  flex: 0 0 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.scene-camera-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+.scene-visible {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+.scene-slot {
+  position: relative;
+  flex: 0 0 125px;
+  font-size: 12px;
+}
+.scene-slot-add {
+  flex-direction: column;
+  gap: 0;
+}
+.scene-slot-plus {
+  font-size: 22px;
+  line-height: 1;
+}
+.scene-slot-label {
+  font-size: 11px;
+}
+.scene-slot-clear {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  font-size: 16px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border-color: transparent;
+  color: #fff;
+}
+.scene-slot-clear:hover:not(:disabled) {
+  background: var(--danger);
+}
+.scene-picker {
+  flex: 0 0 300px;
+  overflow: auto;
+  padding-left: 12px;
+  padding-right: 16px;
+  border-left: 1px solid var(--border);
+}
+.scene-picker-title {
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+.scene-picker .manage-preset-grid {
+  grid-template-columns: repeat(2, 1fr);
+}
+.scene-picker-tile {
+  cursor: pointer;
+}
+.scene-picker-tile .preset-thumb:hover {
+  border-color: var(--accent);
+}
+.scene-picker-tile .preset-thumb.picked {
+  border-color: var(--accent);
+}
+.scene-camera-row .group-select {
+  flex: 0 0 220px;
+  width: 220px;
+  min-width: 220px;
+}
+.modal-backdrop .ctx-backdrop {
+  z-index: 110;
+}
+.scene-header input,
+.scene-header button {
+  box-sizing: border-box;
+  height: 36px;
+}
+.scene-header input {
+  min-width: 0;
+}
+.scene-header button.primary {
+  padding: 0 18px;
+}
+.scene-header button.icon-btn {
+  width: 36px;
+  padding: 0;
+  background: var(--panel3);
+  border: 1px solid var(--border);
+}
+.scene-header button.icon-btn:hover {
+  background: #313846;
+}
+.scenes-sidebar > button {
+  width: 100%;
+  margin-top: 8px;
+}
+.scenes-sidebar .scene-tab {
+  width: 100%;
+  min-width: 0;
+  flex: 0 0 auto;
 }

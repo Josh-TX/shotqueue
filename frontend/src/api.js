@@ -50,6 +50,14 @@ export const api = {
   loadConfig: (id, generateThumbnails) =>
     request('POST', `/api/configs/${id}/load`, { generateThumbnails }),
 
+  addScene: () => request('POST', '/api/scenes'),
+  renameScene: (id, name) => request('PATCH', `/api/scenes/${id}`, { name }),
+  deleteScene: (id) => request('DELETE', `/api/scenes/${id}`),
+  duplicateScene: (id) => request('POST', `/api/scenes/${id}/duplicate`),
+  reorderScenes: (order) => request('PATCH', '/api/scene-order', { order }),
+  executeScene: (id) => request('POST', `/api/scenes/${id}/execute`),
+  updateSceneCamera: (id, cameraNum, patch) => request('PATCH', `/api/scenes/${id}/cameras/${cameraNum}`, patch),
+
   genThumbnails: (allowLiveMove, includeExisting) =>
     request('POST', '/api/thumbnails/generate', { allowLiveMove, includeExisting }),
 };

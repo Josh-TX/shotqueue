@@ -3,6 +3,7 @@
     <Navbar
       @settings="showSettings = true"
       @configs="showConfigs = true"
+      @manage-scenes="showScenes = true"
       @gen-thumbnails="showGenThumbnails = true"
       @help="showHelp = true"
     />
@@ -28,6 +29,7 @@
     </div>
 
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
+    <ScenesModal v-if="showScenes" @close="showScenes = false" />
     <ConfigsModal v-if="showConfigs" @close="showConfigs = false" />
     <GenThumbnailsModal v-if="showGenThumbnails" @close="showGenThumbnails = false" />
     <HelpModal v-if="showHelp" @close="showHelp = false" />
@@ -40,6 +42,7 @@ import Navbar from './components/Navbar.vue';
 import CameraColumn from './components/CameraColumn.vue';
 import CameraSidebar from './components/CameraSidebar.vue';
 import SettingsModal from './components/SettingsModal.vue';
+import ScenesModal from './components/ScenesModal.vue';
 import ConfigsModal from './components/ConfigsModal.vue';
 import GenThumbnailsModal from './components/GenThumbnailsModal.vue';
 import HelpModal from './components/HelpModal.vue';
@@ -53,6 +56,7 @@ const COLUMN_OVERHEAD = 12 * 2 + 1;
 
 const showSettings = ref(false);
 const showConfigs = ref(false);
+const showScenes = ref(false);
 const showGenThumbnails = ref(false);
 const showHelp = ref(false);
 

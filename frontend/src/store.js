@@ -3,6 +3,7 @@ import { api } from './api.js';
 
 export const store = reactive({
   cameras: [],
+  scenes: [],
   wsConnected: false,
   atemConnected: false,
 });
@@ -45,6 +46,7 @@ export function connectWebSocket() {
     const msg = JSON.parse(event.data);
     if (msg.type === 'state') {
       mergeStructural(msg.cameras);
+      store.scenes = msg.scenes ?? [];
       store.atemConnected = msg.atemConnected;
     }
   };

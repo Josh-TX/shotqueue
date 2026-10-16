@@ -18,12 +18,17 @@ const (
 // BuildSnapshot captures the current camera roster, presets and groups in the shape saved to a
 // config. IDs are intentionally omitted (see internal/config); group members reference presets
 // by index instead.
-func (s *Store) BuildSnapshot() []config.ConfigCamera {
+func (s *Store) BuildSnapshot() ([]config.ConfigCamera, []config.ConfigScene) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := make([]config.ConfigCamera, len(s.cameras))
+	presetIndexByCam := make(map[int]map[string]int, len(s.cameras))
+	groupIndexByCam := make(map[int]map[int]int, len(s.cameras))
 	for i, cam := range s.cameras {
 		presetIndex := make(map[string]int, len(cam.Presets))
+		groupIndex := make(map[int]int, len(cam.Groups))
+		presetIndexByCam[cam.CameraNum] = presetIndex
+		groupIndexByCam[cam.CameraNum] = groupIndex
 		vc := config.ConfigCamera{
 			CameraNum:   cam.CameraNum,
 			ColumnCount: cam.ColumnCount,
@@ -36,6 +41,7 @@ func (s *Store) BuildSnapshot() []config.ConfigCamera {
 			vc.Presets[j] = config.ConfigPreset{Name: p.Name, Target: p.Target, LockedFocus: p.LockedFocus}
 		}
 		for j, g := range cam.Groups {
+			groupIndex[g.ID] = j
 			vg := config.ConfigGroup{Name: g.Name, Members: make([]int, 0, len(g.Members)), IsSequence: g.IsSequence}
 			for _, presetID := range g.Members {
 				if idx, ok := presetIndex[presetID]; ok {
@@ -46,7 +52,7 @@ func (s *Store) BuildSnapshot() []config.ConfigCamera {
 		}
 		out[i] = vc
 	}
-	return out
+	return out, s.sceneSnapshotLocked(presetIndexByCam, groupIndexByCam)
 }
 
 // LoadSeed is one camera's full state as loaded from a config, joined with its connection info
@@ -132,7 +138,7 @@ func nearestThumbnail(presets []*Preset, target ptz.Position) []byte {
 // memory only) with the given seeds. Presets/groups all get fresh IDs; any in-flight thumbnail
 // generation is implicitly cancelled since it tracks presets by the old IDs. A new preset inherits
 // the thumbnail of the nearest current preset on the same camera within positionTolerance.
-func (s *Store) LoadConfig(seeds []LoadSeed) error {
+func (s *Store) LoadConfig(seeds []LoadSeed, scenes []config.ConfigScene) error {
 	s.genMu.Lock()
 	s.genToken++
 	s.genMu.Unlock()
@@ -143,6 +149,7 @@ func (s *Store) LoadConfig(seeds []LoadSeed) error {
 		oldPresets[cam.CameraNum] = cam.Presets
 	}
 	newCameras := make([]*Camera, len(seeds))
+	presetIDsByCam := make(map[int][]string, len(seeds))
 	presetsByID := make(map[string]*Preset)
 	for i, seed := range seeds {
 		cam := &Camera{
@@ -171,11 +178,13 @@ func (s *Store) LoadConfig(seeds []LoadSeed) error {
 			}
 			cam.Groups = append(cam.Groups, g)
 		}
+		presetIDsByCam[seed.CameraNum] = presetIDByIndex
 		newCameras[i] = cam
 	}
 	sortCameras(newCameras)
 	s.cameras = newCameras
 	s.presetsByID = presetsByID
+	s.loadScenesLocked(scenes, presetIDsByCam)
 	s.mu.Unlock()
 
 	s.broadcast()

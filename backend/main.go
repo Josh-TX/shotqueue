@@ -70,11 +70,14 @@ func main() {
 		if len(dropped) > 0 {
 			log.Printf("dropped cameraNums %v from latest config (no longer in settings)", dropped)
 		}
-		if err := store.LoadConfig(seeds); err != nil {
+		if err := store.LoadConfig(seeds, latest.Scenes); err != nil {
 			log.Fatalf("loading latest config: %v", err)
 		}
 	}
-	store.SetOnMutate(func() { configStore.Autosave(store.BuildSnapshot()) })
+	store.SetOnMutate(func() {
+		cams, scenes := store.BuildSnapshot()
+		configStore.Autosave(cams, scenes)
+	})
 
 	supervisor := &atemSupervisor{store: store}
 

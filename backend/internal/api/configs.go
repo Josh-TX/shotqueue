@@ -23,8 +23,8 @@ func (s *Server) handleConfigs(w http.ResponseWriter, r *http.Request) {
 			writeError(w, 400, "name is required")
 			return
 		}
-		snapshot := s.store.BuildSnapshot()
-		c, err := s.config.SaveNamed(body.Name, snapshot)
+		snapshot, scenes := s.store.BuildSnapshot()
+		c, err := s.config.SaveNamed(body.Name, snapshot, scenes)
 		if err != nil {
 			writeError(w, 500, err.Error())
 			return
@@ -87,7 +87,7 @@ func (s *Server) handleLoadConfig(w http.ResponseWriter, r *http.Request, id str
 	if len(dropped) > 0 {
 		log.Printf("[api] load config %s: dropped cameraNums %v (no longer in settings)", id, dropped)
 	}
-	if err := s.store.LoadConfig(seeds); err != nil {
+	if err := s.store.LoadConfig(seeds, c.Scenes); err != nil {
 		writeLogicError(w, err)
 		return
 	}

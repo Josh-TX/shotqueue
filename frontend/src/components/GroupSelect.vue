@@ -10,7 +10,7 @@
     </button>
 
     <div v-if="open" class="group-select-backdrop" @click="close" @contextmenu.prevent="close" />
-    <div v-if="open" class="group-select-menu" :style="menuStyle">
+    <div v-if="open" ref="menuEl" class="group-select-menu" :style="menuStyle">
       <button type="button" class="group-select-option" :class="{ active: !modelValue }" @click="choose(null)">
         <span class="group-select-swatch none" />
         <span class="group-select-option-name">None</span>
@@ -31,7 +31,7 @@
 </template>
 
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
 import { groupColor } from '../colors.js';
 
 const props = defineProps({ modelValue: { type: Number, default: null }, groups: { type: Array, default: () => [] } });
@@ -39,13 +39,25 @@ const emit = defineEmits(['update:modelValue']);
 
 const open = ref(false);
 const triggerEl = ref(null);
+const menuEl = ref(null);
 const menuStyle = ref({});
-function toggle() {
-  if (!open.value) {
-    const rect = triggerEl.value.getBoundingClientRect();
-    menuStyle.value = { top: rect.bottom + 4 + 'px', left: rect.left + 'px', minWidth: rect.width + 'px' };
+async function toggle() {
+  if (open.value) {
+    open.value = false;
+    return;
   }
-  open.value = !open.value;
+  const rect = triggerEl.value.getBoundingClientRect();
+  const style = { top: rect.bottom + 4 + 'px', left: rect.left + 'px', minWidth: rect.width + 'px', maxHeight: window.innerHeight - rect.bottom - 12 + 'px' };
+  menuStyle.value = style;
+  open.value = true;
+  // flip above the trigger when it doesn't fit below
+  await nextTick();
+  const h = menuEl.value?.scrollHeight ?? 0;
+  const below = window.innerHeight - rect.bottom - 12;
+  const above = rect.top - 12;
+  if (h > below && above > below) {
+    menuStyle.value = { bottom: window.innerHeight - rect.top + 4 + 'px', left: style.left, minWidth: style.minWidth, maxHeight: above + 'px' };
+  }
 }
 function close() {
   open.value = false;

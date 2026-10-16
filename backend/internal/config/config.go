@@ -60,12 +60,29 @@ type ConfigCamera struct {
 	Groups      []ConfigGroup  `json:"groups"`
 }
 
+// ConfigSceneCamera is one camera's slice of a scene. GroupIndex (the auto-queue group) and
+// Trigger/Queue (presets) are indices within that camera's Groups/Presets slices, nil for none.
+type ConfigSceneCamera struct {
+	CameraNum  int  `json:"cameraNum"`
+	IsHidden   bool `json:"isHidden"`
+	GroupIndex *int `json:"groupIndex"`
+	Trigger    *int `json:"trigger"`
+	Queue      *int `json:"queue"`
+}
+
+type ConfigScene struct {
+	Name    string              `json:"name"`
+	Cameras []ConfigSceneCamera `json:"cameras"`
+}
+
 type Config struct {
 	ID        string         `json:"id"`
 	Type      string         `json:"type"` // "named" | "autosave"
 	Name      string         `json:"name"` // empty for autosave
 	Timestamp int64          `json:"timestamp"`
 	Cameras   []ConfigCamera `json:"cameras"`
+	// omitted when empty, so configs stay readable by versions that predate scenes
+	Scenes []ConfigScene `json:"scenes,omitempty"`
 }
 
 type Store struct {
@@ -151,13 +168,14 @@ func (s *Store) Get(id string) (Config, bool) {
 
 // SaveNamed creates a new named config, or overwrites the existing one whose name matches
 // case-insensitively, refreshing its timestamp either way.
-func (s *Store) SaveNamed(name string, snapshot []ConfigCamera) (Config, error) {
+func (s *Store) SaveNamed(name string, snapshot []ConfigCamera, scenes []ConfigScene) (Config, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	lower := strings.ToLower(name)
 	for i := range s.configs {
 		if s.configs[i].Type == "named" && strings.ToLower(s.configs[i].Name) == lower {
 			s.configs[i].Cameras = snapshot
+			s.configs[i].Scenes = scenes
 			s.configs[i].Timestamp = time.Now().UnixMilli()
 			if err := s.saveLocked(); err != nil {
 				return Config{}, err
@@ -165,7 +183,7 @@ func (s *Store) SaveNamed(name string, snapshot []ConfigCamera) (Config, error) 
 			return s.configs[i], nil
 		}
 	}
-	c := Config{ID: genID(), Type: "named", Name: name, Timestamp: time.Now().UnixMilli(), Cameras: snapshot}
+	c := Config{ID: genID(), Type: "named", Name: name, Timestamp: time.Now().UnixMilli(), Cameras: snapshot, Scenes: scenes}
 	s.configs = append(s.configs, c)
 	if err := s.saveLocked(); err != nil {
 		return Config{}, err
@@ -222,11 +240,11 @@ func (s *Store) latestAutosaveIdxLocked() int {
 // autosaves are always the last two states. The entry that just became 3rd newest is then dropped
 // unless it is at least autosaveHistoryGap newer than the 4th newest, which thins older history to
 // roughly that spacing. Autosaves beyond AutosaveKeepCount are evicted afterward.
-func (s *Store) Autosave(snapshot []ConfigCamera) error {
+func (s *Store) Autosave(snapshot []ConfigCamera, scenes []ConfigScene) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.configs = append(s.configs, Config{ID: genID(), Type: "autosave", Timestamp: time.Now().UnixMilli(), Cameras: snapshot})
+	s.configs = append(s.configs, Config{ID: genID(), Type: "autosave", Timestamp: time.Now().UnixMilli(), Cameras: snapshot, Scenes: scenes})
 
 	// autosave indices, newest first: [0]=new, [1]=previous latest, [2]=candidate, [3]=older neighbor
 	var idxs []int
