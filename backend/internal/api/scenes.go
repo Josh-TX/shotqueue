@@ -130,6 +130,8 @@ func (s *Server) handleSceneCamera(w http.ResponseWriter, r *http.Request, id st
 	var body struct {
 		IsHidden        *bool           `json:"isHidden"`
 		GroupID         json.RawMessage `json:"groupId"`
+		GroupIDs        []int           `json:"groupIds"`
+		GroupMode       string          `json:"groupMode"`
 		TriggerPresetID json.RawMessage `json:"triggerPresetId"`
 		QueuePresetID   json.RawMessage `json:"queuePresetId"`
 	}
@@ -140,6 +142,8 @@ func (s *Server) handleSceneCamera(w http.ResponseWriter, r *http.Request, id st
 	patch := state.SceneCameraPatch{IsHidden: body.IsHidden}
 	if body.GroupID != nil {
 		patch.SetGroup = true
+		patch.GroupIDs = body.GroupIDs
+		patch.GroupMode = body.GroupMode
 		if err := json.Unmarshal(body.GroupID, &patch.GroupID); err != nil {
 			writeError(w, 400, "invalid groupId")
 			return

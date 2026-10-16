@@ -72,8 +72,11 @@ type ConfigSceneCamera struct {
 	CameraNum  int  `json:"cameraNum"`
 	IsHidden   bool `json:"isHidden"`
 	GroupIndex *int `json:"groupIndex"`
-	Trigger    *int `json:"trigger"`
-	Queue      *int `json:"queue"`
+	// multi-group auto-queue: GroupMode "alternate"|"union" with GroupIndexes (GroupIndex is nil then)
+	GroupIndexes []int  `json:"groupIndexes,omitempty"`
+	GroupMode    string `json:"groupMode,omitempty"`
+	Trigger      *int   `json:"trigger"`
+	Queue        *int   `json:"queue"`
 }
 
 type ConfigScene struct {

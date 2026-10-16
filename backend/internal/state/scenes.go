@@ -19,7 +19,9 @@ type Scene struct {
 type SceneCamera struct {
 	CameraNum       int
 	IsHidden        bool
-	GroupID         *int    // auto-queue group; nil = auto-queue off
+	GroupID         *int    // auto-queue group; nil = auto-queue off (or multi, see GroupMode)
+	GroupIDs        []int   // multi-group auto-queue selection, list order
+	GroupMode       string  // "" | "alternate" | "union"
 	TriggerPresetID *string // nil = don't trigger anything
 	QueuePresetID   *string // nil = leave the camera's queue alone
 }
@@ -28,6 +30,8 @@ type SceneCameraDTO struct {
 	CameraNum       int     `json:"cameraNum"`
 	IsHidden        bool    `json:"isHidden"`
 	GroupID         *int    `json:"groupId"`
+	GroupIDs        []int   `json:"groupIds"`
+	GroupMode       string  `json:"groupMode"`
 	TriggerPresetID *string `json:"triggerPresetId"`
 	QueuePresetID   *string `json:"queuePresetId"`
 }
@@ -66,6 +70,8 @@ func (s *Store) PublicScenes() []SceneDTO {
 				CameraNum:       c.CameraNum,
 				IsHidden:        c.IsHidden,
 				GroupID:         copyInt(c.GroupID),
+				GroupIDs:        append([]int{}, c.GroupIDs...),
+				GroupMode:       c.GroupMode,
 				TriggerPresetID: copyStr(c.TriggerPresetID),
 				QueuePresetID:   copyStr(c.QueuePresetID),
 			}
@@ -126,8 +132,17 @@ func (s *Store) scrubScenePresetLocked(cameraNum int, presetID string) {
 func (s *Store) scrubSceneGroupLocked(cameraNum int, groupID int) {
 	for _, sc := range s.scenes {
 		for _, c := range sc.Cameras {
-			if c.CameraNum == cameraNum && c.GroupID != nil && *c.GroupID == groupID {
+			if c.CameraNum != cameraNum {
+				continue
+			}
+			if c.GroupID != nil && *c.GroupID == groupID {
 				c.GroupID = nil
+			}
+			if c.GroupMode != "" {
+				c.GroupIDs = removeInt(c.GroupIDs, groupID)
+				if len(c.GroupIDs) == 0 {
+					c.GroupMode = ""
+				}
 			}
 		}
 	}
@@ -168,6 +183,7 @@ func (s *Store) DuplicateScene(id string) (SceneDTO, error) {
 		for _, c := range src.Cameras {
 			cc := *c
 			cc.GroupID = copyInt(c.GroupID)
+			cc.GroupIDs = append([]int{}, c.GroupIDs...)
 			cc.TriggerPresetID = copyStr(c.TriggerPresetID)
 			cc.QueuePresetID = copyStr(c.QueuePresetID)
 			dup.Cameras = append(dup.Cameras, &cc)
@@ -266,6 +282,8 @@ type SceneCameraPatch struct {
 	IsHidden           *bool
 	SetGroup           bool
 	GroupID            *int
+	GroupIDs           []int
+	GroupMode          string
 	SetTriggerPresetID bool
 	TriggerPresetID    *string
 	SetQueuePresetID   bool
@@ -295,16 +313,26 @@ func (s *Store) UpdateSceneCamera(sceneID string, cameraNum int, p SceneCameraPa
 			err = newErr(404, "camera not in scene")
 			return
 		}
-		if p.SetGroup && p.GroupID != nil {
-			found := false
-			for _, g := range cam.Groups {
-				if g.ID == *p.GroupID {
-					found = true
-				}
-			}
-			if !found {
-				err = newErr(404, "group not found")
+		if p.SetGroup {
+			if p.GroupMode != "" && p.GroupMode != ModeAlternate && p.GroupMode != ModeUnion {
+				err = newErr(400, "invalid group mode")
 				return
+			}
+			check := p.GroupIDs
+			if p.GroupID != nil {
+				check = append(append([]int{}, check...), *p.GroupID)
+			}
+			for _, id := range check {
+				found := false
+				for _, g := range cam.Groups {
+					if g.ID == id {
+						found = true
+					}
+				}
+				if !found {
+					err = newErr(404, "group not found")
+					return
+				}
 			}
 		}
 		if p.SetTriggerPresetID && p.TriggerPresetID != nil && s.findPresetLocked(cam, *p.TriggerPresetID) == nil {
@@ -319,7 +347,8 @@ func (s *Store) UpdateSceneCamera(sceneID string, cameraNum int, p SceneCameraPa
 			entry.IsHidden = *p.IsHidden
 		}
 		if p.SetGroup {
-			entry.GroupID = p.GroupID
+			sel := normalizeSel(cam, AutoSel{GroupID: p.GroupID, GroupIDs: p.GroupIDs, Mode: p.GroupMode})
+			entry.GroupID, entry.GroupIDs, entry.GroupMode = sel.GroupID, sel.GroupIDs, sel.Mode
 		}
 		if p.SetTriggerPresetID {
 			entry.TriggerPresetID = p.TriggerPresetID
@@ -354,6 +383,8 @@ func (s *Store) ExecuteScene(id string) error {
 			CameraNum:       c.CameraNum,
 			IsHidden:        c.IsHidden,
 			GroupID:         copyInt(c.GroupID),
+			GroupIDs:        append([]int{}, c.GroupIDs...),
+			GroupMode:       c.GroupMode,
 			TriggerPresetID: copyStr(c.TriggerPresetID),
 			QueuePresetID:   copyStr(c.QueuePresetID),
 		}
@@ -368,8 +399,8 @@ func (s *Store) ExecuteScene(id string) error {
 			continue
 		}
 		hiddenChanged := cam.IsHidden != e.IsHidden
-		groupChanged := (cam.SelectedGroupID == nil) != (e.GroupID == nil) ||
-			(cam.SelectedGroupID != nil && e.GroupID != nil && *cam.SelectedGroupID != *e.GroupID)
+		want := AutoSel{GroupID: e.GroupID, GroupIDs: e.GroupIDs, Mode: e.GroupMode}
+		groupChanged := !sameSel(AutoSel{GroupID: cam.SelectedGroupID, GroupIDs: cam.SelectedGroupIDs, Mode: cam.SelectedMode}, want)
 		s.mu.Unlock()
 
 		if hiddenChanged {
@@ -381,7 +412,7 @@ func (s *Store) ExecuteScene(id string) error {
 			continue
 		}
 		if groupChanged {
-			if err := s.SetSelectedGroup(e.CameraNum, e.GroupID); err != nil {
+			if err := s.SetAutoQueue(e.CameraNum, want); err != nil {
 				log.Printf("[state] scene %s camera %d: set auto-queue failed: %v", id, e.CameraNum, err)
 			}
 		}
@@ -423,6 +454,14 @@ func (s *Store) sceneSnapshotLocked(presetIndex map[int]map[string]int, groupInd
 					cc.GroupIndex = &idx
 				}
 			}
+			if c.GroupMode != "" {
+				cc.GroupMode = c.GroupMode
+				for _, id := range c.GroupIDs {
+					if idx, ok := groupIndex[c.CameraNum][id]; ok {
+						cc.GroupIndexes = append(cc.GroupIndexes, idx)
+					}
+				}
+			}
 			if c.TriggerPresetID != nil {
 				if idx, ok := presetIndex[c.CameraNum][*c.TriggerPresetID]; ok {
 					cc.Trigger = &idx
@@ -456,6 +495,16 @@ func (s *Store) loadScenesLocked(scenes []config.ConfigScene, presetIDsByCam map
 				id := cam.Groups[*cc.GroupIndex].ID
 				c.GroupID = &id
 			}
+			if cc.GroupMode != "" {
+				var gids []int
+				for _, gi := range cc.GroupIndexes {
+					if gi >= 0 && gi < len(cam.Groups) {
+						gids = append(gids, cam.Groups[gi].ID)
+					}
+				}
+				sel := normalizeSel(cam, AutoSel{GroupIDs: gids, Mode: cc.GroupMode})
+				c.GroupIDs, c.GroupMode = sel.GroupIDs, sel.Mode
+			}
 			ids := presetIDsByCam[cc.CameraNum]
 			if cc.Trigger != nil && *cc.Trigger >= 0 && *cc.Trigger < len(ids) {
 				id := ids[*cc.Trigger]
@@ -470,4 +519,14 @@ func (s *Store) loadScenesLocked(scenes []config.ConfigScene, presetIDsByCam map
 		s.scenes = append(s.scenes, sc)
 	}
 	s.ensureSceneEntriesLocked()
+}
+
+func removeInt(xs []int, v int) []int {
+	out := make([]int, 0, len(xs))
+	for _, x := range xs {
+		if x != v {
+			out = append(out, x)
+		}
+	}
+	return out
 }

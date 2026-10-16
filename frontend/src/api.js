@@ -37,7 +37,7 @@ export const api = {
   queuePreset: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/queue`),
   unqueue: (camId) => request('DELETE', `/api/cameras/${camId}/queue`),
 
-  setSelectedGroup: (camId, groupId) => request('POST', `/api/cameras/${camId}/selected-group`, { groupId }),
+  setAutoQueue: (camId, { groupId, groupIds, mode }) => request('POST', `/api/cameras/${camId}/selected-group`, { groupId, groupIds, mode }),
 
   setSequenceMode: (camId, isSequence) => request('PATCH', `/api/cameras/${camId}/sequence-mode`, { isSequence }),
   addGroup: (camId) => request('POST', `/api/cameras/${camId}/groups`),

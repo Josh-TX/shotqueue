@@ -3,6 +3,8 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+
+	"shotqueue-backend/internal/state"
 )
 
 func (s *Server) handleAddPreset(w http.ResponseWriter, r *http.Request, camNum int) {
@@ -132,13 +134,15 @@ func (s *Server) handleSelectedGroup(w http.ResponseWriter, r *http.Request, cam
 		return
 	}
 	var body struct {
-		GroupID *int `json:"groupId"`
+		GroupID  *int   `json:"groupId"`
+		GroupIDs []int  `json:"groupIds"`
+		Mode     string `json:"mode"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, 400, "invalid body")
 		return
 	}
-	if err := s.store.SetSelectedGroup(camNum, body.GroupID); err != nil {
+	if err := s.store.SetAutoQueue(camNum, state.AutoSel{GroupID: body.GroupID, GroupIDs: body.GroupIDs, Mode: body.Mode}); err != nil {
 		writeLogicError(w, err)
 		return
 	}

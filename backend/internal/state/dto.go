@@ -13,6 +13,8 @@ type CameraDTO struct {
 	Status             string      `json:"status"`
 	TriggeringPresetID *string     `json:"triggeringPresetId"`
 	SelectedGroupID    *int        `json:"selectedGroupId"`
+	SelectedGroupIDs   []int       `json:"selectedGroupIds"`
+	SelectedMode       string      `json:"selectedMode"`
 	Queued             *Queued     `json:"queued"`
 	Presets            []PresetDTO `json:"presets"`
 	Groups             []Group     `json:"groups"`
@@ -57,6 +59,8 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		Status:             cam.Status,
 		TriggeringPresetID: cam.TriggeringPresetID,
 		SelectedGroupID:    cam.SelectedGroupID,
+		SelectedGroupIDs:   append([]int{}, cam.SelectedGroupIDs...),
+		SelectedMode:       cam.SelectedMode,
 		Queued:             cam.Queued,
 		Presets:            presets,
 		Groups:             groups,

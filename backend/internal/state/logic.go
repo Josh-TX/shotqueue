@@ -556,17 +556,119 @@ func (s *Store) UnqueuePreset(cameraNum int) error {
 	return nil
 }
 
+// Multi-group auto-queue modes (Camera.SelectedMode).
+const (
+	ModeAlternate = "alternate"
+	ModeUnion     = "union"
+)
+
+// AutoSel is an auto-queue selection: none (all zero), a single group (GroupID), or several groups
+// (Mode + GroupIDs).
+type AutoSel struct {
+	GroupID  *int
+	GroupIDs []int
+	Mode     string
+}
+
+// normalizeSel validates sel against cam's groups: multi mode keeps only existing groups (deduped,
+// in list order) and falls back to none if empty; non-multi drops GroupIDs.
+func normalizeSel(cam *Camera, sel AutoSel) AutoSel {
+	if sel.Mode != ModeAlternate && sel.Mode != ModeUnion {
+		return AutoSel{GroupID: sel.GroupID}
+	}
+	var ids []int
+	for _, g := range cam.Groups {
+		for _, id := range sel.GroupIDs {
+			if g.ID == id {
+				ids = append(ids, id)
+				break
+			}
+		}
+	}
+	if len(ids) == 0 {
+		return AutoSel{}
+	}
+	return AutoSel{GroupIDs: ids, Mode: sel.Mode}
+}
+
+func sameSel(a, b AutoSel) bool {
+	a.GroupIDs, b.GroupIDs = append([]int{}, a.GroupIDs...), append([]int{}, b.GroupIDs...)
+	if (a.GroupID == nil) != (b.GroupID == nil) || (a.GroupID != nil && *a.GroupID != *b.GroupID) {
+		return false
+	}
+	if a.Mode != b.Mode || len(a.GroupIDs) != len(b.GroupIDs) {
+		return false
+	}
+	for i := range a.GroupIDs {
+		if a.GroupIDs[i] != b.GroupIDs[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// selectedGroupsLocked returns the groups auto-queue draws from. Single: that group. Alternate:
+// each selected group in list order. Union: one synthetic group holding the deduped union.
+func (s *Store) selectedGroupsLocked(cam *Camera) []*Group {
+	if cam.SelectedMode == "" {
+		if cam.SelectedGroupID == nil {
+			return nil
+		}
+		for _, g := range cam.Groups {
+			if g.ID == *cam.SelectedGroupID {
+				return []*Group{g}
+			}
+		}
+		return nil
+	}
+	var groups []*Group
+	for _, g := range cam.Groups {
+		for _, id := range cam.SelectedGroupIDs {
+			if g.ID == id {
+				groups = append(groups, g)
+				break
+			}
+		}
+	}
+	if cam.SelectedMode == ModeAlternate {
+		return groups
+	}
+	seen := map[string]bool{}
+	union := &Group{}
+	for _, g := range groups {
+		for _, id := range g.Members {
+			if !seen[id] {
+				seen[id] = true
+				union.Members = append(union.Members, id)
+			}
+		}
+	}
+	return []*Group{union}
+}
+
 func (s *Store) SetSelectedGroup(cameraNum int, groupID *int) error {
+	return s.SetAutoQueue(cameraNum, AutoSel{GroupID: groupID})
+}
+
+// SetAutoQueue changes the camera's auto-queue selection. An auto-queued preset is dropped and
+// refilled, except in multi mode where it's kept as long as it's still in the selection (so
+// toggling another group on doesn't disturb what's queued).
+func (s *Store) SetAutoQueue(cameraNum int, sel AutoSel) error {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
 		return newErr(404, "camera not found")
 	}
+	sel = normalizeSel(cam, sel)
 	prevQueued := cam.Queued
-	cam.SelectedGroupID = groupID
+	changed := !sameSel(AutoSel{GroupID: cam.SelectedGroupID, GroupIDs: cam.SelectedGroupIDs, Mode: cam.SelectedMode}, sel)
+	cam.SelectedGroupID, cam.SelectedGroupIDs, cam.SelectedMode = sel.GroupID, sel.GroupIDs, sel.Mode
+	if changed {
+		cam.altLast, cam.altLastGroup = nil, 0
+	}
 
-	if groupID == nil {
+	if sel.GroupID == nil && sel.Mode == "" {
 		if prevQueued != nil && prevQueued.Origin == "auto" {
 			cam.Queued = nil
 		}
@@ -575,6 +677,19 @@ func (s *Store) SetSelectedGroup(cameraNum int, groupID *int) error {
 		return nil
 	}
 
+	if prevQueued != nil && prevQueued.Origin == "auto" && sel.Mode != "" {
+		for _, g := range s.selectedGroupsLocked(cam) {
+			if containsStr(g.Members, prevQueued.PresetID) {
+				if sel.Mode == ModeAlternate && cam.altLastGroup == 0 {
+					cam.altLastGroup = g.ID
+					cam.altLast = map[int]string{g.ID: prevQueued.PresetID}
+				}
+				s.mu.Unlock()
+				s.broadcast()
+				return nil
+			}
+		}
+	}
 	if prevQueued == nil || prevQueued.Origin == "auto" {
 		cam.Queued = nil
 		s.autoQueueFillLocked(cam)
@@ -584,7 +699,16 @@ func (s *Store) SetSelectedGroup(cameraNum int, groupID *int) error {
 	return nil
 }
 
-// autoQueueFillLocked picks the next preset to auto-queue from the camera's selected group. Each
+func containsStr(xs []string, v string) bool {
+	for _, x := range xs {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
+// autoQueueFillLocked picks the next preset to auto-queue from the camera's selected group(s). Each
 // preset in the group carries a WasTaken bit, set (and reset once the whole group has cycled
 // through) in markLive when it actually goes on air.
 //
@@ -592,17 +716,11 @@ func (s *Store) SetSelectedGroup(cameraNum int, groupID *int) error {
 // so before its own WasTaken bit flips), so it's treated as taken here too via reservedID - both to
 // exclude it from candidates and to detect a group that's completing its cycle right now.
 func (s *Store) autoQueueFillLocked(cam *Camera) {
-	if cam.SelectedGroupID == nil || cam.Queued != nil {
+	if cam.Queued != nil {
 		return
 	}
-	var group *Group
-	for _, g := range cam.Groups {
-		if g.ID == *cam.SelectedGroupID {
-			group = g
-			break
-		}
-	}
-	if group == nil || len(group.Members) == 0 {
+	groups := s.selectedGroupsLocked(cam)
+	if len(groups) == 0 {
 		return
 	}
 
@@ -611,11 +729,51 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 		reservedID = activePresetIDLocked(cam)
 	}
 
-	if cam.IsSequence {
-		if next := s.sequenceNextLocked(cam, group, reservedID); next != nil {
+	if cam.SelectedMode != ModeAlternate {
+		if next := s.pickFromGroupLocked(cam, groups[0], reservedID, reservedID); next != nil {
 			cam.Queued = &Queued{PresetID: *next, Origin: "auto"}
 		}
 		return
+	}
+
+	// alternate: rotate through the groups in list order, starting after the last one used
+	start := 0
+	for i, g := range groups {
+		if g.ID == cam.altLastGroup {
+			start = i + 1
+		}
+	}
+	for i := 0; i < len(groups); i++ {
+		g := groups[(start+i)%len(groups)]
+		var ref *string
+		if last, ok := cam.altLast[g.ID]; ok {
+			ref = &last
+		}
+		next := s.pickFromGroupLocked(cam, g, reservedID, ref)
+		if next == nil && len(g.Members) == 1 {
+			next = &g.Members[0] // a lone member just repeats on its turn
+		}
+		if next == nil {
+			continue
+		}
+		if cam.altLast == nil {
+			cam.altLast = map[int]string{}
+		}
+		cam.altLast[g.ID] = *next
+		cam.altLastGroup = g.ID
+		cam.Queued = &Queued{PresetID: *next, Origin: "auto"}
+		return
+	}
+}
+
+// pickFromGroupLocked picks one preset from group: the one after seqRef in preset order in sequence
+// mode, else a random not-yet-taken one (reservedID counts as taken).
+func (s *Store) pickFromGroupLocked(cam *Camera, group *Group, reservedID, seqRef *string) *string {
+	if len(group.Members) == 0 {
+		return nil
+	}
+	if cam.IsSequence {
+		return s.sequenceNextLocked(cam, group, seqRef)
 	}
 
 	cycleComplete := true
@@ -646,9 +804,10 @@ func (s *Store) autoQueueFillLocked(cam *Camera) {
 		candidates = append(candidates, presetID)
 	}
 	if len(candidates) == 0 {
-		return
+		return nil
 	}
-	cam.Queued = &Queued{PresetID: candidates[rand.Intn(len(candidates))], Origin: "auto"}
+	pick := candidates[rand.Intn(len(candidates))]
+	return &pick
 }
 
 // sequenceNextLocked finds the group member that comes right after refID in the camera's preset
@@ -814,6 +973,20 @@ func (s *Store) DeleteGroup(cameraNum int, groupID int) error {
 			cam.Queued = nil
 		}
 	}
+	if cam.SelectedMode != "" && containsInt(cam.SelectedGroupIDs, groupID) {
+		cam.SelectedGroupIDs = removeInt(cam.SelectedGroupIDs, groupID)
+		delete(cam.altLast, groupID)
+		if cam.altLastGroup == groupID {
+			cam.altLastGroup = 0
+		}
+		if len(cam.SelectedGroupIDs) == 0 {
+			cam.SelectedMode = ""
+		}
+		if cam.Queued != nil && cam.Queued.Origin == "auto" {
+			cam.Queued = nil
+			s.autoQueueFillLocked(cam)
+		}
+	}
 	go s.broadcast()
 	go s.onMutate()
 	return nil
@@ -973,39 +1146,35 @@ func (s *Store) markLive(cam *Camera) {
 // once takenID (just marked taken) is the last one needed to complete the cycle, so the group
 // starts a fresh round next time.
 func (s *Store) resetGroupCycleIfCompleteLocked(cam *Camera, takenID string) {
-	if cam.SelectedGroupID == nil {
-		return
-	}
-	var group *Group
-	for _, g := range cam.Groups {
-		if g.ID == *cam.SelectedGroupID {
-			group = g
-			break
+	for _, group := range s.selectedGroupsLocked(cam) {
+		if !containsStr(group.Members, takenID) {
+			continue
+		}
+		complete := true
+		for _, presetID := range group.Members {
+			if preset := s.findPresetLocked(cam, presetID); preset == nil || !preset.WasTaken {
+				complete = false
+				break
+			}
+		}
+		if !complete {
+			continue
+		}
+		for _, presetID := range group.Members {
+			if preset := s.findPresetLocked(cam, presetID); preset != nil {
+				preset.WasTaken = false
+			}
 		}
 	}
-	if group == nil {
-		return
-	}
-	inGroup := false
-	for _, id := range group.Members {
-		if id == takenID {
-			inGroup = true
-			break
+}
+
+func containsInt(xs []int, v int) bool {
+	for _, x := range xs {
+		if x == v {
+			return true
 		}
 	}
-	if !inGroup {
-		return
-	}
-	for _, presetID := range group.Members {
-		if preset := s.findPresetLocked(cam, presetID); preset == nil || !preset.WasTaken {
-			return
-		}
-	}
-	for _, presetID := range group.Members {
-		if preset := s.findPresetLocked(cam, presetID); preset != nil {
-			preset.WasTaken = false
-		}
-	}
+	return false
 }
 
 func (s *Store) markOffLive(cam *Camera, to string) {

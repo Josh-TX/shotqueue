@@ -149,6 +149,10 @@ type Camera struct {
 	IsSequence         bool // auto-queue mode: next preset in the group (true) or random (false)
 	IsHidden           bool // hidden cameras keep their presets/groups but sit out polling, tally and thumbnail generation
 	SelectedGroupID    *int
+	SelectedGroupIDs   []int          // multi-group auto-queue: selected groups in list order (SelectedGroupID is nil then)
+	SelectedMode       string         // "" (single/none) | "alternate" | "union"
+	altLast            map[int]string // alternate mode: last auto-queued preset per group (runtime only)
+	altLastGroup       int            // alternate mode: group of the last auto-queued preset, 0 = none yet
 	Queued             *Queued
 	nextGroupID        int
 	Generating         bool

@@ -76,7 +76,7 @@ const borderClass = computed(() => {
 const selectedGroupMember = computed(() => {
   const sel = props.camera.groups
     .map((g, index) => ({ ...g, index }))
-    .find((g) => g.id === props.camera.selectedGroupId);
+    .find((g) => (g.id === props.camera.selectedGroupId || props.camera.selectedGroupIds?.includes(g.id)) && g.members.includes(props.preset.id));
   return sel && sel.members.includes(props.preset.id) ? sel : null;
 });
 

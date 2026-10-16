@@ -41,9 +41,11 @@
             </label>
             <GroupSelect
               :model-value="row.entry.groupId ?? null"
+              :selected-group-ids="row.entry.groupIds"
+              :selected-mode="row.entry.groupMode"
               :groups="row.camera.groups"
               :is-sequence="row.camera.isSequence"
-              @update:model-value="patch(row, { groupId: $event })"
+              @change="patch(row, { groupId: $event.groupId, groupIds: $event.groupIds, groupMode: $event.mode })"
             />
             <div v-for="kind in kinds" :key="kind.key" class="scene-slot">
               <ManagePresetTile v-if="slotPreset(row, kind)" :preset="slotPreset(row, kind)" :class="kind.border">

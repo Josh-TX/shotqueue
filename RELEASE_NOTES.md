@@ -4,7 +4,9 @@
   - now performes a one-touch focus when a preset becomes active
   - added the ability to "lock focus", where the current focus setting becomes part of the preset and no one-touch focus happens.
 - added scenes
-- simplified group adding/removing
+- improvements to groups
+  - you can now auto-queue multiple groups... either alternate between in group, or essentially combine the groups
+  - simplified adding/removing groups
 - live camera is even more obvious
 - atem connection more eager to reconnect (5s instead of 10s)
 
