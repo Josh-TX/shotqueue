@@ -8,32 +8,77 @@
 
     <h3 class="help-section">Preset Borders</h3>
     <div class="help-row" v-for="row in rows" :key="row.label">
-      <div class="preset-thumb help-swatch" :class="row.borderClass">
+      <div class="preset-thumb static help-swatch" :class="row.borderClass">
         <span>{{ row.label }}</span>
       </div>
       <p class="help-desc">{{ row.desc }}</p>
     </div>
 
-    <h3 class="help-section">Groups</h3>
+    <h3 class="help-section">Auto Queue</h3>
     <p class="help-desc help-intro">
-      Groups allow presets to be automatically queued whenever a camera goes off of live. Presets must be manually
-      added to that group, and only presets from the selected group will be auto-queued. There are 2 available modes.
+      You can assign presets to a group, and have that group be auto-queued whenever a camera goes off of live. You can
+      use "sequential mode" and presets will be queued in order, or "random" mode and preset will be queued in a random
+      order.
     </p>
-    <p class="help-desc help-intro"><strong>RAND</strong> - Random Mode. Presets will be auto-queued at random among the candidates.</p>
-    <p class="help-desc help-intro"><strong>SEQ</strong> - Sequence Mode. The next preset after the one we just triggered will be auto-queued.</p>
+    <p class="help-desc help-intro">
+      You can also auto-queue multiple groups instead of just 1. In alternate mode, it'll alternate between the 2 (or
+      more) groups, even if the groups have a different number of presets assigned. RAND/SEQ mode still affects how
+      presets are selected within each single group. In union mode, it's effectively the same as having a single group
+      that contains all presets among the selected groups.
+    </p>
     <div class="help-row">
-      <div class="preset-thumb help-swatch">
-        <span class="group-swatch" style="background: #2f7d4f" />
+      <div class="preset-thumb static help-swatch">
+        <div class="group-swatches"><span class="group-swatch" style="background: #2f7d4f" /></div>
       </div>
-      <p class="help-desc">The square in the top left indicates that the preset is part of the currently-selected group.</p>
+      <p class="help-desc">The square in the top left indicates that the preset is part an auto-queued group.</p>
     </div>
     <div class="help-row">
-      <div class="preset-thumb help-swatch">
+      <div class="preset-thumb static help-swatch">
         <span class="help-taken-dot" />
       </div>
       <p class="help-desc">
         This indicates that the preset has been live at least once. In Random mode, it'll prioritize presets not yet
         taken. Gets reset when all presets in the group have been live.
+      </p>
+    </div>
+
+    <h3 class="help-section">Scenes</h3>
+    <p class="help-desc help-intro" style="margin-bottom: 6px">
+      Scenes are a way to quickly execute several actions at once. There is no concept of a "selected scene". Scenes can
+      only do 4 types of actions:
+    </p>
+    <ul class="help-desc help-intro help-list">
+      <li>set camera visibility</li>
+      <li>set auto-queue</li>
+      <li>trigger a preset</li>
+      <li>queue a preset</li>
+    </ul>
+    <p class="help-desc help-intro">
+      Triggering a scene will never move a live camera. If it tries to, the preset will be queued instead of triggered.
+      Scenes have zero effect on which presets exist, the position/focus of a preset, or the group assignments.
+    </p>
+
+    <h3 class="help-section">Focus</h3>
+    <p class="help-desc help-intro">
+      Whenever a preset finishes triggering and becomes active, shotqueue will attempt to one-time focus that camera.
+      You can right-click any active preset and "Lock" the focus. This stores the current focus settings to the preset,
+      and whenever the preset is triggered, it'll update the focus to the locked value. Presets with a locked focus won't perform the
+      one-time focus upon becoming active.
+    </p>
+    <div class="help-row">
+      <div class="preset-thumb static help-swatch">
+        <span class="focus-lock-badge">F</span>
+      </div>
+      <p class="help-desc">This indicates the preset has a focus locked.</p>
+    </div>
+    <div class="help-row">
+      <div class="preset-thumb static help-swatch">
+        <span class="focus-lock-badge">A</span>
+      </div>
+      <p class="help-desc">
+        This indicates that the camera is internally in auto-focus mode, and therefore any locked focuses will be
+        ignored by the camera. Shotqueue doesn't alter auto-focus mode, and it must be managed by an external PTZ
+        controller.
       </p>
     </div>
 

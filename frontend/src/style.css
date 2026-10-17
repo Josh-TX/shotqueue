@@ -584,6 +584,9 @@ h3 {
 .help-intro {
   margin: 0 0 14px;
 }
+.help-list {
+  padding-left: 20px;
+}
 .help-key {
   flex: none;
   width: 90px;
