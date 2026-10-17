@@ -20,7 +20,7 @@
     <svg v-if="preset.wasTaken" class="preset-thumb-debug" title="wasTaken" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" /></svg>
   </div>
 
-  <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />
+  <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" :title="preset.name" @close="menu = null" />
 
   <UpdatePresetModal
     v-if="updatingPosition"

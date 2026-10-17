@@ -3,6 +3,7 @@
   --panel: #181b22;
   --panel2: #20242c;
   --panel3: #262b34;
+  --hover: #313846;
   --border: #2a2f3a;
   --text: #e8eaed;
   --muted: #9aa1ac;
@@ -40,7 +41,7 @@ button {
   padding: 6px 12px;
 }
 button:hover:not(:disabled) {
-  background: #313846;
+  background: var(--hover);
 }
 button:disabled {
   opacity: 0.45;
@@ -232,9 +233,10 @@ select {
   flex: 1;
 }
 .group-select-option:hover {
-  background: var(--panel3);
+  background: var(--hover);
 }
-.group-select-option.active {
+.group-select-option.active,
+.group-select-option.active:hover {
   background: color-mix(in srgb, var(--accent) 20%, var(--panel3));
 }
 
@@ -677,7 +679,17 @@ h3 {
   padding: 7px 10px;
 }
 .ctx-item:hover:not(:disabled) {
-  background: var(--panel3);
+  background: var(--hover);
+}
+.ctx-title {
+  padding: 1px 6px 3px;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 220px;
 }
 .ctx-divider {
   height: 1px;
@@ -698,7 +710,7 @@ h3 {
   cursor: pointer;
 }
 .ctx-checkbox-item:hover {
-  background: var(--panel3);
+  background: var(--hover);
 }
 
 .ctx-columns {
@@ -1398,7 +1410,7 @@ button.naked-btn:hover:not(:disabled) {
   padding: 7px 10px;
 }
 .scenes-menu-item:hover:not(:disabled) {
-  background: var(--panel3);
+  background: var(--hover);
 }
 .scenes-menu-item.manage {
   font-weight: 600;

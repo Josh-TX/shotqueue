@@ -57,7 +57,7 @@
       @reposition="onRepositionFromManage"
       @open-settings="$emit('open-settings')"
     />
-    <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />
+    <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" :title="name" @close="menu = null" />
     <UpdatePresetModal
       v-if="repositioningPreset"
       :camera="camera"

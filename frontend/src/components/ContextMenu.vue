@@ -1,6 +1,7 @@
 <template>
   <div class="ctx-backdrop" @click="$emit('close')" @contextmenu.prevent.stop="$emit('close')">
     <div ref="menuEl" class="ctx-menu" :style="menuStyle" @click.stop>
+      <div v-if="title" class="ctx-title">{{ title }}</div>
       <template v-for="(item, i) in items" :key="i">
         <div v-if="item.divider" class="ctx-divider" />
         <div v-else-if="item.info" class="ctx-info">{{ item.label }}</div>
@@ -42,7 +43,7 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue';
 
-const props = defineProps({ x: Number, y: Number, items: Array });
+const props = defineProps({ x: Number, y: Number, items: Array, title: String });
 const emit = defineEmits(['close']);
 
 const menuEl = ref(null);
