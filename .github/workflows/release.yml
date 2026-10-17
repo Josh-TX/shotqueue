@@ -51,7 +51,13 @@ jobs:
           done
         working-directory: backend
 
+      - name: Extract release notes
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          awk -v v="$VERSION" '/^# /{f=($2==v)} f' RELEASE_NOTES.md > release_body.md
+          test -s release_body.md || { echo "No notes for $VERSION in RELEASE_NOTES.md"; exit 1; }
+
       - uses: softprops/action-gh-release@v2
         with:
           files: dist/*
-          body_path: RELEASE_NOTES.md
+          body_path: release_body.md

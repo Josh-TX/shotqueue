@@ -1,4 +1,4 @@
-# next version
+# 0.7.0
 
 - improved focus behavior
   - now performes a one-touch focus when a preset becomes active

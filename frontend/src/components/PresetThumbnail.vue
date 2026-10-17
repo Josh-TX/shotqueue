@@ -33,8 +33,8 @@
 
   <PromptModal
     v-if="renaming"
-    title="Rename Preset"
-    label="Preset name"
+    :title="`Rename ${preset.name}`"
+    label="New Preset Name"
     :initial-value="preset.name"
     submit-label="Rename"
     :on-submit="doRename"
