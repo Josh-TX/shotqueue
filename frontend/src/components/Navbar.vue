@@ -29,6 +29,7 @@
 import { computed, ref } from 'vue';
 import { api } from '../api.js';
 import { store } from '../store.js';
+import { showToast } from '../toast.js';
 
 const emit = defineEmits(['settings', 'configs', 'gen-thumbnails', 'help', 'manage-scenes']);
 
@@ -39,7 +40,7 @@ function manage() {
 }
 function execute(scene) {
   menuOpen.value = false;
-  api.executeScene(scene.id).catch((e) => alert(e.message));
+  api.executeScene(scene.id).then(() => showToast(scene.name)).catch((e) => alert(e.message));
 }
 
 const statusTitle = computed(() => {

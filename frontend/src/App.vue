@@ -33,6 +33,15 @@
     <ConfigsModal v-if="showConfigs" @close="showConfigs = false" />
     <GenThumbnailsModal v-if="showGenThumbnails" @close="showGenThumbnails = false" />
     <HelpModal v-if="showHelp" @close="showHelp = false" />
+    <Transition name="toast">
+      <div v-if="toast.message" :key="toast.id" class="toast">
+        <svg class="toast-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        <div>
+          <div class="toast-label">Triggered</div>
+          <div class="toast-name">{{ toast.message }}</div>
+        </div>
+      </div>
+    </Transition>
   </div>
 </template>
 
@@ -46,6 +55,7 @@ import ScenesModal from './components/ScenesModal.vue';
 import ConfigsModal from './components/ConfigsModal.vue';
 import GenThumbnailsModal from './components/GenThumbnailsModal.vue';
 import HelpModal from './components/HelpModal.vue';
+import { toast } from './toast.js';
 import { store, visibleCameras, loadInitial, connectWebSocket } from './store.js';
 
 const MIN_UNIT_WIDTH = 80;
@@ -94,3 +104,50 @@ onUnmounted(() => {
   resizeObserver?.disconnect();
 });
 </script>
+
+<style>
+.toast {
+  position: fixed;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  padding: 6px 20px 7px 12px;
+  min-width: 210px;
+  background: #161a22;
+  color: #fff;
+  border: 1px solid rgba(61, 220, 132, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.55);
+  z-index: 10000;
+  pointer-events: none;
+}
+.toast-icon {
+  flex: none;
+  color: #3ddc84;
+}
+.toast-label {
+  font-size: 10px;
+  line-height: 1.2;
+  color: #8b95a7;
+}
+.toast-name {
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+.toast-enter-active,
+.toast-leave-active {
+  transition: opacity 0.25s, transform 0.25s;
+}
+.toast-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -16px);
+}
+.toast-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -16px);
+}
+</style>

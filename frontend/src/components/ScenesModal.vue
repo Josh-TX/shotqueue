@@ -94,6 +94,7 @@ import AutoQueueSelect from './AutoQueueSelect.vue';
 import ManagePresetTile from './ManagePresetTile.vue';
 import { api } from '../api.js';
 import { cameraName, sortedCameras, store } from '../store.js';
+import { showToast } from '../toast.js';
 
 defineEmits(['close']);
 
@@ -155,7 +156,8 @@ async function duplicate() {
 }
 
 function execute() {
-  api.executeScene(selected.value.id).catch(fail);
+  const name = selected.value.name;
+  api.executeScene(selected.value.id).then(() => showToast(name)).catch(fail);
 }
 
 const menu = ref(null);
