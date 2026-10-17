@@ -9,11 +9,20 @@
       <div class="manage-content">
         <template v-if="tab === 'general'">
           <p class="help-text">Connection info is managed on the <a href="#" class="settings-link" @click.prevent="openSettings">Settings page</a>.</p>
-          <div class="manage-info-row">
+          <div class="manage-info-row centered">
             <span>Thumbnail Columns</span>
-            <select :value="camera.columnCount" @change="setColumnCount($event.target.value)">
-              <option v-for="n in 6" :key="n" :value="n">{{ n }}</option>
-            </select>
+            <div class="column-toggle">
+              <button
+                v-for="n in 6"
+                :key="n"
+                type="button"
+                class="ctx-column-btn"
+                :class="{ active: n === camera.columnCount }"
+                @click="setColumnCount(n)"
+              >
+                {{ n }}
+              </button>
+            </div>
           </div>
 
           <div class="general-actions">
@@ -74,6 +83,9 @@
                     @click="colorPickerId = colorPickerId === g.id ? null : g.id"
                   >
                     <span class="manage-group-swatch" :style="{ background: groupColor(g, i) }" />
+                    <svg class="manage-group-chevron" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                      <polyline points="6 9 12 15 18 9" />
+                    </svg>
                   </button>
                   <template v-if="colorPickerId === g.id">
                     <div class="manage-group-colors-backdrop" @click="colorPickerId = null" />
@@ -129,11 +141,20 @@
       </div>
     </div>
   </Modal>
+
+  <ConfirmDialog
+    v-if="pendingDelete"
+    :title="pendingDelete.title"
+    :message="pendingDelete.message"
+    @confirm="runPendingDelete"
+    @cancel="pendingDelete = null"
+  />
 </template>
 
 <script setup>
 import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
+import ConfirmDialog from './ConfirmDialog.vue';
 import ManagePresetTile from './ManagePresetTile.vue';
 import { api } from '../api.js';
 import { cameraName } from '../store.js';
@@ -144,6 +165,7 @@ const emit = defineEmits(['close', 'add-preset', 'reposition', 'open-settings'])
 
 const tab = ref(props.initialTab);
 const colorPickerId = ref(null);
+const pendingDelete = ref(null);
 
 const MIN_TILE_WIDTH = 160;
 const tileWidth = computed(() => Math.max(MIN_TILE_WIDTH, props.unitWidth));
@@ -165,8 +187,11 @@ function renamePreset(p, name) {
 }
 
 function deletePreset(p) {
-  if (!confirm(`Delete preset "${p.name}"?`)) return;
-  api.deletePreset(props.camera.cameraNum, p.id).catch((e) => alert(e.message));
+  pendingDelete.value = {
+    title: 'Delete Preset',
+    message: `Delete preset "${p.name}"?`,
+    run: () => api.deletePreset(props.camera.cameraNum, p.id),
+  };
 }
 
 function openAddPreset() {
@@ -182,8 +207,16 @@ function addGroup() {
   api.addGroup(props.camera.cameraNum).catch((e) => alert(e.message));
 }
 function deleteGroup(g) {
-  if (!confirm(`Delete group "${g.name}"?`)) return;
-  api.deleteGroup(props.camera.cameraNum, g.id).catch((e) => alert(e.message));
+  pendingDelete.value = {
+    title: 'Delete Group',
+    message: `Delete group "${g.name}"?`,
+    run: () => api.deleteGroup(props.camera.cameraNum, g.id),
+  };
+}
+function runPendingDelete() {
+  const { run } = pendingDelete.value;
+  pendingDelete.value = null;
+  run().catch((e) => alert(e.message));
 }
 function setGroupColor(g, color) {
   colorPickerId.value = null;
