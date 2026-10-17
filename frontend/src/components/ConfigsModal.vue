@@ -73,7 +73,7 @@
             </div>
             <div v-if="selected.cameras.length === 0" class="metric-block">No cameras in this config</div>
             <div v-else class="config-preview-scroll">
-              <ConfigCameraPreviewRow :cameras="selected.cameras" />
+              <ConfigLayoutPreview :cameras="selected.cameras" />
             </div>
             <p v-if="missingCameraNums(selected).length" class="error-text">
               References a missing camera, which will be dropped upon loading.
@@ -153,7 +153,7 @@
 import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
-import ConfigCameraPreviewRow from './ConfigCameraPreviewRow.vue';
+import ConfigLayoutPreview from './ConfigLayoutPreview.vue';
 import { api } from '../api.js';
 import { formatTimestamp } from '../utils.js';
 

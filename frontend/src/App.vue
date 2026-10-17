@@ -25,7 +25,7 @@
         All cameras are hidden — use the checkboxes on the right to show one.
       </div>
     </div>
-    <CameraSidebar />
+    <CameraToggleSidebar />
     </div>
 
     <SettingsModal v-if="showSettings" @close="showSettings = false" />
@@ -40,7 +40,7 @@
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import Navbar from './components/Navbar.vue';
 import CameraColumn from './components/CameraColumn.vue';
-import CameraSidebar from './components/CameraSidebar.vue';
+import CameraToggleSidebar from './components/CameraToggleSidebar.vue';
 import SettingsModal from './components/SettingsModal.vue';
 import ScenesModal from './components/ScenesModal.vue';
 import ConfigsModal from './components/ConfigsModal.vue';

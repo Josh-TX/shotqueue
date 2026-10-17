@@ -16,7 +16,7 @@
         </span>
       </div>
       <div class="header-row group-row">
-        <GroupSelect
+        <AutoQueueSelect
           :model-value="camera.selectedGroupId ?? null"
           :selected-group-ids="camera.selectedGroupIds"
           :selected-mode="camera.selectedMode"
@@ -47,7 +47,7 @@
     </div>
 
     <AddPresetModal v-if="showAddPreset" :camera="camera" @close="showAddPreset = false" />
-    <ManagePresetsModal
+    <CameraSettingsModal
       v-if="showManage"
       :camera="camera"
       :unit-width="unitWidth"
@@ -73,9 +73,9 @@ import { api } from '../api.js';
 import { cameraName } from '../store.js';
 import PresetThumbnail from './PresetThumbnail.vue';
 import AddPresetModal from './AddPresetModal.vue';
-import ManagePresetsModal from './ManagePresetsModal.vue';
+import CameraSettingsModal from './CameraSettingsModal.vue';
 import UpdatePresetModal from './UpdatePresetModal.vue';
-import GroupSelect from './GroupSelect.vue';
+import AutoQueueSelect from './AutoQueueSelect.vue';
 import ContextMenu from './ContextMenu.vue';
 
 const props = defineProps({ camera: Object, unitWidth: Number });

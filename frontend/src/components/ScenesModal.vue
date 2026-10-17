@@ -39,7 +39,7 @@
                 Visible
               </span>
             </label>
-            <GroupSelect
+            <AutoQueueSelect
               :model-value="row.entry.groupId ?? null"
               :selected-group-ids="row.entry.groupIds"
               :selected-mode="row.entry.groupMode"
@@ -89,7 +89,7 @@ import { computed, ref } from 'vue';
 import Modal from './Modal.vue';
 import ContextMenu from './ContextMenu.vue';
 import ConfirmDialog from './ConfirmDialog.vue';
-import GroupSelect from './GroupSelect.vue';
+import AutoQueueSelect from './AutoQueueSelect.vue';
 import ManagePresetTile from './ManagePresetTile.vue';
 import { api } from '../api.js';
 import { cameraName, sortedCameras, store } from '../store.js';
