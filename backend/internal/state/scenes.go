@@ -519,6 +519,23 @@ func (s *Store) loadScenesLocked(scenes []config.ConfigScene, presetIDsByCam map
 		s.scenes = append(s.scenes, sc)
 	}
 	s.ensureSceneEntriesLocked()
+	// lastMultipleMode: mode of the first scene using a multi auto-queue for the camera, else alternate
+	for _, cam := range s.cameras {
+		cam.LastMultipleMode = ModeAlternate
+		for _, sc := range s.scenes {
+			found := false
+			for _, c := range sc.Cameras {
+				if c.CameraNum == cam.CameraNum && c.GroupMode != "" {
+					cam.LastMultipleMode = c.GroupMode
+					found = true
+					break
+				}
+			}
+			if found {
+				break
+			}
+		}
+	}
 }
 
 func removeInt(xs []int, v int) []int {

@@ -20,6 +20,7 @@
           :model-value="camera.selectedGroupId ?? null"
           :selected-group-ids="camera.selectedGroupIds"
           :selected-mode="camera.selectedMode"
+          :last-multiple-mode="camera.lastMultipleMode"
           :groups="camera.groups"
           :is-sequence="camera.isSequence"
           @change="onGroupChange"

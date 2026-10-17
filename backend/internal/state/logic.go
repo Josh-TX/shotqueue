@@ -661,6 +661,9 @@ func (s *Store) SetAutoQueue(cameraNum int, sel AutoSel) error {
 		return newErr(404, "camera not found")
 	}
 	sel = normalizeSel(cam, sel)
+	if sel.Mode != "" {
+		cam.LastMultipleMode = sel.Mode
+	}
 	prevQueued := cam.Queued
 	changed := !sameSel(AutoSel{GroupID: cam.SelectedGroupID, GroupIDs: cam.SelectedGroupIDs, Mode: cam.SelectedMode}, sel)
 	cam.SelectedGroupID, cam.SelectedGroupIDs, cam.SelectedMode = sel.GroupID, sel.GroupIDs, sel.Mode

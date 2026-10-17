@@ -15,7 +15,9 @@
     <div class="preset-thumb-gradient" />
     <div class="preset-thumb-name">{{ preset.name }}</div>
     <span v-if="preset.focusLocked" class="focus-lock-badge" title="Focus locked">F</span>
-    <span v-if="selectedGroupMember" class="group-swatch" :style="{ background: groupColor(selectedGroupMember, selectedGroupMember.index) }" />
+    <div v-if="selectedGroupMembers.length" class="group-swatches">
+      <span v-for="g in selectedGroupMembers" :key="g.id" class="group-swatch" :style="{ background: groupColor(g, g.index) }" />
+    </div>
     <!-- temporary debug indicator for wasTaken, remove once the auto-queue logic is verified -->
     <svg v-if="preset.wasTaken" class="preset-thumb-debug" title="wasTaken" viewBox="0 0 10 10"><circle cx="5" cy="5" r="5" /></svg>
   </div>
@@ -73,12 +75,11 @@ const borderClass = computed(() => {
   return '';
 });
 
-const selectedGroupMember = computed(() => {
-  const sel = props.camera.groups
+const selectedGroupMembers = computed(() =>
+  props.camera.groups
     .map((g, index) => ({ ...g, index }))
-    .find((g) => (g.id === props.camera.selectedGroupId || props.camera.selectedGroupIds?.includes(g.id)) && g.members.includes(props.preset.id));
-  return sel && sel.members.includes(props.preset.id) ? sel : null;
-});
+    .filter((g) => (g.id === props.camera.selectedGroupId || props.camera.selectedGroupIds?.includes(g.id)) && g.members.includes(props.preset.id)),
+);
 
 const imgSrc = computed(() => `/api/presets/${props.preset.id}/thumbnail?v=${props.preset.thumbnailVersion}`);
 const imgError = ref(false);

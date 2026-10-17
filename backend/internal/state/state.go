@@ -151,6 +151,7 @@ type Camera struct {
 	SelectedGroupID    *int
 	SelectedGroupIDs   []int          // multi-group auto-queue: selected groups in list order (SelectedGroupID is nil then)
 	SelectedMode       string         // "" (single/none) | "alternate" | "union"
+	LastMultipleMode   string         // mode a modifier key selects in the UI; runtime only, derived from scenes on config load
 	altLast            map[int]string // alternate mode: last auto-queued preset per group (runtime only)
 	altLastGroup       int            // alternate mode: group of the last auto-queued preset, 0 = none yet
 	Queued             *Queued

@@ -43,6 +43,7 @@
               :model-value="row.entry.groupId ?? null"
               :selected-group-ids="row.entry.groupIds"
               :selected-mode="row.entry.groupMode"
+              :last-multiple-mode="row.camera.lastMultipleMode"
               :groups="row.camera.groups"
               :is-sequence="row.camera.isSequence"
               @change="patch(row, { groupId: $event.groupId, groupIds: $event.groupIds, groupMode: $event.mode })"

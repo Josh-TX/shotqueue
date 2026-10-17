@@ -1,6 +1,6 @@
 <template>
   <div class="group-select" :class="{ open, selected: selectedGroups.length > 0, multi: selectedGroups.length > 1 }" :style="rootStyle">
-    <button ref="triggerEl" type="button" class="group-select-trigger" @click="toggle">
+    <button ref="triggerEl" type="button" class="group-select-trigger" @click="toggle($event)" @contextmenu.prevent.stop="toggle($event)">
       <span class="group-select-tiny-label">Auto Queue</span>
       <span v-if="selectedMode" class="group-select-mode-label">{{ selectedMode }}</span>
       <span v-if="selectedGroups.length === 2" class="group-select-value">
@@ -20,8 +20,8 @@
       </span>
     </button>
 
-    <div v-if="open" class="group-select-backdrop" @click="close" @contextmenu.prevent="close" />
-    <div v-if="open" ref="menuEl" class="group-select-menu" :style="menuStyle">
+    <div v-if="open" class="group-select-backdrop" @click="close" @contextmenu.prevent.stop="close" />
+    <div v-if="open" ref="menuEl" class="group-select-menu" :style="menuStyle" @contextmenu.prevent.stop>
       <button type="button" class="group-select-option" :class="{ active: !multi && !modelValue && !selectedMode }" @click="choose(null)">
         <span class="group-select-swatch none" />
         <span class="group-select-option-name">None</span>
@@ -53,7 +53,7 @@
 </template>
 
 <script setup>
-import { computed, nextTick, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue';
 import { groupColor } from '../colors.js';
 
 // Emits `change` with { groupId, groupIds, mode }: none = all empty, single = groupId, multi = mode ('alternate' | 'union') + groupIds.
@@ -61,6 +61,7 @@ const props = defineProps({
   modelValue: { type: Number, default: null },
   selectedGroupIds: { type: Array, default: () => [] },
   selectedMode: { type: String, default: '' },
+  lastMultipleMode: { type: String, default: 'alternate' },
   groups: { type: Array, default: () => [] },
   isSequence: Boolean,
 });
@@ -73,7 +74,7 @@ const checkedIds = ref([]);
 const triggerEl = ref(null);
 const menuEl = ref(null);
 const menuStyle = ref({});
-async function toggle() {
+async function toggle(e) {
   if (open.value) {
     open.value = false;
     return;
@@ -84,18 +85,49 @@ async function toggle() {
     checkedIds.value = [...props.selectedGroupIds];
   }
   const rect = triggerEl.value.getBoundingClientRect();
-  const style = { top: rect.bottom + 4 + 'px', left: rect.left + 'px', minWidth: rect.width + 'px', maxHeight: window.innerHeight - rect.bottom - 12 + 'px' };
+  const style = { top: rect.bottom + 2 + 'px', left: rect.left + 'px', minWidth: rect.width + 'px', maxHeight: window.innerHeight - rect.bottom - 12 + 'px' };
   menuStyle.value = style;
   open.value = true;
+  if (e && hasMod(e)) modEntered(); // opened while holding a modifier
   // flip above the trigger when it doesn't fit below
   await nextTick();
   const h = menuEl.value?.scrollHeight ?? 0;
   const below = window.innerHeight - rect.bottom - 12;
   const above = rect.top - 12;
   if (h > below && above > below) {
-    menuStyle.value = { bottom: window.innerHeight - rect.top + 4 + 'px', left: style.left, minWidth: style.minWidth, maxHeight: above + 'px' };
+    menuStyle.value = { bottom: window.innerHeight - rect.top + 2 + 'px', left: style.left, minWidth: style.minWidth, maxHeight: above + 'px' };
   }
 }
+const hasMod = (e) => e.ctrlKey || e.shiftKey || e.altKey || e.metaKey;
+let enteredByMod = false;
+function modEntered() {
+  if (multi.value) return; // already multi; leave as is
+  enterMulti(props.lastMultipleMode || 'alternate');
+  enteredByMod = true;
+}
+function onKeyDown(e) {
+  if (hasMod(e)) modEntered();
+}
+function onKeyUp(e) {
+  if (!hasMod(e) && enteredByMod) {
+    enteredByMod = false;
+    if (!checkedIds.value.length) cancelMulti();
+  }
+}
+watch(open, (v) => {
+  if (v) {
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+  } else {
+    window.removeEventListener('keydown', onKeyDown);
+    window.removeEventListener('keyup', onKeyUp);
+    enteredByMod = false;
+  }
+});
+onBeforeUnmount(() => {
+  window.removeEventListener('keydown', onKeyDown);
+  window.removeEventListener('keyup', onKeyUp);
+});
 function close() {
   open.value = false;
 }
