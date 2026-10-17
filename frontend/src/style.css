@@ -129,7 +129,7 @@ select {
 }
 .group-select.open .group-select-trigger,
 .group-select-trigger:hover {
-  border-color: var(--accent);
+  border-color: #fff;
 }
 .group-select.selected .group-select-trigger {
   border-color: var(--group-color);
@@ -237,7 +237,7 @@ select {
 }
 .group-select-option.active,
 .group-select-option.active:hover {
-  background: color-mix(in srgb, var(--accent) 20%, var(--panel3));
+  background: color-mix(in srgb, #fff 15%, var(--panel3));
 }
 
 h2,
@@ -1425,6 +1425,8 @@ button.naked-btn:hover:not(:disabled) {
   left: 0;
   z-index: 91;
   min-width: 200px;
+  width: max-content;
+  max-width: min(480px, 90vw);
   max-height: 70vh;
   overflow: auto;
   display: flex;
@@ -1446,6 +1448,10 @@ button.naked-btn:hover:not(:disabled) {
 }
 .scenes-menu-item.manage {
   font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
 }
 .scenes-menu-divider {
   height: 1px;

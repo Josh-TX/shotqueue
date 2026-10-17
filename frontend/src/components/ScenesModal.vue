@@ -10,6 +10,7 @@
             :class="{ active: sc.id === selected?.id, dragging: dragId === sc.id }"
             draggable="true"
             @click="select(sc.id)"
+            @contextmenu.prevent.stop="openSceneMenu(sc, $event)"
             @dragstart="onDragStart(sc, $event)"
             @dragenter.prevent="onDragEnter(sc)"
             @dragover.prevent
@@ -24,7 +25,7 @@
         <template v-else>
           <div class="scene-header">
             <input type="text" :value="selected.name" @blur="rename($event)" @keyup.enter="$event.target.blur()" />
-            <button class="primary" @click="execute">Execute</button>
+            <button class="primary" @click="execute()">Execute</button>
             <button class="icon-btn" title="More" @click="openMenu">
               <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><circle cx="12" cy="5" r="2" /><circle cx="12" cy="12" r="2" /><circle cx="12" cy="19" r="2" /></svg>
             </button>
@@ -77,11 +78,11 @@
     <ContextMenu v-if="menu" :x="menu.x" :y="menu.y" :items="menuItems" @close="menu = null" />
   </Modal>
   <ConfirmDialog
-    v-if="deleting && selected"
+    v-if="deleting"
     title="Delete Scene"
-    :message="`Delete scene &quot;${selected.name}&quot;?`"
+    :message="`Delete scene &quot;${deleting.name}&quot;?`"
     @confirm="confirmDelete"
-    @cancel="deleting = false"
+    @cancel="deleting = null"
   />
 </template>
 
@@ -146,34 +147,40 @@ function rename(e) {
   api.renameScene(selected.value.id, name).catch(fail);
 }
 
-async function duplicate() {
+async function duplicate(id) {
   try {
-    const sc = await api.duplicateScene(selected.value.id);
+    const sc = await api.duplicateScene(id);
     select(sc.id);
   } catch (e) {
     fail(e);
   }
 }
 
-function execute() {
-  const name = selected.value.name;
-  api.executeScene(selected.value.id).then(() => showToast(name)).catch(fail);
+function execute(sc = selected.value) {
+  api.executeScene(sc.id).then(() => showToast(sc.name)).catch(fail);
 }
 
 const menu = ref(null);
-const menuItems = [
-  { label: 'Duplicate', action: () => duplicate() },
-  { label: 'Delete', action: () => (deleting.value = true) },
-];
+const menuItems = computed(() => {
+  const sc = menu.value.scene;
+  return [
+    { label: 'Execute', action: () => execute(sc) },
+    { label: 'Duplicate', action: () => duplicate(sc.id) },
+    { label: 'Delete', action: () => (deleting.value = sc) },
+  ];
+});
 function openMenu(e) {
   const r = e.currentTarget.getBoundingClientRect();
-  menu.value = { x: r.right - 170, y: r.bottom + 4 };
+  menu.value = { x: r.right - 170, y: r.bottom + 4, scene: selected.value };
+}
+function openSceneMenu(sc, e) {
+  menu.value = { x: e.clientX, y: e.clientY, scene: sc };
 }
 
-const deleting = ref(false);
+const deleting = ref(null);
 async function confirmDelete() {
-  const id = selected.value.id;
-  deleting.value = false;
+  const id = deleting.value.id;
+  deleting.value = null;
   picker.value = null;
   selectedId.value = null;
   api.deleteScene(id).catch(fail);
