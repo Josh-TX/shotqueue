@@ -28,7 +28,7 @@
     </p>
     <div class="help-row">
       <div class="preset-thumb static help-swatch">
-        <div class="group-swatches"><span class="group-swatch" style="background: #2f7d4f" /></div>
+        <div class="group-swatches"><span class="group-swatch" style="background: #389660" /></div>
       </div>
       <p class="help-desc">The square in the top left indicates that the preset is part an auto-queued group.</p>
     </div>

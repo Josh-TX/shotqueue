@@ -74,7 +74,7 @@ const DefaultGroupCount = 1
 
 // GroupColors is the swatch palette. The first 4 are the legacy per-slot colors, which groups
 // without a stored color get by index. Keep in sync with frontend/src/colors.js.
-var GroupColors = []string{"#2f7d4f", "#2f5f9e", "#b0611e", "#a68a1b", "#7a4fa3", "#2a8a8a", "#8a5a3c", "#a8467e"}
+var GroupColors = []string{"#389660", "#3a77c4", "#e88a24", "#e0c029", "#9a68cc", "#35b0b0", "#8a5a3c", "#d055a0"}
 
 var colorRe = regexp.MustCompile(`^#[0-9a-fA-F]{6}$`)
 
