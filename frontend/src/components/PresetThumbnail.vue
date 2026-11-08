@@ -132,7 +132,7 @@ const menuItems = computed(() => [
   // the (then pointless) disabled queue item.
   ...(props.preset.focusLocked ? [{ label: 'Unlock Focus', action: () => setFocusLock(false) }] : []),
   ...(isActive.value
-    ? props.preset.focusLocked
+    ? props.preset.focusLocked || props.camera.supportsFocus === false
       ? []
       : [{ label: 'Lock Focus', action: () => setFocusLock(true) }]
     : [

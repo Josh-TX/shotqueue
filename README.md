@@ -1,6 +1,6 @@
 # shotqueue
 
-A web server to assist in automated PTZ-camera preset triggering. For live-production/streaming setups (church, small studio, etc).
+A web server to assist in automated PTZ-camera preset triggering. Supports Panasonic AW-series, and has limited support for OBSBOT Tail 2. For live-production/streaming setups (church, small studio, etc).
 
 ![screenshot](screenshot.png)
 
@@ -42,6 +42,9 @@ Or run mocks standalone via `mocks/run-*.sh` (same default ports as above).
 To wire shotqueue to the mocks: in Settings, set ATEM host to `localhost` (port is fixed at
 9910, not configurable). Add cameras with host `localhost` and port `5001`/`5002`/`5003`, one per
 `mock-ue150` instance.
+
+Mock Tail 2 (`mocks/run-mock-tail2.sh`): add a camera of type "OBSBOT Tail 2" with host `localhost`, port
+`57110`. Run only one at a time, since shotqueue matches OBSBOT replies to cameras by source IP.
 
 Mock ATEM's web UI (port 9000) lets you set live/preview/cut/fade to drive tally state. Mock
 Controller (port 5000) is a standalone page for poking a `mock-ue150` camera directly, independent

@@ -17,6 +17,8 @@ import (
 	"path/filepath"
 	"sort"
 	"sync"
+
+	"shotqueue-backend/internal/ptz"
 )
 
 type Atem struct {
@@ -30,6 +32,7 @@ type Atem struct {
 // camera is first added (see api.handleSettingsCameras).
 type CameraSettings struct {
 	CameraNum int    `json:"cameraNum"`
+	Type      string `json:"type"` // ptz.TypePanasonic | ptz.TypeObsbot; empty in old files loads as panasonic
 	Host      string `json:"host"`
 	Port      string `json:"port"`
 	Username  string `json:"username"`
@@ -58,6 +61,7 @@ func dirPath() (string, error) {
 // fileCameraSettings mirrors CameraSettings but with Password encrypted+base64 for on-disk storage.
 type fileCameraSettings struct {
 	CameraNum int    `json:"cameraNum"`
+	Type      string `json:"type,omitempty"`
 	Host      string `json:"host"`
 	Port      string `json:"port"`
 	Username  string `json:"username"`
@@ -101,8 +105,13 @@ func Load() (*Store, error) {
 		if err != nil {
 			return nil, fmt.Errorf("decrypting password for camera %d: %w", fc.CameraNum, err)
 		}
+		camType := fc.Type
+		if camType == "" {
+			camType = ptz.TypePanasonic
+		}
 		s.cfg.Cameras[i] = CameraSettings{
 			CameraNum: fc.CameraNum,
+			Type:      camType,
 			Host:      fc.Host,
 			Port:      fc.Port,
 			Username:  fc.Username,
@@ -127,6 +136,7 @@ func (s *Store) saveLocked() error {
 		}
 		f.Cameras[i] = fileCameraSettings{
 			CameraNum: c.CameraNum,
+			Type:      c.Type,
 			Host:      c.Host,
 			Port:      c.Port,
 			Username:  c.Username,
@@ -250,7 +260,7 @@ func (s *Store) AddCamera(cs CameraSettings) error {
 }
 
 // UpdateCamera edits an existing camera's host/port/username (password is intentionally not
-// editable here — see CameraSettings doc comment). The camera number can't be changed.
+// editable here — see CameraSettings doc comment). The camera number and type can't be changed.
 func (s *Store) UpdateCamera(num int, host, port, username string) (CameraSettings, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()

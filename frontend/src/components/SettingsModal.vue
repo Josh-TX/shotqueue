@@ -46,6 +46,7 @@
             <thead>
               <tr>
                 <th class="cameras-table-num">Camera #</th>
+                <th>Type</th>
                 <th>Host</th>
                 <th>Port</th>
                 <th>Username</th>
@@ -55,9 +56,10 @@
             <tbody>
               <tr v-for="c in settingsCameras" :key="c.cameraNum">
                 <td class="cameras-table-num">{{ c.cameraNum }}</td>
+                <td>{{ typeLabel(c.type) }}</td>
                 <td><input type="text" v-model="edits[c.cameraNum].host" placeholder="Host" @blur="saveCamera(c.cameraNum)" /></td>
                 <td><input type="text" v-model="edits[c.cameraNum].port" placeholder="Port" style="width: 60px" @blur="saveCamera(c.cameraNum)" /></td>
-                <td><input type="text" v-model="edits[c.cameraNum].username" placeholder="(none)" @blur="saveCamera(c.cameraNum)" /></td>
+                <td><input v-if="c.type !== 'obsbot'" type="text" v-model="edits[c.cameraNum].username" placeholder="(none)" @blur="saveCamera(c.cameraNum)" /></td>
                 <td class="cameras-table-actions">
                   <button @click="removeCamera(c.cameraNum)">Delete</button>
                 </td>
@@ -78,6 +80,13 @@
                 <input type="number" v-model.number="addCameraNum" placeholder="e.g. 1" />
               </div>
               <div class="field">
+                <label>Camera type</label>
+                <select v-model="addType" @change="onTypeChange">
+                  <option value="panasonic">Panasonic AW (HTTP)</option>
+                  <option value="obsbot">OBSBOT Tail 2 (OSC)</option>
+                </select>
+              </div>
+              <div class="field">
                 <label>Host</label>
                 <input type="text" v-model="addHost" placeholder="e.g. 192.168.1.1" @input="resetTest" />
               </div>
@@ -85,11 +94,11 @@
                 <label>Port</label>
                 <input type="text" v-model="addPort" placeholder="e.g. 80" @input="resetTest" />
               </div>
-              <div class="field">
+              <div v-if="addType === 'panasonic'" class="field">
                 <label>Username</label>
                 <input type="text" v-model="addUsername" placeholder="(leave blank if no auth)" @input="resetTest" />
               </div>
-              <div class="field">
+              <div v-if="addType === 'panasonic'" class="field">
                 <label>Password</label>
                 <input type="password" v-model="addPassword" placeholder="(leave blank if no auth)" autocomplete="new-password" @input="resetTest" />
               </div>
@@ -200,6 +209,7 @@ async function removeCamera(cameraNum) {
 }
 
 const addCameraNum = ref(null);
+const addType = ref('panasonic');
 const addHost = ref('');
 const addPort = ref('80');
 const addUsername = ref('');
@@ -213,11 +223,23 @@ const addError = ref('');
 function openAdd() {
   tab.value = 'add';
   addCameraNum.value = null;
+  addType.value = 'panasonic';
   addHost.value = '';
   addPort.value = '80';
   addUsername.value = '';
   addPassword.value = '';
   addError.value = '';
+  resetTest();
+}
+
+function typeLabel(t) {
+  return t === 'obsbot' ? 'OBSBOT Tail 2' : 'Panasonic';
+}
+
+function onTypeChange() {
+  addPort.value = addType.value === 'obsbot' ? '57110' : '80';
+  addUsername.value = '';
+  addPassword.value = '';
   resetTest();
 }
 
@@ -230,7 +252,7 @@ async function test() {
   addError.value = '';
   testing.value = true;
   try {
-    const result = await api.testCamera(addHost.value.trim(), addPort.value.trim(), addUsername.value.trim(), addPassword.value);
+    const result = await api.testCamera(addType.value, addHost.value.trim(), addPort.value.trim(), addUsername.value.trim(), addPassword.value);
     testResult.value = result;
     tested.value = true;
   } catch (e) {
@@ -246,6 +268,7 @@ async function add() {
   try {
     await api.addCameraSettings(
       addCameraNum.value,
+      addType.value,
       addHost.value.trim(),
       addPort.value.trim(),
       addUsername.value.trim(),

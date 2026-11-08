@@ -16,7 +16,8 @@
         "Frontend (Vite dev server)",
         "Mock Controller",
         "Mock ATEM",
-        "Mock UE150 (x3)"
+        "Mock UE150 (x3)",
+        "Mock Tail 2"
       ],
       "stopAll": true
     }
@@ -58,6 +59,13 @@
       "type": "node-terminal",
       "request": "launch",
       "command": "./run-mock-ue150.sh",
+      "cwd": "${workspaceFolder}/mocks"
+    },
+    {
+      "name": "Mock Tail 2",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "./run-mock-tail2.sh",
       "cwd": "${workspaceFolder}/mocks"
     }
   ]

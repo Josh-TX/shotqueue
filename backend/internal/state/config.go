@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -62,6 +63,7 @@ func (s *Store) BuildSnapshot() ([]config.ConfigCamera, []config.ConfigScene) {
 // from settings (see BuildLoadSeeds).
 type LoadSeed struct {
 	CameraNum   int
+	Type        string
 	Host        string
 	Port        string
 	Username    string
@@ -88,6 +90,7 @@ func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (
 		seen[cc.CameraNum] = true
 		seeds = append(seeds, LoadSeed{
 			CameraNum:   cs.CameraNum,
+			Type:        cs.Type,
 			Host:        cs.Host,
 			Port:        cs.Port,
 			Username:    cs.Username,
@@ -109,6 +112,7 @@ func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (
 		}
 		seeds = append(seeds, LoadSeed{
 			CameraNum:   cs.CameraNum,
+			Type:        cs.Type,
 			Host:        cs.Host,
 			Port:        cs.Port,
 			Username:    cs.Username,
@@ -124,12 +128,12 @@ func BuildLoadSeeds(cams []config.ConfigCamera, settingsStore *settings.Store) (
 }
 
 // nearestThumbnail returns the thumbnail of the preset whose target is closest to target (by
-// largest per-axis delta) among those within positionTolerance, or nil if none has one.
-func nearestThumbnail(presets []*Preset, target ptz.Position) []byte {
+// largest per-axis delta) among those the camera considers CloseEnough, or nil if none has one.
+func nearestThumbnail(client ptz.Camera, presets []*Preset, target ptz.Position) []byte {
 	var best []byte
-	bestDist := positionTolerance + 1
+	bestDist := math.MaxInt
 	for _, p := range presets {
-		if len(p.Thumbnail) == 0 || !closeEnough(p.Target, target) {
+		if len(p.Thumbnail) == 0 || !client.CloseEnough(p.Target, target) {
 			continue
 		}
 		d := max(abs(p.Target.Pan-target.Pan), abs(p.Target.Tilt-target.Tilt), abs(p.Target.Zoom-target.Zoom))
@@ -143,7 +147,7 @@ func nearestThumbnail(presets []*Preset, target ptz.Position) []byte {
 // LoadConfig fully replaces the camera roster and every camera's presets and groups (all in
 // memory only) with the given seeds. Presets/groups all get fresh IDs; any in-flight thumbnail
 // generation is implicitly cancelled since it tracks presets by the old IDs. A new preset inherits
-// the thumbnail of the nearest current preset on the same camera within positionTolerance.
+// the thumbnail of the nearest current preset on the same camera that the camera type deems CloseEnough.
 func (s *Store) LoadConfig(seeds []LoadSeed, scenes []config.ConfigScene) error {
 	s.genMu.Lock()
 	s.genToken++
@@ -163,14 +167,14 @@ func (s *Store) LoadConfig(seeds []LoadSeed, scenes []config.ConfigScene) error 
 			ColumnCount: seed.ColumnCount,
 			IsHidden:    seed.IsHidden,
 			IsSequence:  seed.IsSequence,
-			Client:      ptz.New(seed.Host, seed.Port, seed.Username, seed.Password),
+			Client:      ptz.NewCamera(seed.Type, seed.Host, seed.Port, seed.Username, seed.Password),
 			Status:      "none",
 			nextGroupID: 1,
 		}
 		presetIDByIndex := make([]string, len(seed.Presets))
 		for j, vp := range seed.Presets {
 			p := &Preset{ID: genID(), Name: vp.Name, Target: vp.Target, LockedFocus: vp.LockedFocus, ThumbnailVersion: 1}
-			p.Thumbnail = nearestThumbnail(oldPresets[seed.CameraNum], vp.Target)
+			p.Thumbnail = nearestThumbnail(cam.Client, oldPresets[seed.CameraNum], vp.Target)
 			cam.Presets = append(cam.Presets, p)
 			presetsByID[p.ID] = p
 			presetIDByIndex[j] = p.ID

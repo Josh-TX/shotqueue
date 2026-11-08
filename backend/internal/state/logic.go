@@ -362,7 +362,7 @@ func (s *Store) triggerPreset(cameraNum int, presetID string, allowLive bool) (i
 // this trigger was issued; if a newer trigger has since bumped it, this goroutine's results are
 // stale (superseded by whatever the newer trigger is doing) and are discarded instead of being
 // written back, so an in-flight trigger can never clobber a later one's preset/thumbnail/position.
-func (s *Store) finishTrigger(cameraNum int, presetID string, client *ptz.Client, target ptz.Position, focus *int, gen int) {
+func (s *Store) finishTrigger(cameraNum int, presetID string, client ptz.Camera, target ptz.Position, focus *int, gen int) {
 	// Set the locked focus up front so the lens is already in focus by the time the move lands.
 	if focus != nil {
 		if err := client.SetFocus(*focus); err != nil {
@@ -379,7 +379,7 @@ func (s *Store) finishTrigger(cameraNum int, presetID string, client *ptz.Client
 		pos, err := client.GetPosition()
 		if err == nil {
 			final = pos
-			if closeEnough(pos, target) {
+			if client.CloseEnough(pos, target) {
 				break
 			}
 		}
@@ -396,8 +396,10 @@ func (s *Store) finishTrigger(cameraNum int, presetID string, client *ptz.Client
 		if superseded {
 			return
 		}
-		if err := client.OneTouchFocus(); err != nil {
-			log.Printf("[state] camera %d: one-touch focus failed: %v", cameraNum, err)
+		if client.SupportsFocus() {
+			if err := client.OneTouchFocus(); err != nil {
+				log.Printf("[state] camera %d: one-touch focus failed: %v", cameraNum, err)
+			}
 		}
 	}
 
@@ -483,7 +485,7 @@ func (s *Store) UnlockFocus(cameraNum int, presetID string) error {
 
 	s.broadcast()
 	s.onMutate()
-	if isActive {
+	if isActive && client.SupportsFocus() {
 		if err := client.OneTouchFocus(); err != nil {
 			log.Printf("[state] camera %d: one-touch focus failed: %v", cameraNum, err)
 		}
@@ -505,6 +507,9 @@ func (s *Store) refreshFocusModeIfDue(cameraNum int) bool {
 	client := cam.Client
 	s.mu.Unlock()
 
+	if !client.SupportsFocus() {
+		return false
+	}
 	auto, err := client.IsAutoFocus()
 	if err != nil {
 		return false

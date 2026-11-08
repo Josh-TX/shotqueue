@@ -31,7 +31,7 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 	if parts[0] == "test" {
 		if len(parts) == 2 && parts[1] == "snapshot" && r.Method == http.MethodGet {
 			q := r.URL.Query()
-			s.handleTestSnapshot(w, r, q.Get("host"), q.Get("port"), q.Get("username"), q.Get("password"))
+			s.handleTestSnapshot(w, r, q.Get("type"), q.Get("host"), q.Get("port"), q.Get("username"), q.Get("password"))
 			return
 		}
 		if len(parts) == 1 && r.Method == http.MethodPost {
@@ -87,6 +87,7 @@ func (s *Server) handleCameraSubroutes(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleTestCamera(w http.ResponseWriter, r *http.Request) {
 	var body struct {
+		Type     string `json:"type"`
 		Host     string `json:"host"`
 		Port     string `json:"port"`
 		Username string `json:"username"`
@@ -96,7 +97,7 @@ func (s *Server) handleTestCamera(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "host and port are required")
 		return
 	}
-	client := ptz.New(body.Host, body.Port, body.Username, body.Password)
+	client := ptz.NewCamera(body.Type, body.Host, body.Port, body.Username, body.Password)
 	pos, err := client.GetPosition()
 	if err != nil {
 		writeError(w, 502, fmt.Sprintf("no camera reachable at %s:%s: %v", body.Host, body.Port, err))
@@ -105,8 +106,8 @@ func (s *Server) handleTestCamera(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]any{
 		"ok":       true,
 		"position": pos,
-		"snapshotUrl": fmt.Sprintf("/api/cameras/test/snapshot?host=%s&port=%s&username=%s&password=%s&ts=%d",
-			url.QueryEscape(body.Host), url.QueryEscape(body.Port), url.QueryEscape(body.Username), url.QueryEscape(body.Password), nowMs()),
+		"snapshotUrl": fmt.Sprintf("/api/cameras/test/snapshot?type=%s&host=%s&port=%s&username=%s&password=%s&ts=%d",
+			url.QueryEscape(body.Type), url.QueryEscape(body.Host), url.QueryEscape(body.Port), url.QueryEscape(body.Username), url.QueryEscape(body.Password), nowMs()),
 	})
 }
 
@@ -168,8 +169,8 @@ func (s *Server) handleSnapshot(w http.ResponseWriter, r *http.Request, camNum i
 
 // ---- settings (config passthrough for the test-snapshot route used before a camera is added) ----
 
-func (s *Server) handleTestSnapshot(w http.ResponseWriter, r *http.Request, host, port, username, password string) {
-	client := ptz.New(host, port, username, password)
+func (s *Server) handleTestSnapshot(w http.ResponseWriter, r *http.Request, camType, host, port, username, password string) {
+	client := ptz.NewCamera(camType, host, port, username, password)
 	img, err := client.Snapshot()
 	if err != nil {
 		writeError(w, 502, err.Error())

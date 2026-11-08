@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"shotqueue-backend/internal/ptz"
 	"shotqueue-backend/internal/settings"
 	"shotqueue-backend/internal/state"
 )
@@ -12,6 +13,7 @@ import (
 func publicCameraSettings(cs settings.CameraSettings) map[string]any {
 	return map[string]any{
 		"cameraNum": cs.CameraNum,
+		"type":      cs.Type,
 		"host":      cs.Host,
 		"port":      cs.Port,
 		"username":  cs.Username,
@@ -67,6 +69,7 @@ func (s *Server) handleSettingsCameras(w http.ResponseWriter, r *http.Request) {
 	}
 	var body struct {
 		CameraNum int    `json:"cameraNum"`
+		Type      string `json:"type"`
 		Host      string `json:"host"`
 		Port      string `json:"port"`
 		Username  string `json:"username"`
@@ -80,8 +83,16 @@ func (s *Server) handleSettingsCameras(w http.ResponseWriter, r *http.Request) {
 		writeError(w, 400, "cameraNum, host and port are required")
 		return
 	}
+	if body.Type == "" {
+		body.Type = ptz.TypePanasonic
+	}
+	if !ptz.ValidType(body.Type) {
+		writeError(w, 400, "unknown camera type")
+		return
+	}
 	cs := settings.CameraSettings{
 		CameraNum: body.CameraNum,
+		Type:      body.Type,
 		Host:      body.Host,
 		Port:      body.Port,
 		Username:  body.Username,
@@ -92,7 +103,7 @@ func (s *Server) handleSettingsCameras(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.store.UpsertCamera(state.CameraSeed{
-		CameraNum: cs.CameraNum, Host: cs.Host, Port: cs.Port, Username: cs.Username, Password: cs.Password,
+		CameraNum: cs.CameraNum, Type: cs.Type, Host: cs.Host, Port: cs.Port, Username: cs.Username, Password: cs.Password,
 	})
 	writeJSON(w, 201, publicCameraSettings(cs))
 }
@@ -132,7 +143,7 @@ func (s *Server) handleSettingsCameraSubroutes(w http.ResponseWriter, r *http.Re
 		}
 		// Rebuilds the ptz client in place; presets, groups and visibility are kept.
 		s.store.UpsertCamera(state.CameraSeed{
-			CameraNum: updated.CameraNum, Host: updated.Host, Port: updated.Port,
+			CameraNum: updated.CameraNum, Type: updated.Type, Host: updated.Host, Port: updated.Port,
 			Username: updated.Username, Password: updated.Password,
 		})
 		writeJSON(w, 200, publicCameraSettings(updated))

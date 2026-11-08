@@ -1,11 +1,10 @@
 // Package ptz talks to an AW-UE150 (or mock-ue150) over its HTTP CGI interface, ported from
-// mock-controller. One Client is bound to a single camera's host:port.
+// mock-controller. One PanasonicClient is bound to a single camera's host:port.
 package ptz
 
 import (
 	"fmt"
 	"io"
-	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,7 +33,7 @@ type Position struct {
 	Zoom int `json:"zoom"`
 }
 
-type Client struct {
+type PanasonicClient struct {
 	Host    string
 	Port    string
 	client  *http.Client
@@ -43,8 +42,8 @@ type Client struct {
 
 // username/password may both be empty for a camera with auth turned off; auth.RequestWithAuth
 // only sends credentials once the camera actually challenges for them.
-func New(host, port, username, password string) *Client {
-	return &Client{
+func NewPanasonic(host, port, username, password string) *PanasonicClient {
+	return &PanasonicClient{
 		Host:    host,
 		Port:    port,
 		client:  &http.Client{Timeout: 5 * time.Second},
@@ -57,7 +56,7 @@ func reportAuth(event auth.Event) {
 	_ = event
 }
 
-func (c *Client) authedGet(url, uri string) (*http.Response, error) {
+func (c *PanasonicClient) authedGet(url, uri string) (*http.Response, error) {
 	return auth.RequestWithAuth(func(headers map[string]string) (*http.Response, error) {
 		req, err := http.NewRequest(http.MethodGet, url, nil)
 		if err != nil {
@@ -82,10 +81,6 @@ func toHex(value int, width int) string {
 	return strings.ToUpper(fmt.Sprintf("%0*x", width, value))
 }
 
-func pctToValue(pct float64, min, max int) int {
-	return int(math.Round(float64(min) + float64(max-min)*(pct/100)))
-}
-
 func clamp(value, min, max int) int {
 	if value < min {
 		return min
@@ -96,16 +91,16 @@ func clamp(value, min, max int) int {
 	return value
 }
 
-func (c *Client) camGet(cmd string) (string, error) {
+func (c *PanasonicClient) camGet(cmd string) (string, error) {
 	return c.cgiGet(fmt.Sprintf("/cgi-bin/aw_ptz?cmd=%%23%s&res=1", cmd))
 }
 
 // awCamGet sends a command on the aw_cam endpoint, which (unlike aw_ptz) takes no '#' prefix.
-func (c *Client) awCamGet(cmd string) (string, error) {
+func (c *PanasonicClient) awCamGet(cmd string) (string, error) {
 	return c.cgiGet(fmt.Sprintf("/cgi-bin/aw_cam?cmd=%s&res=1", cmd))
 }
 
-func (c *Client) cgiGet(uri string) (string, error) {
+func (c *PanasonicClient) cgiGet(uri string) (string, error) {
 	url := fmt.Sprintf("http://%s:%s%s", c.Host, c.Port, uri)
 	resp, err := c.authedGet(url, uri)
 	if err != nil {
@@ -122,7 +117,7 @@ func (c *Client) cgiGet(uri string) (string, error) {
 	return string(body), nil
 }
 
-func (c *Client) GetPosition() (Position, error) {
+func (c *PanasonicClient) GetPosition() (Position, error) {
 	body, err := c.camGet("PTV")
 	if err != nil {
 		return Position{}, err
@@ -145,23 +140,9 @@ func (c *Client) GetPosition() (Position, error) {
 	return Position{Pan: int(pan), Tilt: int(tilt), Zoom: int(zoom)}, nil
 }
 
-func (c *Client) SetPosition(panPct, tiltPct, zoomPct float64) (Position, error) {
-	pan := clamp(pctToValue(panPct, panMin, panMax), panMin, panMax)
-	tilt := clamp(pctToValue(tiltPct, tiltMin, tiltMax), tiltMin, tiltMax)
-	zoom := clamp(pctToValue(zoomPct, zoomMin, zoomMax), zoomMin, zoomMax)
-
-	if _, err := c.camGet(fmt.Sprintf("APC%s%s", toHex(pan, 4), toHex(tilt, 4))); err != nil {
-		return Position{}, err
-	}
-	if _, err := c.camGet(fmt.Sprintf("AXZ%s", toHex(zoom, 3))); err != nil {
-		return Position{}, err
-	}
-	return Position{Pan: pan, Tilt: tilt, Zoom: zoom}, nil
-}
-
 // SetPositionRaw sends an exact pan/tilt/zoom (as returned by GetPosition) rather than converting
 // from a percentage, so restoring a captured preset doesn't lose precision through pct round-trips.
-func (c *Client) SetPositionRaw(pos Position) error {
+func (c *PanasonicClient) SetPositionRaw(pos Position) error {
 	if _, err := c.camGet(fmt.Sprintf("APC%s%s", toHex(pos.Pan, 4), toHex(pos.Tilt, 4))); err != nil {
 		return err
 	}
@@ -172,7 +153,7 @@ func (c *Client) SetPositionRaw(pos Position) error {
 }
 
 // GetFocus reads the lens focus position (focusMin near .. focusMax far) from #PTV's focus field.
-func (c *Client) GetFocus() (int, error) {
+func (c *PanasonicClient) GetFocus() (int, error) {
 	body, err := c.camGet("PTV")
 	if err != nil {
 		return 0, err
@@ -188,19 +169,19 @@ func (c *Client) GetFocus() (int, error) {
 }
 
 // SetFocus moves the lens to an exact focus position. Only takes effect in Manual focus mode.
-func (c *Client) SetFocus(focus int) error {
+func (c *PanasonicClient) SetFocus(focus int) error {
 	_, err := c.camGet(fmt.Sprintf("AXF%s", toHex(clamp(focus, focusMin, focusMax), 3)))
 	return err
 }
 
 // OneTouchFocus runs a single auto-focus pass (Push Auto Focus). Only works in Manual focus mode.
-func (c *Client) OneTouchFocus() error {
+func (c *PanasonicClient) OneTouchFocus() error {
 	_, err := c.awCamGet("OSE:69:1")
 	return err
 }
 
 // IsAutoFocus reports whether the camera is in continuous auto focus mode (as opposed to Manual).
-func (c *Client) IsAutoFocus() (bool, error) {
+func (c *PanasonicClient) IsAutoFocus() (bool, error) {
 	body, err := c.camGet("D1")
 	if err != nil {
 		return false, err
@@ -212,7 +193,7 @@ func (c *Client) IsAutoFocus() (bool, error) {
 }
 
 // Snapshot fetches one JPEG frame from the camera.
-func (c *Client) Snapshot() ([]byte, error) {
+func (c *PanasonicClient) Snapshot() ([]byte, error) {
 	uri := fmt.Sprintf("/cgi-bin/view.cgi?action=snapshot&n=%d", time.Now().UnixMilli())
 	url := fmt.Sprintf("http://%s:%s%s", c.Host, c.Port, uri)
 	resp, err := c.authedGet(url, uri)
@@ -221,4 +202,21 @@ func (c *Client) Snapshot() ([]byte, error) {
 	}
 	defer resp.Body.Close()
 	return io.ReadAll(resp.Body)
+}
+
+// Panasonic positions are raw hex units; the camera's own convergence and repeated reads aren't
+// bit-exact, hence a small tolerance on each axis.
+const panasonicTolerance = 6
+
+func (c *PanasonicClient) CloseEnough(a, b Position) bool {
+	return abs(a.Pan-b.Pan) <= panasonicTolerance && abs(a.Tilt-b.Tilt) <= panasonicTolerance && abs(a.Zoom-b.Zoom) <= panasonicTolerance
+}
+
+func (c *PanasonicClient) SupportsFocus() bool { return true }
+
+func abs(a int) int {
+	if a < 0 {
+		return -a
+	}
+	return a
 }

@@ -1,5 +1,6 @@
-# upcoming
+# 0.8.0
 
+- added limited support for the obsbot tail 2 cameras
 - one-touch focus is less delayed
 - previewed camera has a subtle background color
 

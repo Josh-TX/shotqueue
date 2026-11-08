@@ -14,13 +14,13 @@ async function request(method, path, body) {
 
 export const api = {
   listCameras: () => request('GET', '/api/cameras'),
-  testCamera: (host, port, username, password) => request('POST', '/api/cameras/test', { host, port, username, password }),
+  testCamera: (type, host, port, username, password) => request('POST', '/api/cameras/test', { type, host, port, username, password }),
   setColumnCount: (cameraNum, columnCount) => request('PATCH', `/api/cameras/${cameraNum}`, { columnCount }),
 
   getSettings: () => request('GET', '/api/settings'),
   updateSettings: (patch) => request('PUT', '/api/settings', patch),
-  addCameraSettings: (cameraNum, host, port, username, password) =>
-    request('POST', '/api/settings/cameras', { cameraNum, host, port, username, password }),
+  addCameraSettings: (cameraNum, type, host, port, username, password) =>
+    request('POST', '/api/settings/cameras', { cameraNum, type, host, port, username, password }),
   updateCameraSettings: (currentCameraNum, patch) =>
     request('PATCH', `/api/settings/cameras/${currentCameraNum}`, patch),
   deleteCameraSettings: (cameraNum) => request('DELETE', `/api/settings/cameras/${cameraNum}`),

@@ -26,6 +26,7 @@ type CameraDTO struct {
 	Generating         bool        `json:"generating"`
 	Error              string      `json:"error"`
 	AutoFocus          bool        `json:"autoFocus"`
+	SupportsFocus      bool        `json:"supportsFocus"`
 }
 
 func presetDTO(p *Preset) PresetDTO {
@@ -73,6 +74,7 @@ func cameraDTOLocked(cam *Camera) CameraDTO {
 		Generating:         cam.Generating,
 		Error:              cam.PollError,
 		AutoFocus:          cam.AutoFocus,
+		SupportsFocus:      cam.Client.SupportsFocus(),
 	}
 }
 

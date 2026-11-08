@@ -35,11 +35,6 @@ func genID() string {
 // etc). Only runs while at least one websocket client is connected.
 const idlePollInterval = 1 * time.Second
 
-// positionTolerance: how close a live GetPosition reading must be to a preset's captured target,
-// on each of pan/tilt/zoom, to count as "this preset is active". Not zero because the camera's
-// own convergence and repeated reads aren't bit-exact.
-const positionTolerance = 6
-
 // focusModePollInterval is how often the poll loop re-checks each camera's focus mode (Manual vs
 // Auto), to flag cameras that have drifted into continuous auto focus.
 const focusModePollInterval = 8 * time.Second
@@ -132,7 +127,7 @@ type Queued struct {
 
 type Camera struct {
 	CameraNum          int
-	Client             *ptz.Client
+	Client             ptz.Camera
 	Status             string // "live" | "preview" | "none"
 	TriggeringPresetID *string
 	TriggerGen         int
@@ -312,6 +307,7 @@ func (s *Store) Cameras() []*Camera {
 // CameraSeed is a camera's connection info, used to create or refresh a Camera's ptz.Client.
 type CameraSeed struct {
 	CameraNum int
+	Type      string
 	Host      string
 	Port      string
 	Username  string
@@ -330,7 +326,7 @@ func (s *Store) UpsertCamera(seed CameraSeed) *Camera {
 			isNew = true
 			cam = &Camera{
 				CameraNum:   seed.CameraNum,
-				Client:      ptz.New(seed.Host, seed.Port, seed.Username, seed.Password),
+				Client:      ptz.NewCamera(seed.Type, seed.Host, seed.Port, seed.Username, seed.Password),
 				Status:      "none",
 				ColumnCount: DefaultColumnCount,
 				IsSequence:  true,
@@ -343,7 +339,7 @@ func (s *Store) UpsertCamera(seed CameraSeed) *Camera {
 			sortCameras(s.cameras)
 			s.ensureSceneEntriesLocked()
 		} else {
-			cam.Client = ptz.New(seed.Host, seed.Port, seed.Username, seed.Password)
+			cam.Client = ptz.NewCamera(seed.Type, seed.Host, seed.Port, seed.Username, seed.Password)
 		}
 	})
 	if isNew {
@@ -454,10 +450,6 @@ func abs(a int) int {
 	return a
 }
 
-func closeEnough(a, b ptz.Position) bool {
-	return abs(a.Pan-b.Pan) <= positionTolerance && abs(a.Tilt-b.Tilt) <= positionTolerance && abs(a.Zoom-b.Zoom) <= positionTolerance
-}
-
 // activePresetIDLocked reports which preset (if any) the camera is actually sitting on, per the
 // cached value last written by recomputeActivePresetLocked.
 func activePresetIDLocked(cam *Camera) *string {
@@ -474,7 +466,7 @@ func recomputeActivePresetLocked(cam *Camera) {
 		return
 	}
 	for _, p := range cam.Presets {
-		if !closeEnough(*cam.CurrentPosition, p.Target) {
+		if !cam.Client.CloseEnough(*cam.CurrentPosition, p.Target) {
 			continue
 		}
 		// With duplicate presets, prefer the most recently triggered one; else the first match.
@@ -489,7 +481,7 @@ func recomputeActivePresetLocked(cam *Camera) {
 }
 
 // ClientFor returns the PTZ client for a camera, safe to use concurrently with camera edits.
-func (s *Store) ClientFor(cameraNum int) (*ptz.Client, bool) {
+func (s *Store) ClientFor(cameraNum int) (ptz.Camera, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam := s.findCameraLocked(cameraNum)
@@ -510,7 +502,7 @@ func (s *Store) PresetThumbnail(presetID string) ([]byte, bool) {
 }
 
 // MatchThumbnail returns the thumbnail of the current preset on cameraNum nearest to target
-// (within positionTolerance), if any.
+// (within the camera's CloseEnough), if any.
 func (s *Store) MatchThumbnail(cameraNum int, target ptz.Position) []byte {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -518,7 +510,7 @@ func (s *Store) MatchThumbnail(cameraNum int, target ptz.Position) []byte {
 	if cam == nil {
 		return nil
 	}
-	return nearestThumbnail(cam.Presets, target)
+	return nearestThumbnail(cam.Client, cam.Presets, target)
 }
 
 var ErrNotFound = errors.New("not found")
