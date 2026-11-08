@@ -34,8 +34,19 @@ const currentThumbnailUrl = computed(() => `/api/cameras/${props.camera.cameraNu
 let interval;
 onMounted(() => {
   interval = setInterval(() => (refreshTs.value = Date.now()), 500);
+  document.addEventListener('keydown', onKeydown);
 });
-onUnmounted(() => clearInterval(interval));
+onUnmounted(() => {
+  clearInterval(interval);
+  document.removeEventListener('keydown', onKeydown);
+});
+
+function onKeydown(e) {
+  if (e.key !== 'Enter' || e.isComposing || e.target.closest?.('button')) return;
+  if (!canCapture.value) return;
+  e.preventDefault();
+  submit();
+}
 
 async function submit() {
   try {

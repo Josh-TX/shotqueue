@@ -1,6 +1,8 @@
 # upcoming
 
 - one-touch focus is less delayed
+- previewed camera has a subtle background color
+
 
 # 0.7.0
 

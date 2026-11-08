@@ -359,6 +359,20 @@ h3 {
   background: linear-gradient(to top, rgba(239, 68, 68, 0.5) 0%, rgba(239, 68, 68, 0.18) 5%, rgba(239, 68, 68, 0.07) 30%, rgba(239, 68, 68, 0) 100%);
   pointer-events: none;
 }
+.camera-column.preview {
+  position: relative;
+  background: #161f1b;
+}
+.camera-column.preview::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 80px;
+  background: linear-gradient(to top, rgba(34, 197, 94, 0.32) 0%, rgba(34, 197, 94, 0.11) 5%, rgba(34, 197, 94, 0.04) 30%, rgba(34, 197, 94, 0) 100%);
+  pointer-events: none;
+}
 .camera-column-header {
   display: flex;
   flex-direction: column;

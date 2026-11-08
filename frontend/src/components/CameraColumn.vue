@@ -1,7 +1,7 @@
 <template>
   <div
     class="camera-column"
-    :class="{ live: camera.status === 'live' }"
+    :class="{ live: camera.status === 'live', preview: camera.status === 'preview' }"
     :style="{ width: columnWidth + 'px' }"
     @contextmenu.prevent="openMenu"
   >
@@ -10,8 +10,8 @@
         <span class="camera-name" :title="name">{{ name }}</span>
         <span class="name-badges">
           <span v-if="camera.generating" class="gen-badge">GENERATING</span>
-          <span v-if="camera.status !== 'none'" class="tally-badge" :class="camera.status">{{ tallyLabel }}</span>
           <span v-if="camera.autoFocus" class="auto-focus-badge" title="Camera is in auto focus mode">A</span>
+          <span v-if="camera.status !== 'none'" class="tally-badge" :class="camera.status">{{ tallyLabel }}</span>
           <span v-if="camera.error" class="error-badge">{{ camera.error }}</span>
         </span>
       </div>
