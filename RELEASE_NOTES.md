@@ -1,3 +1,7 @@
+# upcoming
+
+- one-touch focus is less delayed
+
 # 0.7.0
 
 - improved focus behavior

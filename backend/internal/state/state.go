@@ -44,10 +44,6 @@ const positionTolerance = 6
 // Auto), to flag cameras that have drifted into continuous auto focus.
 const focusModePollInterval = 8 * time.Second
 
-// postMoveAFDelay is how long after a preset settles (and goes active) before one-touch AF fires
-// for presets without a locked focus.
-const postMoveAFDelay = 250 * time.Millisecond
-
 type LogicError struct {
 	Message string
 	Status  int

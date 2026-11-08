@@ -386,6 +386,21 @@ func (s *Store) finishTrigger(cameraNum int, presetID string, client *ptz.Client
 		time.Sleep(triggerPollInterval)
 	}
 
+	// No locked focus: let the camera auto-focus on whatever it's now framing, unless another
+	// trigger has taken over the camera in the meantime.
+	if focus == nil {
+		s.mu.Lock()
+		cam := s.findCameraLocked(cameraNum)
+		superseded := cam == nil || cam.TriggerGen != gen
+		s.mu.Unlock()
+		if superseded {
+			return
+		}
+		if err := client.OneTouchFocus(); err != nil {
+			log.Printf("[state] camera %d: one-touch focus failed: %v", cameraNum, err)
+		}
+	}
+
 	thumb, thumbErr := client.Snapshot()
 
 	s.mu.Lock()
@@ -405,23 +420,6 @@ func (s *Store) finishTrigger(cameraNum int, presetID string, client *ptz.Client
 	s.mu.Unlock()
 
 	s.broadcast()
-
-	if focus != nil {
-		return
-	}
-	// No locked focus: let the camera auto-focus on whatever it's now framing, unless another
-	// trigger has taken over the camera in the meantime.
-	time.Sleep(postMoveAFDelay)
-	s.mu.Lock()
-	cam = s.findCameraLocked(cameraNum)
-	superseded := cam == nil || cam.TriggerGen != gen
-	s.mu.Unlock()
-	if superseded {
-		return
-	}
-	if err := client.OneTouchFocus(); err != nil {
-		log.Printf("[state] camera %d: one-touch focus failed: %v", cameraNum, err)
-	}
 }
 
 // LockFocus reads the camera's current focus and saves it on the preset, which must be the
