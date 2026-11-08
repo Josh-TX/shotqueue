@@ -42,8 +42,8 @@ const autosaveHistoryGap = 5 * time.Minute
 type ConfigPreset struct {
 	Name   string       `json:"name"`
 	Target ptz.Position `json:"target"`
-	// omitted when focus isn't locked, so configs stay readable by versions that predate it
-	LockedFocus *int `json:"lockedFocus,omitempty"`
+	// omitted when no focus is stored, so configs stay readable by versions that predate it
+	Focus *int `json:"focus,omitempty"`
 }
 
 type ConfigGroup struct {

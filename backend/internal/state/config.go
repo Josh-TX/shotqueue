@@ -42,7 +42,7 @@ func (s *Store) BuildSnapshot() ([]config.ConfigCamera, []config.ConfigScene) {
 		vc.SequenceMode = &isSeq
 		for j, p := range cam.Presets {
 			presetIndex[p.ID] = j
-			vc.Presets[j] = config.ConfigPreset{Name: p.Name, Target: p.Target, LockedFocus: p.LockedFocus}
+			vc.Presets[j] = config.ConfigPreset{Name: p.Name, Target: p.Target, Focus: p.Focus}
 		}
 		for j, g := range cam.Groups {
 			groupIndex[g.ID] = j
@@ -173,7 +173,7 @@ func (s *Store) LoadConfig(seeds []LoadSeed, scenes []config.ConfigScene) error 
 		}
 		presetIDByIndex := make([]string, len(seed.Presets))
 		for j, vp := range seed.Presets {
-			p := &Preset{ID: genID(), Name: vp.Name, Target: vp.Target, LockedFocus: vp.LockedFocus, ThumbnailVersion: 1}
+			p := &Preset{ID: genID(), Name: vp.Name, Target: vp.Target, Focus: vp.Focus, ThumbnailVersion: 1}
 			p.Thumbnail = nearestThumbnail(cam.Client, oldPresets[seed.CameraNum], vp.Target)
 			cam.Presets = append(cam.Presets, p)
 			presetsByID[p.ID] = p

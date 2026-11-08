@@ -13,17 +13,20 @@ func (s *Server) handleAddPreset(w http.ResponseWriter, r *http.Request, camNum 
 		return
 	}
 	var body struct {
-		Name     string `json:"name"`
-		GroupIDs []int  `json:"groupIds"`
+		Name      string `json:"name"`
+		GroupIDs  []int  `json:"groupIds"`
+		SaveFocus bool   `json:"saveFocus"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		writeError(w, 400, "invalid body")
 		return
 	}
-	if _, err := s.store.AddPreset(camNum, body.Name, body.GroupIDs); err != nil {
+	_, warning, err := s.store.AddPreset(camNum, body.Name, body.GroupIDs, body.SaveFocus)
+	if err != nil {
 		writeLogicError(w, err)
 		return
 	}
+	setWarning(w, warning)
 	dto, _ := s.store.PublicCamera(camNum)
 	writeJSON(w, 201, dto)
 }
@@ -62,10 +65,16 @@ func (s *Server) handleUpdatePresetPosition(w http.ResponseWriter, r *http.Reque
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
-	if err := s.store.UpdatePresetPosition(camNum, presetID); err != nil {
+	var body struct {
+		SaveFocus bool `json:"saveFocus"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&body)
+	warning, err := s.store.UpdatePresetPosition(camNum, presetID, body.SaveFocus)
+	if err != nil {
 		writeLogicError(w, err)
 		return
 	}
+	setWarning(w, warning)
 	dto, _ := s.store.PublicCamera(camNum)
 	writeJSON(w, 200, dto)
 }
@@ -150,14 +159,22 @@ func (s *Server) handleSelectedGroup(w http.ResponseWriter, r *http.Request, cam
 	writeJSON(w, 200, dto)
 }
 
-// handleFocusLock: POST locks the preset's focus to the camera's current focus, DELETE unlocks it.
-func (s *Server) handleFocusLock(w http.ResponseWriter, r *http.Request, camNum int, presetID string) {
+// setWarning passes a non-fatal message to the client, which shows it as a toast.
+func setWarning(w http.ResponseWriter, warning string) {
+	if warning != "" {
+		w.Header().Set("X-Shotqueue-Warning", warning)
+	}
+}
+
+// handleFocus: POST runs a one-touch focus on the active preset (and saves the result), DELETE
+// forgets the preset's stored focus.
+func (s *Server) handleFocus(w http.ResponseWriter, r *http.Request, camNum int, presetID string) {
 	var err error
 	switch r.Method {
 	case http.MethodPost:
-		err = s.store.LockFocus(camNum, presetID)
+		err = s.store.OneTouchFocus(camNum, presetID)
 	case http.MethodDelete:
-		err = s.store.UnlockFocus(camNum, presetID)
+		err = s.store.ForgetFocus(camNum, presetID)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return

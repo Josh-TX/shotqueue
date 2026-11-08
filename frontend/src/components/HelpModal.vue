@@ -60,26 +60,29 @@
 
     <h3 class="help-section">Focus</h3>
     <p class="help-desc help-intro">
-      Whenever a preset finishes triggering and becomes active, shotqueue will attempt to one-time focus that camera.
-      You can right-click any active preset and "Lock" the focus. This stores the current focus settings to the preset,
-      and whenever the preset is triggered, it'll update the focus to the locked value. Presets with a locked focus won't perform the
-      one-time focus upon becoming active.
+      If the camera is in auto-focus mode (indicated by <span class="auto-focus-badge">A</span>), then the camera ignores any attempt to one-touch focus or set the focus
+      value. We can still read the focus value, and shotqueue will store this alongside the preset for later use. We
+      store it when the preset is created, re-positioned, or 2 seconds after the preset finishes triggering.
+    </p>
+    <p class="help-desc help-intro">
+      If a preset is created or re-positioned when the camera's auto-focus mode is off, then there's uncertainty about
+      whether shotqueue should preserve the current focus. The modal has a checkbox to decide this... only check "save
+      current focus" if the shot is actually in focus.
+    </p>
+    <p class="help-desc help-intro">
+      If a preset is triggered, and auto-focus mode is off, and the preset has a stored focus value, then shotqueue
+      will update the camera's focus value while it's moving to the correct position. So once the camera finishes
+      triggering, it'll already have the correct focus.
+    </p>
+    <p class="help-desc help-intro">
+      But if the preset didn't have a stored focus value, then it'll perform a one-touch focus after the camera
+      finishes triggering, and then the focus value is saved to the preset.
     </p>
     <div class="help-row">
       <div class="preset-thumb static help-swatch">
         <span class="focus-lock-badge">F</span>
       </div>
-      <p class="help-desc">This indicates the preset has a focus locked.</p>
-    </div>
-    <div class="help-row">
-      <div class="preset-thumb static help-swatch">
-        <span class="focus-lock-badge">A</span>
-      </div>
-      <p class="help-desc">
-        This indicates that the camera is internally in auto-focus mode, and therefore any locked focuses will be
-        ignored by the camera. Shotqueue doesn't alter auto-focus mode, and it must be managed by an external PTZ
-        controller.
-      </p>
+      <p class="help-desc">This indicates the preset has a stored focus value.</p>
     </div>
 
     <h3 class="help-section">Configs</h3>

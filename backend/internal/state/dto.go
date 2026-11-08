@@ -5,7 +5,7 @@ type PresetDTO struct {
 	Name             string `json:"name"`
 	ThumbnailVersion *int   `json:"thumbnailVersion"`
 	WasTaken         bool   `json:"wasTaken"`
-	FocusLocked      bool   `json:"focusLocked"`
+	HasFocus         bool   `json:"hasFocus"`
 }
 
 type CameraDTO struct {
@@ -40,7 +40,7 @@ func presetDTO(p *Preset) PresetDTO {
 		Name:             p.Name,
 		ThumbnailVersion: version,
 		WasTaken:         p.WasTaken,
-		FocusLocked:      p.LockedFocus != nil,
+		HasFocus:         p.Focus != nil,
 	}
 }
 

@@ -1,3 +1,5 @@
+import { showToast } from './toast.js';
+
 async function request(method, path, body) {
   const res = await fetch(path, {
     method,
@@ -8,6 +10,8 @@ async function request(method, path, body) {
     const err = await res.json().catch(() => ({ error: res.statusText }));
     throw new Error(err.error || `request failed (${res.status})`);
   }
+  const warning = res.headers.get('X-Shotqueue-Warning');
+  if (warning) showToast(warning, 5000);
   if (res.status === 204) return null;
   return res.json();
 }
@@ -26,14 +30,14 @@ export const api = {
   deleteCameraSettings: (cameraNum) => request('DELETE', `/api/settings/cameras/${cameraNum}`),
   setCameraHidden: (cameraNum, isHidden) => request('PATCH', `/api/cameras/${cameraNum}`, { isHidden }),
 
-  addPreset: (camId, name, groupIds) => request('POST', `/api/cameras/${camId}/presets`, { name, groupIds }),
+  addPreset: (camId, name, groupIds, saveFocus) => request('POST', `/api/cameras/${camId}/presets`, { name, groupIds, saveFocus }),
   renamePreset: (camId, presetId, name) => request('PATCH', `/api/cameras/${camId}/presets/${presetId}`, { name }),
   deletePreset: (camId, presetId) => request('DELETE', `/api/cameras/${camId}/presets/${presetId}`),
   reorderPresets: (camId, order) => request('PATCH', `/api/cameras/${camId}/preset-order`, { order }),
   triggerPreset: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/trigger`),
-  updatePresetPosition: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/position`),
-  lockFocus: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/focus-lock`),
-  unlockFocus: (camId, presetId) => request('DELETE', `/api/cameras/${camId}/presets/${presetId}/focus-lock`),
+  updatePresetPosition: (camId, presetId, saveFocus) => request('POST', `/api/cameras/${camId}/presets/${presetId}/position`, { saveFocus }),
+  oneTouchFocus: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/focus`),
+  forgetFocus: (camId, presetId) => request('DELETE', `/api/cameras/${camId}/presets/${presetId}/focus`),
   queuePreset: (camId, presetId) => request('POST', `/api/cameras/${camId}/presets/${presetId}/queue`),
   unqueue: (camId) => request('DELETE', `/api/cameras/${camId}/queue`),
 

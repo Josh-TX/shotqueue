@@ -37,7 +37,7 @@ const idlePollInterval = 1 * time.Second
 
 // focusModePollInterval is how often the poll loop re-checks each camera's focus mode (Manual vs
 // Auto), to flag cameras that have drifted into continuous auto focus.
-const focusModePollInterval = 8 * time.Second
+const focusModePollInterval = 4 * time.Second
 
 type LogicError struct {
 	Message string
@@ -117,7 +117,7 @@ type Preset struct {
 	Thumbnail        []byte
 	ThumbnailVersion int
 	WasTaken         bool
-	LockedFocus      *int // nil = not locked; the camera one-touch auto-focuses after arriving instead
+	Focus            *int // nil = none stored; a manual-focus camera one-touch focuses after arriving, then stores the result
 }
 
 type Queued struct {

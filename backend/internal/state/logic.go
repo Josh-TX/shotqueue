@@ -77,40 +77,45 @@ func (s *Store) refreshPresetThumbnail(cameraNum int, presetID string) {
 }
 
 // AddPreset captures the camera's current live position and a snapshot as a new preset.
-func (s *Store) AddPreset(cameraNum int, name string, groupIDs []int) (*Preset, error) {
+// saveFocus is the user's "save current focus" choice; it only matters in manual focus mode. The
+// returned warning is non-empty when the preset saved but the focus couldn't be read.
+func (s *Store) AddPreset(cameraNum int, name string, groupIDs []int, saveFocus bool) (*Preset, string, error) {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
-		return nil, newErr(404, "camera not found")
+		return nil, "", newErr(404, "camera not found")
 	}
 	if cam.TriggeringPresetID != nil {
 		s.mu.Unlock()
-		return nil, newErr(409, "camera is currently moving, no thumbnail to capture")
+		return nil, "", newErr(409, "camera is currently moving, no thumbnail to capture")
 	}
 	client := cam.Client
+	auto := cam.AutoFocus
 	s.mu.Unlock()
 
 	pos, err := client.GetPosition()
 	if err != nil {
-		return nil, newErr(502, "could not read camera position: %v", err)
+		return nil, "", newErr(502, "could not read camera position: %v", err)
 	}
+	focus, warning := captureFocus(cameraNum, client, auto, saveFocus)
 	thumb, err := client.Snapshot()
 	if err != nil {
-		return nil, newErr(502, "could not capture snapshot: %v", err)
+		return nil, "", newErr(502, "could not capture snapshot: %v", err)
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam = s.findCameraLocked(cameraNum)
 	if cam == nil {
-		return nil, newErr(404, "camera not found")
+		return nil, "", newErr(404, "camera not found")
 	}
 
 	preset := &Preset{
 		ID:               genID(),
 		Name:             name,
 		Target:           pos,
+		Focus:            focus,
 		Thumbnail:        thumb,
 		ThumbnailVersion: 1,
 	}
@@ -128,61 +133,63 @@ func (s *Store) AddPreset(cameraNum int, name string, groupIDs []int) (*Preset, 
 
 	go s.broadcast()
 	go s.onMutate()
-	return preset, nil
+	return preset, warning, nil
 }
 
 // UpdatePresetPosition re-captures the camera's current live position and a snapshot into an
 // existing preset, replacing its saved target and thumbnail.
-func (s *Store) UpdatePresetPosition(cameraNum int, presetID string) error {
+// captureFocus reads the camera's focus for a new or re-positioned preset. In auto-focus mode the
+// value is always kept; in manual mode only if saveFocus. A nil result means "store nothing".
+func captureFocus(cameraNum int, client ptz.Camera, auto, saveFocus bool) (*int, string) {
+	if !client.SupportsFocus() || (!auto && !saveFocus) {
+		return nil, ""
+	}
+	f, err := client.GetFocus()
+	if err != nil {
+		log.Printf("[state] camera %d: could not read focus: %v", cameraNum, err)
+		return nil, "Saved, but the camera's focus could not be read"
+	}
+	return &f, ""
+}
+
+func (s *Store) UpdatePresetPosition(cameraNum int, presetID string, saveFocus bool) (string, error) {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
 		s.mu.Unlock()
-		return newErr(404, "camera not found")
+		return "", newErr(404, "camera not found")
 	}
 	if cam.TriggeringPresetID != nil {
 		s.mu.Unlock()
-		return newErr(409, "camera is currently moving, no thumbnail to capture")
+		return "", newErr(409, "camera is currently moving, no thumbnail to capture")
 	}
 	client := cam.Client
-	wasLocked := false
-	if p := s.presetsByID[presetID]; p != nil {
-		wasLocked = p.LockedFocus != nil
-	}
+	auto := cam.AutoFocus
 	s.mu.Unlock()
 
 	pos, err := client.GetPosition()
 	if err != nil {
-		return newErr(502, "could not read camera position: %v", err)
+		return "", newErr(502, "could not read camera position: %v", err)
 	}
-	// A locked preset keeps its lock, re-captured at the new position.
-	var focus *int
-	if wasLocked {
-		f, err := client.GetFocus()
-		if err != nil {
-			return newErr(502, "could not read camera focus: %v", err)
-		}
-		focus = &f
-	}
+	focus, warning := captureFocus(cameraNum, client, auto, saveFocus)
 	thumb, err := client.Snapshot()
 	if err != nil {
-		return newErr(502, "could not capture snapshot: %v", err)
+		return "", newErr(502, "could not capture snapshot: %v", err)
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	cam = s.findCameraLocked(cameraNum)
 	if cam == nil {
-		return newErr(404, "camera not found")
+		return "", newErr(404, "camera not found")
 	}
 	preset := s.presetsByID[presetID]
 	if preset == nil {
-		return newErr(404, "preset not found")
+		return "", newErr(404, "preset not found")
 	}
 	preset.Target = pos
-	if focus != nil {
-		preset.LockedFocus = focus
-	}
+	// Unchecked in manual mode (or a failed read) clears the old value; the next trigger re-learns it.
+	preset.Focus = focus
 	preset.Thumbnail = thumb
 	preset.ThumbnailVersion++
 	cam.CurrentPosition = &pos
@@ -190,7 +197,7 @@ func (s *Store) UpdatePresetPosition(cameraNum int, presetID string) error {
 
 	go s.broadcast()
 	go s.onMutate()
-	return nil
+	return warning, nil
 }
 
 func (s *Store) RenamePreset(cameraNum int, presetID string, name string) error {
@@ -346,15 +353,16 @@ func (s *Store) triggerPreset(cameraNum int, presetID string, allowLive bool) (i
 	gen := cam.TriggerGen
 	client := cam.Client
 	target := preset.Target
+	auto := cam.AutoFocus
 	var focus *int
-	if preset.LockedFocus != nil {
-		f := *preset.LockedFocus
+	if preset.Focus != nil {
+		f := *preset.Focus
 		focus = &f
 	}
 	s.mu.Unlock()
 
 	s.broadcast()
-	go s.finishTrigger(cameraNum, presetID, client, target, focus, gen)
+	go s.finishTrigger(cameraNum, presetID, client, target, focus, auto, gen)
 	return gen, nil
 }
 
@@ -362,9 +370,10 @@ func (s *Store) triggerPreset(cameraNum int, presetID string, allowLive bool) (i
 // this trigger was issued; if a newer trigger has since bumped it, this goroutine's results are
 // stale (superseded by whatever the newer trigger is doing) and are discarded instead of being
 // written back, so an in-flight trigger can never clobber a later one's preset/thumbnail/position.
-func (s *Store) finishTrigger(cameraNum int, presetID string, client ptz.Camera, target ptz.Position, focus *int, gen int) {
-	// Set the locked focus up front so the lens is already in focus by the time the move lands.
-	if focus != nil {
+func (s *Store) finishTrigger(cameraNum int, presetID string, client ptz.Camera, target ptz.Position, focus *int, auto bool, gen int) {
+	// Manual mode with a stored focus: set it up front so the lens is already in focus when the move
+	// lands. In auto mode the camera would ignore it.
+	if focus != nil && !auto && client.SupportsFocus() {
 		if err := client.SetFocus(*focus); err != nil {
 			log.Printf("[state] camera %d: set focus failed: %v", cameraNum, err)
 		}
@@ -386,9 +395,10 @@ func (s *Store) finishTrigger(cameraNum int, presetID string, client ptz.Camera,
 		time.Sleep(triggerPollInterval)
 	}
 
-	// No locked focus: let the camera auto-focus on whatever it's now framing, unless another
-	// trigger has taken over the camera in the meantime.
-	if focus == nil {
+	// Manual mode, no stored focus: one-touch focus on whatever it's now framing, unless another
+	// trigger has taken over the camera in the meantime. The result is saved after a short delay.
+	learnFocus := client.SupportsFocus() && (auto || focus == nil)
+	if !auto && focus == nil {
 		s.mu.Lock()
 		cam := s.findCameraLocked(cameraNum)
 		superseded := cam == nil || cam.TriggerGen != gen
@@ -422,11 +432,53 @@ func (s *Store) finishTrigger(cameraNum int, presetID string, client ptz.Camera,
 	s.mu.Unlock()
 
 	s.broadcast()
+	if learnFocus {
+		s.saveFocusLater(cameraNum, presetID, client, gen)
+	}
 }
 
-// LockFocus reads the camera's current focus and saves it on the preset, which must be the
-// camera's active preset (the only one whose focus the camera is actually showing).
-func (s *Store) LockFocus(cameraNum int, presetID string) error {
+// focusSaveDelay is how long after a trigger or one-touch focus the camera's focus is read and
+// stored on the preset, giving the lens time to settle.
+const focusSaveDelay = 2 * time.Second
+
+// saveFocusLater, after focusSaveDelay, stores the camera's current focus on the preset, unless
+// something newer (another trigger, a move off the preset, a delete) happened in the meantime.
+func (s *Store) saveFocusLater(cameraNum int, presetID string, client ptz.Camera, gen int) {
+	time.Sleep(focusSaveDelay)
+	s.mu.Lock()
+	cam := s.findCameraLocked(cameraNum)
+	if cam == nil || cam.TriggerGen != gen || cam.TriggeringPresetID != nil ||
+		cam.ActivePresetID == nil || *cam.ActivePresetID != presetID {
+		s.mu.Unlock()
+		return
+	}
+	s.mu.Unlock()
+
+	f, err := client.GetFocus()
+	if err != nil {
+		log.Printf("[state] camera %d: could not read focus: %v", cameraNum, err)
+		return
+	}
+
+	s.mu.Lock()
+	cam = s.findCameraLocked(cameraNum)
+	preset := s.presetsByID[presetID]
+	if cam == nil || preset == nil || cam.TriggerGen != gen || cam.TriggeringPresetID != nil ||
+		cam.ActivePresetID == nil || *cam.ActivePresetID != presetID ||
+		(preset.Focus != nil && *preset.Focus == f) {
+		s.mu.Unlock()
+		return
+	}
+	preset.Focus = &f
+	s.mu.Unlock()
+
+	s.broadcast()
+	s.onMutate()
+}
+
+// OneTouchFocus runs a one-touch focus on the camera and, after focusSaveDelay, saves the result on
+// the preset, which must be the camera's active preset and the camera must be in manual focus mode.
+func (s *Store) OneTouchFocus(cameraNum int, presetID string) error {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
@@ -439,34 +491,29 @@ func (s *Store) LockFocus(cameraNum int, presetID string) error {
 	}
 	if cam.TriggeringPresetID != nil || cam.ActivePresetID == nil || *cam.ActivePresetID != presetID {
 		s.mu.Unlock()
-		return newErr(409, "focus can only be locked on the active preset")
+		return newErr(409, "one-touch focus is only available on the active preset")
+	}
+	if !cam.Client.SupportsFocus() {
+		s.mu.Unlock()
+		return newErr(409, "camera doesn't support focus")
+	}
+	if cam.AutoFocus {
+		s.mu.Unlock()
+		return newErr(409, "camera is in auto-focus mode")
 	}
 	client := cam.Client
+	gen := cam.TriggerGen
 	s.mu.Unlock()
 
-	focus, err := client.GetFocus()
-	if err != nil {
-		return newErr(502, "could not read camera focus: %v", err)
+	if err := client.OneTouchFocus(); err != nil {
+		return newErr(502, "one-touch focus failed: %v", err)
 	}
-
-	s.mu.Lock()
-	preset := s.presetsByID[presetID]
-	if preset == nil {
-		s.mu.Unlock()
-		return newErr(404, "preset not found")
-	}
-	preset.LockedFocus = &focus
-	s.mu.Unlock()
-
-	s.broadcast()
-	s.onMutate()
+	go s.saveFocusLater(cameraNum, presetID, client, gen)
 	return nil
 }
 
-// UnlockFocus clears a preset's locked focus. If the preset is the camera's active one, the camera
-// also runs a one-touch AF right away, so it ends up as it would after arriving at an unlocked
-// preset.
-func (s *Store) UnlockFocus(cameraNum int, presetID string) error {
+// ForgetFocus clears a preset's stored focus, with no camera action.
+func (s *Store) ForgetFocus(cameraNum int, presetID string) error {
 	s.mu.Lock()
 	cam := s.findCameraLocked(cameraNum)
 	if cam == nil {
@@ -478,18 +525,11 @@ func (s *Store) UnlockFocus(cameraNum int, presetID string) error {
 		s.mu.Unlock()
 		return newErr(404, "preset not found")
 	}
-	preset.LockedFocus = nil
-	isActive := cam.TriggeringPresetID == nil && cam.ActivePresetID != nil && *cam.ActivePresetID == presetID
-	client := cam.Client
+	preset.Focus = nil
 	s.mu.Unlock()
 
 	s.broadcast()
 	s.onMutate()
-	if isActive && client.SupportsFocus() {
-		if err := client.OneTouchFocus(); err != nil {
-			log.Printf("[state] camera %d: one-touch focus failed: %v", cameraNum, err)
-		}
-	}
 	return nil
 }
 

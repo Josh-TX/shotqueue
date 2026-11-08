@@ -14,7 +14,7 @@
     <div v-else class="preset-thumb-placeholder">No thumbnail</div>
     <div class="preset-thumb-gradient" />
     <div class="preset-thumb-name">{{ preset.name }}</div>
-    <span v-if="preset.focusLocked" class="focus-lock-badge" title="Focus locked">F</span>
+    <span v-if="preset.hasFocus" class="focus-lock-badge" title="Has a stored focus">F</span>
     <div v-if="selectedGroupMembers.length" class="group-swatches">
       <span v-for="g in selectedGroupMembers" :key="g.id" class="group-swatch" :style="{ background: groupColor(g, g.index) }" />
     </div>
@@ -123,18 +123,18 @@ const menu = ref(null);
 function openMenu(e) {
   menu.value = { x: e.clientX, y: e.clientY };
 }
-function setFocusLock(locked) {
-  const call = locked ? api.lockFocus : api.unlockFocus;
-  call(props.camera.cameraNum, props.preset.id).catch((e) => alert(e.message));
+function oneTouchFocus() {
+  api.oneTouchFocus(props.camera.cameraNum, props.preset.id).catch((e) => alert(e.message));
 }
+function forgetFocus() {
+  api.forgetFocus(props.camera.cameraNum, props.preset.id).catch((e) => alert(e.message));
+}
+const canOneTouch = computed(() => isActive.value && props.camera.supportsFocus !== false && !props.camera.autoFocus);
 const menuItems = computed(() => [
-  // Locked presets can always be unlocked; on the active preset the focus item takes the place of
-  // the (then pointless) disabled queue item.
-  ...(props.preset.focusLocked ? [{ label: 'Unlock Focus', action: () => setFocusLock(false) }] : []),
+  ...(canOneTouch.value ? [{ label: 'One-Touch Focus', action: oneTouchFocus }] : []),
+  ...(props.preset.hasFocus ? [{ label: 'Forget Focus', action: forgetFocus }] : []),
   ...(isActive.value
-    ? props.preset.focusLocked || props.camera.supportsFocus === false
-      ? []
-      : [{ label: 'Lock Focus', action: () => setFocusLock(true) }]
+    ? []
     : [
         {
           label: isQueued.value ? 'Unqueue Preset' : 'Queue Preset',

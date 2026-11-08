@@ -472,6 +472,16 @@ h3 {
   color: #fff;
 }
 
+.help-desc .auto-focus-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 7px;
+  line-height: 1.2;
+  border-radius: 4px;
+  background: #d96709;
+  color: #fff;
+}
+
 .preset-scroll {
   flex: 1 1 auto;
   overflow-y: scroll;
@@ -1689,4 +1699,12 @@ button.naked-btn:hover:not(:disabled) {
 .manage-radio-group input {
   width: auto;
   margin: 0;
+}
+
+.save-focus-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  font-size: 0.9em;
 }

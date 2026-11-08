@@ -27,6 +27,10 @@
       </div>
     </div>
 
+    <label v-if="showSaveFocus" class="save-focus-check">
+      <input type="checkbox" v-model="saveFocus" /> Save current focus (only if the shot is actually in focus)
+    </label>
+
     <p v-if="error" class="error-text">{{ error }}</p>
 
     <div class="modal-actions">
@@ -50,6 +54,8 @@ const cameraLabel = computed(() => cameraName(props.camera));
 const name = ref(`Preset ${props.camera.presets.length + 1}`);
 const groupIds = ref([]);
 const error = ref('');
+const showSaveFocus = computed(() => props.camera.supportsFocus !== false && !props.camera.autoFocus);
+const saveFocus = ref(false);
 const refreshTs = ref(Date.now());
 const nameEl = ref(null);
 
@@ -77,7 +83,7 @@ function onKeydown(e) {
 
 async function submit() {
   try {
-    await api.addPreset(props.camera.cameraNum, name.value.trim(), groupIds.value);
+    await api.addPreset(props.camera.cameraNum, name.value.trim(), groupIds.value, showSaveFocus.value && saveFocus.value);
     emit('close');
   } catch (e) {
     error.value = e.message;
