@@ -1,3 +1,7 @@
+# upcoming
+
+- obsbot tail 2 cameras can now read the zoom value
+
 # 0.8.0
 
 - added limited support for the obsbot tail 2 cameras

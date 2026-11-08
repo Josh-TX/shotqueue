@@ -9,7 +9,7 @@ const arg = (n, d) => Number((process.argv.find((a) => a.startsWith(`--${n}=`)) 
 const PORT = arg('port', 57110);
 const REPLY_PORT = arg('reply-port', 57120);
 
-let yaw = 0, pitch = 0, targetYaw = 0, targetPitch = 0, speed = 45;
+let zoom = 0, yaw = 0, pitch = 0, targetYaw = 0, targetPitch = 0, speed = 45;
 
 const pad = (n) => (4 - (n % 4)) % 4;
 const str = (s) => Buffer.concat([Buffer.from(s + '\0'), Buffer.alloc(pad(s.length + 1))]);
@@ -53,7 +53,10 @@ sock.on('message', (msg, rinfo) => {
   try { m = decode(msg); } catch { return; }
   console.log(`<- ${rinfo.address}:${rinfo.port} ${m.addr} ${JSON.stringify(m.args)}`);
   if (m.addr === '/OBSBOT/WebCam/General/Connected') {
+    sock.send(encode('/OBSBOT/WebCam/General/ZoomInfo', [zoom, -1]), REPLY_PORT, rinfo.address);
     sock.send(encode('/OBSBOT/WebCam/General/GetGimbalPosInfoResp', [pitch, yaw]), REPLY_PORT, rinfo.address);
+  } else if (m.addr === '/OBSBOT/WebCam/General/SetZoom' && m.args.length === 1) {
+    zoom = m.args[0];
   } else if (m.addr === '/OBSBOT/WebCam/General/SetGimMotorDegree' && m.args.length === 3) {
     [speed, targetYaw, targetPitch] = m.args;
     if (speed <= 0) speed = 45;

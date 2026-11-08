@@ -11,14 +11,16 @@ import (
 )
 
 // ObsbotClient talks to an OBSBOT Tail 2 directly (not via OBSBOT Center) over OSC/UDP. See
-// tail-cameras.md. Position is whole degrees: Pan = yaw, Tilt = pitch. Zoom is ignored (the
-// camera can't report it), so it's always 0.
+// obsbot-tail-camera-notes.md and tail-cameras-update.md. Position is whole degrees: Pan = yaw,
+// Tilt = pitch. Zoom is the camera's OSC ZoomInfo[0] value (0 = 1x, 88 ~ 10x; roughly
+// (ratio-1)*10-2).
 type ObsbotClient struct {
 	Host string
 	Port string
 
 	mu      sync.Mutex
 	pos     Position
+	zoom    int           // latest ZoomInfo[0]; it arrives just before the position reply
 	updated chan struct{} // closed (and replaced) whenever a position reply arrives
 }
 
@@ -31,12 +33,16 @@ const (
 	obsbotPanLimit  = 159
 	obsbotTiltLimit = 62
 	obsbotTolerance = 1 // degrees, on pan and tilt
+	obsbotZoomTol   = 2 // ZoomInfo units
+	obsbotZoomMax   = 100
 
 	obsbotReplyTimeout = 1500 * time.Millisecond
 
 	addrConnected = "/OBSBOT/WebCam/General/Connected"
 	addrPosResp   = "/OBSBOT/WebCam/General/GetGimbalPosInfoResp"
 	addrSetDegree = "/OBSBOT/WebCam/General/SetGimMotorDegree"
+	addrZoomInfo  = "/OBSBOT/WebCam/General/ZoomInfo"
+	addrSetZoom   = "/OBSBOT/WebCam/General/SetZoom"
 )
 
 func NewObsbot(host, port string) *ObsbotClient {
@@ -100,6 +106,7 @@ func obsbotReadLoop(conn *net.UDPConn) {
 		c.pos = Position{
 			Pan:  int(math.Round(args[1])),
 			Tilt: int(math.Round(args[0])),
+			Zoom: c.zoom,
 		}
 		close(c.updated)
 		c.updated = make(chan struct{})
@@ -142,13 +149,17 @@ func (c *ObsbotClient) GetPosition() (Position, error) {
 func (c *ObsbotClient) SetPositionRaw(pos Position) error {
 	pan := int32(clamp(pos.Pan, -obsbotPanLimit, obsbotPanLimit))
 	tilt := int32(clamp(pos.Tilt, -obsbotTiltLimit, obsbotTiltLimit))
-	_, err := c.send(addrSetDegree, obsbotMoveSpeed, pan, tilt)
+	if _, err := c.send(addrSetDegree, obsbotMoveSpeed, pan, tilt); err != nil {
+		return err
+	}
+	// Assumes SetZoom takes the same scale as ZoomInfo[0] (unverified on hardware).
+	_, err := c.send(addrSetZoom, int32(clamp(pos.Zoom, 0, obsbotZoomMax)))
 	return err
 }
 
-// CloseEnough ignores zoom, which the Tail 2 can't report.
 func (c *ObsbotClient) CloseEnough(a, b Position) bool {
-	return abs(a.Pan-b.Pan) <= obsbotTolerance && abs(a.Tilt-b.Tilt) <= obsbotTolerance
+	return abs(a.Pan-b.Pan) <= obsbotTolerance && abs(a.Tilt-b.Tilt) <= obsbotTolerance &&
+		abs(a.Zoom-b.Zoom) <= obsbotZoomTol
 }
 
 func (c *ObsbotClient) SupportsFocus() bool        { return false }
