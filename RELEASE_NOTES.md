@@ -1,4 +1,4 @@
-# upcoming
+# 0.8.1
 
 - obsbot tail 2 cameras can now read the zoom value
 - re-worked how focus is stored/utilized
